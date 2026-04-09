@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { to: '/admin/employees', label: 'Funcionários',  icon: '👤' },
   { to: '/admin/clocks',    label: 'Registros',     icon: '🕐' },
   { to: '/admin/blocked',   label: 'Bloqueios',     icon: '⛔' },
-  { to: '/admin/units',     label: 'Unidades',      icon: '📍' },
+  { to: '/admin/contracts', label: 'Contratos',     icon: '📋' },
   { to: '/admin/export',    label: 'Exportar',      icon: '📄' },
 ];
 

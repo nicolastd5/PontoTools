@@ -9,6 +9,7 @@ import AdminEmployeesPage      from './pages/admin/AdminEmployeesPage';
 import AdminClocksPage         from './pages/admin/AdminClocksPage';
 import AdminBlockedPage        from './pages/admin/AdminBlockedPage';
 import AdminUnitsPage          from './pages/admin/AdminUnitsPage';
+import AdminContractsPage     from './pages/admin/AdminContractsPage';
 import AdminExportPage         from './pages/admin/AdminExportPage';
 import EmployeeDashboardPage   from './pages/employee/EmployeeDashboardPage';
 import EmployeeHistoryPage     from './pages/employee/EmployeeHistoryPage';
@@ -67,6 +68,7 @@ function AppRoutes() {
         <Route path="clocks"     element={<AdminClocksPage />} />
         <Route path="blocked"    element={<AdminBlockedPage />} />
         <Route path="units"      element={<AdminUnitsPage />} />
+        <Route path="contracts"  element={<AdminContractsPage />} />
         <Route path="export"     element={<AdminExportPage />} />
       </Route>
 

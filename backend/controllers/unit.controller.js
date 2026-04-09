@@ -21,16 +21,16 @@ async function list(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { name, code, latitude, longitude, radius_meters = 100, address } = req.body;
+    const { name, code, latitude, longitude, radius_meters = 100, address, contract_id } = req.body;
 
     const result = await db.query(
-      `INSERT INTO units (name, code, latitude, longitude, radius_meters, address)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO units (name, code, latitude, longitude, radius_meters, address, contract_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name.trim(), code.trim().toUpperCase(), parseFloat(latitude), parseFloat(longitude), parseInt(radius_meters, 10), address]
+      [name.trim(), code.trim().toUpperCase(), parseFloat(latitude), parseFloat(longitude), parseInt(radius_meters, 10), address || null, contract_id ? parseInt(contract_id, 10) : null]
     );
 
-    logger.info('Unidade criada', { code });
+    logger.info('Posto criado', { code });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     next(err);
@@ -39,7 +39,7 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const { name, latitude, longitude, radius_meters, address } = req.body;
+    const { name, latitude, longitude, radius_meters, address, contract_id } = req.body;
     const id = parseInt(req.params.id, 10);
 
     const result = await db.query(
@@ -48,10 +48,11 @@ async function update(req, res, next) {
          latitude      = COALESCE($2, latitude),
          longitude     = COALESCE($3, longitude),
          radius_meters = COALESCE($4, radius_meters),
-         address       = COALESCE($5, address)
-       WHERE id = $6
+         address       = COALESCE($5, address),
+         contract_id   = COALESCE($6, contract_id)
+       WHERE id = $7
        RETURNING *`,
-      [name, latitude ? parseFloat(latitude) : null, longitude ? parseFloat(longitude) : null, radius_meters ? parseInt(radius_meters, 10) : null, address, id]
+      [name, latitude ? parseFloat(latitude) : null, longitude ? parseFloat(longitude) : null, radius_meters ? parseInt(radius_meters, 10) : null, address, contract_id ? parseInt(contract_id, 10) : null, id]
     );
 
     if (!result.rows[0]) {
