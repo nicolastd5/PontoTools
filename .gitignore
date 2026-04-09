@@ -1,0 +1,13 @@
+node_modules/
+.env
+*.log
+
+# Fotos dos funcionários (nunca versionadas)
+backend/storage/photos/
+
+# Build do frontend
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
