@@ -92,7 +92,7 @@ export default function AdminDashboardPage() {
           )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 260 }}>
+        <div style={{ flex: 1, minWidth: 0, width: '100%' }}>
           <AbsentEmployeesList
             employees={absentData?.employees || []}
             loading={loadingAbsent}

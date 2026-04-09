@@ -41,7 +41,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu.email@gov.br"
+              placeholder="seu.email@empresa.com"
               required
               autoComplete="email"
               style={styles.input}
@@ -71,7 +71,7 @@ export default function LoginPage() {
         </form>
 
         <p style={styles.hint}>
-          Conta de teste: <strong>admin@ponto.gov.br</strong> / <strong>Ponto@2025</strong>
+          Entre com seu email e senha cadastrados.
         </p>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useState }       from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth }         from '../../contexts/AuthContext';
 import { useToast }        from '../../contexts/ToastContext';
+import './AdminLayout.css';
 
 const NAV_ITEMS = [
   { to: '/admin/dashboard', label: 'Dashboard',     icon: '▦' },
@@ -25,14 +26,15 @@ export default function AdminLayout() {
   }
 
   return (
-    <div style={styles.root}>
+    <div className="admin-root">
       {/* Overlay mobile */}
-      {sidebarOpen && (
-        <div style={styles.overlay} onClick={() => setSidebarOpen(false)} />
-      )}
+      <div
+        className={`admin-overlay${sidebarOpen ? ' open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
       {/* Sidebar */}
-      <aside style={{ ...styles.sidebar, transform: sidebarOpen ? 'translateX(0)' : undefined }}>
+      <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`}>
         <div style={styles.sidebarHeader}>
           <span style={styles.logo}>P</span>
           <span style={styles.logoText}>Ponto Eletrônico</span>
@@ -68,15 +70,15 @@ export default function AdminLayout() {
       </aside>
 
       {/* Conteúdo principal */}
-      <div style={styles.main}>
+      <div className="admin-main">
         {/* Header mobile */}
-        <header style={styles.mobileHeader}>
+        <header className="admin-mobile-header">
           <button onClick={() => setSidebarOpen(true)} style={styles.menuBtn}>☰</button>
           <span style={styles.headerTitle}>Ponto Eletrônico</span>
           <div />
         </header>
 
-        <main style={styles.content}>
+        <main className="admin-content">
           <Outlet />
         </main>
       </div>
@@ -84,28 +86,7 @@ export default function AdminLayout() {
   );
 }
 
-const SIDEBAR_WIDTH = 240;
-
 const styles = {
-  root: { display: 'flex', minHeight: '100vh', background: '#f1f5f9' },
-  overlay: {
-    display:  'none',
-    position: 'fixed', inset: 0,
-    background: 'rgba(0,0,0,0.4)',
-    zIndex: 40,
-    '@media(maxWidth:768px)': { display: 'block' },
-  },
-  sidebar: {
-    width:     SIDEBAR_WIDTH,
-    minHeight: '100vh',
-    background: '#0f172a',
-    display:   'flex',
-    flexDirection: 'column',
-    position:  'fixed',
-    top: 0, left: 0, bottom: 0,
-    zIndex:    50,
-    transition: 'transform 0.25s',
-  },
   sidebarHeader: {
     display:    'flex',
     alignItems: 'center',
@@ -164,28 +145,9 @@ const styles = {
     width:        '100%',
     transition:   'all 0.15s',
   },
-  main: {
-    marginLeft: SIDEBAR_WIDTH,
-    flex: 1,
-    display:    'flex',
-    flexDirection: 'column',
-    minHeight:  '100vh',
-    // Mobile: sem margem (sidebar flutua)
-    '@media(maxWidth:768px)': { marginLeft: 0 },
-  },
-  mobileHeader: {
-    display:        'none',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    padding:        '14px 20px',
-    background:     '#fff',
-    borderBottom:   '1px solid #e2e8f0',
-    position:       'sticky', top: 0, zIndex: 30,
-  },
   menuBtn: {
     background: 'none', border: 'none',
     fontSize: 22, cursor: 'pointer', color: '#374151',
   },
   headerTitle: { fontWeight: 700, fontSize: 16, color: '#0f172a' },
-  content: { padding: '24px', flex: 1 },
 };

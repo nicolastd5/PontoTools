@@ -32,7 +32,7 @@ async function list(req, res, next) {
 
     const result = await db.query(
       `SELECT e.id, e.badge_number, e.full_name, e.email, e.active, e.created_at,
-              u.name AS unit_name, u.code AS unit_code
+              e.unit_id, u.name AS unit_name, u.code AS unit_code
        FROM employees e
        JOIN units u ON u.id = e.unit_id
        ${whereClause}
@@ -270,8 +270,8 @@ async function downloadTemplate(req, res, next) {
       // Cabeçalho
       ['matricula', 'nome_completo', 'email', 'senha_provisoria', 'unidade_codigo'],
       // Exemplos
-      ['CEF10_001', 'João da Silva', 'joao.silva@cef10.gov.br', 'Senha@2025', 'CEF10'],
-      ['CEF11_002', 'Maria Santos',  'maria.santos@cef11.gov.br', 'Senha@2025', 'CEF11'],
+      ['CEF10_001', 'João da Silva', 'joao.silva@empresa.com', 'Senha@2025', 'CEF10'],
+      ['CEF11_002', 'Maria Santos',  'maria.santos@empresa.com', 'Senha@2025', 'CEF11'],
     ];
 
     const sheet = XLSX.utils.aoa_to_sheet(data);

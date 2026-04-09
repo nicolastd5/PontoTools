@@ -15,12 +15,16 @@ function useUnits() {
   return useQuery({ queryKey: ['units'], queryFn: () => api.get('/units').then((r) => r.data.units) });
 }
 
+const EMPTY_FORM = { unit_id: '', badge_number: '', full_name: '', email: '', password: '' };
+
 export default function AdminEmployeesPage() {
   const queryClient = useQueryClient();
   const { success, error } = useToast();
   const [filters, setFilters] = useState({ unitId: '', active: '' });
   const [page, setPage]       = useState(1);
-  const [modal, setModal]     = useState(null); // null | 'create' | 'import'
+  const [modal, setModal]     = useState(null); // null | 'create' | 'edit' | 'import'
+  const [form, setForm]       = useState(EMPTY_FORM);
+  const [editId, setEditId]   = useState(null);
   const fileRef = useRef();
 
   const { data, isLoading } = useEmployees(
@@ -35,6 +39,26 @@ export default function AdminEmployeesPage() {
     onError:   () => error('Erro ao alterar status.'),
   });
 
+  const createMutation = useMutation({
+    mutationFn: (body) => api.post('/employees', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['employees']);
+      success('Funcionário criado com sucesso.');
+      closeModal();
+    },
+    onError: (err) => error(err.response?.data?.error || 'Erro ao criar funcionário.'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }) => api.put(`/employees/${id}`, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['employees']);
+      success('Funcionário atualizado.');
+      closeModal();
+    },
+    onError: (err) => error(err.response?.data?.error || 'Erro ao atualizar funcionário.'),
+  });
+
   const importMutation = useMutation({
     mutationFn: (formData) => api.post('/employees/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -46,6 +70,41 @@ export default function AdminEmployeesPage() {
     },
     onError: () => error('Erro na importação. Verifique o arquivo.'),
   });
+
+  function openCreate() {
+    setForm(EMPTY_FORM);
+    setEditId(null);
+    setModal('form');
+  }
+
+  function openEdit(row) {
+    setForm({
+      unit_id:      row.unit_id || '',
+      badge_number: row.badge_number,
+      full_name:    row.full_name,
+      email:        row.email,
+      password:     '',
+    });
+    setEditId(row.id);
+    setModal('form');
+  }
+
+  function closeModal() {
+    setModal(null);
+    setForm(EMPTY_FORM);
+    setEditId(null);
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const body = { ...form, unit_id: parseInt(form.unit_id, 10) };
+    if (!body.password) delete body.password;
+    if (editId) {
+      updateMutation.mutate({ id: editId, body });
+    } else {
+      createMutation.mutate(body);
+    }
+  }
 
   async function handleImport(e) {
     const file = e.target.files?.[0];
@@ -86,28 +145,30 @@ export default function AdminEmployeesPage() {
     {
       key: 'id', label: 'Ações',
       render: (v, row) => (
-        <button
-          onClick={() => toggleActive.mutate({ id: v, active: !row.active })}
-          style={actionBtn}
-        >
-          {row.active ? 'Desativar' : 'Ativar'}
-        </button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => openEdit(row)} style={actionBtn}>Editar</button>
+          <button
+            onClick={() => toggleActive.mutate({ id: v, active: !row.active })}
+            style={actionBtn}
+          >
+            {row.active ? 'Desativar' : 'Ativar'}
+          </button>
+        </div>
       ),
     },
   ];
+
+  const isSaving = createMutation.isLoading || updateMutation.isLoading;
 
   return (
     <div>
       <div style={styles.header}>
         <h1 style={styles.title}>Funcionários</h1>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={downloadTemplate} style={styles.outlineBtn}>
-            Baixar template
-          </button>
-          <button onClick={() => { fileRef.current?.click(); }} style={styles.outlineBtn}>
-            Importar XLSX
-          </button>
+          <button onClick={downloadTemplate} style={styles.outlineBtn}>Baixar template</button>
+          <button onClick={() => { fileRef.current?.click(); }} style={styles.outlineBtn}>Importar XLSX</button>
           <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={handleImport} />
+          <button onClick={openCreate} style={styles.primaryBtn}>+ Novo Funcionário</button>
         </div>
       </div>
 
@@ -132,6 +193,77 @@ export default function AdminEmployeesPage() {
           emptyMessage={isLoading ? 'Carregando...' : 'Nenhum funcionário encontrado.'}
         />
       </div>
+
+      {/* Modal criar/editar */}
+      {modal === 'form' && (
+        <div style={overlay} onClick={closeModal}>
+          <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modalTitle}>{editId ? 'Editar Funcionário' : 'Novo Funcionário'}</h2>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Unidade *</label>
+                <select
+                  value={form.unit_id}
+                  onChange={(e) => setForm((p) => ({ ...p, unit_id: e.target.value }))}
+                  required
+                  style={inputStyle}
+                >
+                  <option value="">Selecione a unidade</option>
+                  {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Matrícula *</label>
+                <input
+                  value={form.badge_number}
+                  onChange={(e) => setForm((p) => ({ ...p, badge_number: e.target.value }))}
+                  required
+                  placeholder="CEF10_001"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Nome completo *</label>
+                <input
+                  value={form.full_name}
+                  onChange={(e) => setForm((p) => ({ ...p, full_name: e.target.value }))}
+                  required
+                  placeholder="João da Silva"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Email *</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                  required
+                  placeholder="joao@empresa.com"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>{editId ? 'Nova senha (deixe em branco para manter)' : 'Senha *'}</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                  required={!editId}
+                  placeholder="Mínimo 6 caracteres"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button type="button" onClick={closeModal} style={styles.outlineBtn}>Cancelar</button>
+                <button type="submit" disabled={isSaving} style={{ ...styles.primaryBtn, opacity: isSaving ? 0.7 : 1 }}>
+                  {isSaving ? 'Salvando...' : editId ? 'Salvar' : 'Criar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -140,6 +272,25 @@ const actionBtn = {
   padding: '4px 12px', fontSize: 12, cursor: 'pointer',
   border: '1px solid #e2e8f0', borderRadius: 6,
   background: '#f8fafc', color: '#374151',
+};
+
+const overlay = {
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+};
+
+const modalCard = {
+  background: '#fff', borderRadius: 12, padding: '32px 28px',
+  width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+};
+
+const modalTitle = { fontSize: 20, fontWeight: 700, color: '#0f172a', marginBottom: 20 };
+
+const fieldStyle = { display: 'flex', flexDirection: 'column', gap: 5 };
+const labelStyle = { fontSize: 13, fontWeight: 600, color: '#374151' };
+const inputStyle = {
+  padding: '9px 12px', border: '1.5px solid #e2e8f0',
+  borderRadius: 8, fontSize: 14, color: '#1e293b', outline: 'none',
 };
 
 const styles = {
@@ -154,6 +305,11 @@ const styles = {
     padding: '8px 16px', border: '1.5px solid #1d4ed8',
     borderRadius: 8, fontSize: 14, cursor: 'pointer',
     color: '#1d4ed8', background: '#fff', fontWeight: 600,
+  },
+  primaryBtn: {
+    padding: '8px 16px', border: 'none',
+    borderRadius: 8, fontSize: 14, cursor: 'pointer',
+    color: '#fff', background: '#1d4ed8', fontWeight: 600,
   },
   card: { background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' },
 };
