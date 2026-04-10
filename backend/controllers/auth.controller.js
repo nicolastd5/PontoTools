@@ -96,7 +96,7 @@ async function login(req, res, next) {
 // ----------------------------------------------------------------
 async function refresh(req, res, next) {
   try {
-    const rawToken = req.cookies?.refreshToken;
+    const rawToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (!rawToken) {
       return res.status(401).json({ error: 'Refresh token não encontrado.' });
