@@ -24,4 +24,12 @@ router.post('/logout', auth, controller.logout);
 // GET /api/auth/me
 router.get('/me', auth, controller.me);
 
+// PUT /api/auth/profile
+router.put('/profile',
+  auth,
+  body('currentPassword').notEmpty().withMessage('Senha atual obrigatória.'),
+  validate,
+  controller.updateProfile
+);
+
 module.exports = router;

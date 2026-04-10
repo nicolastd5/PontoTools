@@ -203,4 +203,58 @@ async function me(req, res, next) {
   }
 }
 
-module.exports = { login, refresh, logout, me };
+// ----------------------------------------------------------------
+// PUT /api/auth/profile
+// Atualiza email e/ou senha do próprio usuário
+// ----------------------------------------------------------------
+async function updateProfile(req, res, next) {
+  try {
+    const { email, currentPassword, newPassword } = req.body;
+    const id = req.user.id;
+
+    // Busca usuário atual para verificar senha
+    const result = await db.query(
+      `SELECT password_hash, email FROM employees WHERE id = $1`,
+      [id]
+    );
+    const emp = result.rows[0];
+    if (!emp) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    // Valida senha atual
+    const valid = await bcrypt.compare(currentPassword, emp.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Senha atual incorreta.' });
+
+    // Monta campos a atualizar
+    const updates = [];
+    const params  = [];
+
+    if (email && email.toLowerCase().trim() !== emp.email) {
+      params.push(email.toLowerCase().trim());
+      updates.push(`email = $${params.length}`);
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 6) return res.status(400).json({ error: 'Nova senha mínima de 6 caracteres.' });
+      const hash = await bcrypt.hash(newPassword, 12);
+      params.push(hash);
+      updates.push(`password_hash = $${params.length}`);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma alteração informada.' });
+    }
+
+    params.push(id);
+    await db.query(
+      `UPDATE employees SET ${updates.join(', ')} WHERE id = $${params.length}`,
+      params
+    );
+
+    logger.info('Perfil atualizado', { employeeId: id });
+    res.json({ message: 'Perfil atualizado com sucesso.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { login, refresh, logout, me, updateProfile };

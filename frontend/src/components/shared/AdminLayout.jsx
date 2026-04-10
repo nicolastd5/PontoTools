@@ -72,6 +72,9 @@ export default function AdminLayout() {
               <div style={styles.userRole}>Administrador</div>
             </div>
           </div>
+          <NavLink to="/admin/profile" style={({ isActive }) => ({ ...styles.profileLink, background: isActive ? '#1e293b' : 'transparent' })}>
+            Meu Perfil
+          </NavLink>
           <button onClick={handleLogout} style={styles.logoutBtn}>Sair</button>
         </div>
       </aside>
@@ -141,6 +144,17 @@ const styles = {
   },
   userName: { color: '#f1f5f9', fontSize: 13, fontWeight: 600 },
   userRole: { color: '#64748b', fontSize: 11 },
+  profileLink: {
+    display:      'block',
+    textAlign:    'center',
+    padding:      '7px',
+    borderRadius: 6,
+    color:        '#94a3b8',
+    fontSize:     13,
+    textDecoration: 'none',
+    fontWeight:   500,
+    transition:   'all 0.15s',
+  },
   logoutBtn: {
     background:   'transparent',
     border:       '1px solid rgba(255,255,255,0.15)',
