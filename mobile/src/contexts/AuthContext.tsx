@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restaura sessão ao abrir o app
   useEffect(() => {
     AsyncStorage.getItem('user').then((stored) => {
       if (stored) setUser(JSON.parse(stored));
@@ -52,7 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ['user', JSON.stringify(data.user)],
     ]);
 
-    // Busca detalhes da unidade para usar no GPS
     const unitRes = await api.get(`/units/${data.user.unitId}`);
     const unit = unitRes.data;
 
@@ -72,11 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    try {
-      await api.post('/auth/logout');
-    } catch {
-      // ignora erros de rede no logout
-    }
+    try { await api.post('/auth/logout'); } catch {}
     await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
     setUser(null);
   }

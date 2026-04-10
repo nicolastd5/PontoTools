@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import Geolocation from 'react-native-geolocation-service';
-import { PermissionsAndroid, Platform } from 'react-native';
 
 interface Unit {
   latitude: number;
@@ -35,60 +33,35 @@ export function useGeolocation(unit: Unit | null | undefined) {
   const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function start() {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Permissão de Localização',
-            message: 'O app precisa da sua localização para registrar o ponto.',
-            buttonPositive: 'Permitir',
-            buttonNegative: 'Negar',
-          },
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          if (!cancelled) setStatus('denied');
-          return;
-        }
-      }
-
-      watchIdRef.current = Geolocation.watchPosition(
-        (position) => {
-          if (cancelled) return;
-          const { latitude, longitude, accuracy } = position.coords;
-          setCoords({ latitude, longitude, accuracy });
-          setStatus('granted');
-
-          if (unit?.latitude && unit?.longitude) {
-            const dist = haversineDistance(latitude, longitude, unit.latitude, unit.longitude);
-            setDistanceMeters(Math.round(dist * 10) / 10);
-          }
-        },
-        (err) => {
-          if (cancelled) return;
-          setStatus(err.code === 1 ? 'denied' : 'unavailable');
-          setCoords(null);
-        },
-        { enableHighAccuracy: true, distanceFilter: 5, interval: 5000, fastestInterval: 2000 },
-      );
+    if (!navigator.geolocation) {
+      setStatus('unavailable');
+      return;
     }
 
-    start();
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        setCoords({ latitude, longitude, accuracy });
+        setStatus('granted');
+        if (unit?.latitude && unit?.longitude) {
+          const dist = haversineDistance(latitude, longitude, unit.latitude, unit.longitude);
+          setDistanceMeters(Math.round(dist * 10) / 10);
+        }
+      },
+      (err) => {
+        setStatus(err.code === 1 ? 'denied' : 'unavailable');
+        setCoords(null);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+    );
 
     return () => {
-      cancelled = true;
-      if (watchIdRef.current !== null) {
-        Geolocation.clearWatch(watchIdRef.current);
-      }
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current!);
     };
   }, [unit]);
 
   const isInsideZone = Boolean(
-    unit?.radiusMeters &&
-    distanceMeters !== null &&
-    distanceMeters <= unit.radiusMeters,
+    unit?.radiusMeters && distanceMeters !== null && distanceMeters <= unit.radiusMeters,
   );
 
   return { status, coords, distanceMeters, isInsideZone };

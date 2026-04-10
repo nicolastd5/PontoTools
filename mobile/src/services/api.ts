@@ -8,7 +8,6 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Injeta o access token em toda requisição
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('accessToken');
   if (token) {
@@ -17,7 +16,6 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Renova o access token automaticamente quando recebe 401
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (v: string) => void; reject: (e: unknown) => void }> = [];
 
@@ -30,7 +28,6 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-
     if (error.response?.status === 401 && !original._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -40,18 +37,12 @@ api.interceptors.response.use(
           return api(original);
         });
       }
-
       original._retry = true;
       isRefreshing = true;
-
       try {
         const refreshToken = await AsyncStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('Sem refresh token');
-
-        const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, {
-          refreshToken,
-        });
-
+        const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken });
         await AsyncStorage.setItem('accessToken', data.accessToken);
         processQueue(null, data.accessToken);
         original.headers.Authorization = `Bearer ${data.accessToken}`;
@@ -64,7 +55,6 @@ api.interceptors.response.use(
         isRefreshing = false;
       }
     }
-
     return Promise.reject(error);
   },
 );
