@@ -28,9 +28,11 @@ export default function AdminEmployeesPage() {
   const isAdmin = user?.role === 'admin';
   const [filters, setFilters] = useState({ unitId: '', active: '' });
   const [page, setPage]       = useState(1);
-  const [modal, setModal]     = useState(null); // null | 'create' | 'edit' | 'import'
-  const [form, setForm]       = useState(EMPTY_FORM);
-  const [editId, setEditId]   = useState(null);
+  const [modal, setModal]       = useState(null); // null | 'form' | 'reset-password'
+  const [form, setForm]         = useState(EMPTY_FORM);
+  const [editId, setEditId]     = useState(null);
+  const [resetTarget, setResetTarget] = useState(null); // { id, name }
+  const [newPassword, setNewPassword] = useState('');
   const fileRef = useRef();
 
   const { data, isLoading } = useEmployees(
@@ -64,6 +66,17 @@ export default function AdminEmployeesPage() {
       closeModal();
     },
     onError: (err) => error(err.response?.data?.error || 'Erro ao atualizar funcionário.'),
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: ({ id, newPassword }) => api.patch(`/employees/${id}/reset-password`, { newPassword }),
+    onSuccess: () => {
+      success('Senha redefinida com sucesso.');
+      setModal(null);
+      setResetTarget(null);
+      setNewPassword('');
+    },
+    onError: (err) => error(err.response?.data?.error || 'Erro ao redefinir senha.'),
   });
 
   const importMutation = useMutation({
@@ -100,6 +113,14 @@ export default function AdminEmployeesPage() {
     setModal(null);
     setForm(EMPTY_FORM);
     setEditId(null);
+    setResetTarget(null);
+    setNewPassword('');
+  }
+
+  function openResetPassword(row) {
+    setResetTarget({ id: row.id, name: row.full_name });
+    setNewPassword('');
+    setModal('reset-password');
   }
 
   async function handleSubmit(e) {
@@ -160,6 +181,11 @@ export default function AdminEmployeesPage() {
           >
             {row.active ? 'Desativar' : 'Ativar'}
           </button>
+          {isAdmin && (
+            <button onClick={() => openResetPassword(row)} style={{ ...actionBtn, color: '#b45309', borderColor: '#fde68a' }}>
+              Resetar senha
+            </button>
+          )}
         </div>
       ),
     },
@@ -200,6 +226,49 @@ export default function AdminEmployeesPage() {
           emptyMessage={isLoading ? 'Carregando...' : 'Nenhum funcionário encontrado.'}
         />
       </div>
+
+      {/* Modal resetar senha */}
+      {modal === 'reset-password' && resetTarget && (
+        <div style={overlay} onClick={closeModal}>
+          <div style={{ ...modalCard, maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modalTitle}>Resetar senha</h2>
+            <p style={{ fontSize: 14, color: '#475569', marginBottom: 20 }}>
+              Defina uma nova senha para <strong>{resetTarget.name}</strong>.
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                resetPasswordMutation.mutate({ id: resetTarget.id, newPassword });
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            >
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Nova senha *</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Mínimo 6 caracteres"
+                  style={inputStyle}
+                  autoFocus
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button type="button" onClick={closeModal} style={styles.outlineBtn}>Cancelar</button>
+                <button
+                  type="submit"
+                  disabled={resetPasswordMutation.isLoading}
+                  style={{ ...styles.primaryBtn, background: '#b45309', opacity: resetPasswordMutation.isLoading ? 0.7 : 1 }}
+                >
+                  {resetPasswordMutation.isLoading ? 'Salvando...' : 'Redefinir senha'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal criar/editar */}
       {modal === 'form' && (

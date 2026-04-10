@@ -333,4 +333,40 @@ async function downloadTemplate(req, res, next) {
   }
 }
 
-module.exports = { list, create, getById, update, toggleActive, importEmployees, downloadTemplate };
+// ----------------------------------------------------------------
+// PATCH /api/employees/:id/reset-password  (admin only)
+// ----------------------------------------------------------------
+async function resetPasswordByAdmin(req, res, next) {
+  try {
+    const { newPassword } = req.body;
+    const id = parseInt(req.params.id, 10);
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres.' });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+
+    const result = await db.query(
+      `UPDATE employees SET password_hash = $1 WHERE id = $2`,
+      [hash, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Funcionário não encontrado.' });
+    }
+
+    // Revoga todos os refresh tokens ativos do usuário
+    await db.query(
+      `UPDATE refresh_tokens SET revoked = TRUE WHERE employee_id = $1 AND revoked = FALSE`,
+      [id]
+    );
+
+    logger.info('Senha resetada pelo admin', { targetEmployeeId: id, adminId: req.user.id });
+    res.json({ message: 'Senha redefinida com sucesso.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, getById, update, toggleActive, importEmployees, downloadTemplate, resetPasswordByAdmin };

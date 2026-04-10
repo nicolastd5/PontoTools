@@ -43,4 +43,13 @@ router.put('/:id', auditLog('EMPLOYEE_UPDATED', 'employee'), controller.update);
 // PATCH /api/employees/:id/active
 router.patch('/:id/active', auditLog('EMPLOYEE_TOGGLED', 'employee'), controller.toggleActive);
 
+// PATCH /api/employees/:id/reset-password — apenas admin
+router.patch('/:id/reset-password',
+  requireAdmin,
+  body('newPassword').isLength({ min: 6 }).withMessage('Senha mínima de 6 caracteres.'),
+  validate,
+  auditLog('EMPLOYEE_PASSWORD_RESET', 'employee'),
+  controller.resetPasswordByAdmin
+);
+
 module.exports = router;
