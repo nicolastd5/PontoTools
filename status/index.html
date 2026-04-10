@@ -144,17 +144,25 @@
   </div>
 
   <script>
-    const BASE = window.location.origin;
+    function buildServiceUrl(port, path = '/') {
+      const base = new URL(`${window.location.protocol}//${window.location.hostname}`);
+      base.port = String(port);
+      base.pathname = path;
+      return base.toString();
+    }
+
     const SERVICES = [
       {
         name: 'Backend API',
-        url: BASE.replace(':8080', ':3001').replace(/:80$/, '') + ':3001/health',
-        description: 'Servidor Express.js + PostgreSQL'
+        url: buildServiceUrl(3001, '/health'),
+        description: 'Servidor Express.js + PostgreSQL',
+        check: 'http'
       },
       {
         name: 'Frontend Web',
-        url: BASE.replace(':8080', ':5173').replace(/:80$/, '') + ':5173',
-        description: 'React + Vite (Dashboard)'
+        url: buildServiceUrl(5173, '/'),
+        description: 'React + Vite (Dashboard)',
+        check: 'reachability'
       }
     ];
 
@@ -216,14 +224,32 @@
 
     async function checkService(service) {
       const start = Date.now();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        await fetch(service.url, { mode: 'no-cors', signal: controller.signal });
-        clearTimeout(timeout);
+        if (service.check === 'http') {
+          const response = await fetch(service.url, {
+            cache: 'no-store',
+            signal: controller.signal
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+        } else {
+          await fetch(service.url, {
+            mode: 'no-cors',
+            cache: 'no-store',
+            signal: controller.signal
+          });
+        }
+
         return { ...service, status: 'online', responseTime: Date.now() - start };
       } catch {
         return { ...service, status: 'offline', responseTime: null };
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
