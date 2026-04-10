@@ -5,7 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'mobile/**'
-  workflow_dispatch:  # permite rodar manualmente pelo GitHub
+  workflow_dispatch:
 
 jobs:
   build:
@@ -15,22 +15,22 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: mobile/package-lock.json
-
       - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Instalar dependências
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências (limpo)
         working-directory: mobile
-        run: npm install --legacy-peer-deps
+        run: |
+          rm -rf node_modules
+          npm install --legacy-peer-deps
 
       - name: Tornar gradlew executável
         working-directory: mobile/android
@@ -38,9 +38,7 @@ jobs:
 
       - name: Build APK debug
         working-directory: mobile/android
-        run: ./gradlew assembleDebug --no-daemon
-        env:
-          ANDROID_HOME: ${{ steps.setup-android.outputs.sdk-root }}
+        run: ./gradlew assembleDebug --no-daemon --warning-mode=none
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
