@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api       from '../../services/api';
 import Table     from '../../components/shared/Table';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 function useEmployees(filters, page) {
   return useQuery({
@@ -14,12 +15,17 @@ function useEmployees(filters, page) {
 function useUnits() {
   return useQuery({ queryKey: ['units'], queryFn: () => api.get('/units').then((r) => r.data.units) });
 }
+function useContracts() {
+  return useQuery({ queryKey: ['contracts'], queryFn: () => api.get('/contracts').then((r) => r.data.contracts) });
+}
 
-const EMPTY_FORM = { unit_id: '', badge_number: '', full_name: '', email: '', password: '' };
+const EMPTY_FORM = { unit_id: '', badge_number: '', full_name: '', email: '', password: '', role: 'employee', contract_id: '' };
 
 export default function AdminEmployeesPage() {
   const queryClient = useQueryClient();
   const { success, error } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [filters, setFilters] = useState({ unitId: '', active: '' });
   const [page, setPage]       = useState(1);
   const [modal, setModal]     = useState(null); // null | 'create' | 'edit' | 'import'
@@ -32,6 +38,7 @@ export default function AdminEmployeesPage() {
     page
   );
   const { data: units = [] } = useUnits();
+  const { data: contracts = [] } = useContracts();
 
   const toggleActive = useMutation({
     mutationFn: ({ id, active }) => api.patch(`/employees/${id}/active`, { active }),
@@ -165,8 +172,8 @@ export default function AdminEmployeesPage() {
       <div style={styles.header}>
         <h1 style={styles.title}>Funcionários</h1>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={downloadTemplate} style={styles.outlineBtn}>Baixar template</button>
-          <button onClick={() => { fileRef.current?.click(); }} style={styles.outlineBtn}>Importar XLSX</button>
+          {isAdmin && <button onClick={downloadTemplate} style={styles.outlineBtn}>Baixar template</button>}
+          {isAdmin && <button onClick={() => { fileRef.current?.click(); }} style={styles.outlineBtn}>Importar XLSX</button>}
           <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: 'none' }} onChange={handleImport} />
           <button onClick={openCreate} style={styles.primaryBtn}>+ Novo Funcionário</button>
         </div>
@@ -200,6 +207,24 @@ export default function AdminEmployeesPage() {
           <div style={modalCard} onClick={(e) => e.stopPropagation()}>
             <h2 style={modalTitle}>{editId ? 'Editar Funcionário' : 'Novo Funcionário'}</h2>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {isAdmin && (
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>Tipo de usuário</label>
+                  <select value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))} style={inputStyle}>
+                    <option value="employee">Funcionário</option>
+                    <option value="gestor">Gestor</option>
+                  </select>
+                </div>
+              )}
+              {isAdmin && form.role === 'gestor' && (
+                <div style={fieldStyle}>
+                  <label style={labelStyle}>Contrato do gestor *</label>
+                  <select value={form.contract_id} onChange={(e) => setForm((p) => ({ ...p, contract_id: e.target.value }))} required={form.role === 'gestor'} style={inputStyle}>
+                    <option value="">Selecione o contrato</option>
+                    {contracts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div style={fieldStyle}>
                 <label style={labelStyle}>Unidade *</label>
                 <select

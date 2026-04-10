@@ -14,6 +14,12 @@ async function list(req, res, next) {
     const params  = [];
     const filters = ['e.role = \'employee\''];
 
+    // Gestor só vê funcionários do seu contrato
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      filters.push(`u.contract_id = $${params.length}`);
+    }
+
     if (unitId) {
       params.push(parseInt(unitId, 10));
       filters.push(`e.unit_id = $${params.length}`);
@@ -65,18 +71,26 @@ async function list(req, res, next) {
 // ----------------------------------------------------------------
 async function create(req, res, next) {
   try {
-    const { unit_id, badge_number, full_name, email, password } = req.body;
+    const { unit_id, badge_number, full_name, email, password, role, contract_id } = req.body;
+
+    // Apenas admin pode criar gestores
+    const finalRole = (role === 'gestor' && req.user?.role === 'admin') ? 'gestor' : 'employee';
+
+    // Gestor criando funcionário: força contract_id do próprio gestor
+    const finalContractId = req.user?.role === 'gestor'
+      ? req.user.contractId
+      : (contract_id ? parseInt(contract_id, 10) : null);
 
     const passwordHash = await bcrypt.hash(password, 12);
 
     const result = await db.query(
-      `INSERT INTO employees (unit_id, badge_number, full_name, email, password_hash)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, badge_number, full_name, email, active, created_at`,
-      [unit_id, badge_number.trim(), full_name.trim(), email.toLowerCase().trim(), passwordHash]
+      `INSERT INTO employees (unit_id, badge_number, full_name, email, password_hash, role, contract_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, badge_number, full_name, email, role, active, created_at`,
+      [unit_id, badge_number.trim(), full_name.trim(), email.toLowerCase().trim(), passwordHash, finalRole, finalContractId]
     );
 
-    logger.info('Funcionário criado', { badgeNumber: badge_number });
+    logger.info('Funcionário/gestor criado', { badgeNumber: badge_number, role: finalRole });
     res.status(201).json(result.rows[0]);
   } catch (err) {
     next(err);

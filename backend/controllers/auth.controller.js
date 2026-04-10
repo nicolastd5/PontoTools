@@ -26,6 +26,7 @@ async function login(req, res, next) {
       [email.toLowerCase().trim()]
     );
 
+
     const employee = result.rows[0];
 
     // Verifica senha (mesmo se o usuário não existir, para evitar timing attack)
@@ -40,10 +41,11 @@ async function login(req, res, next) {
     // Gera access token (curta duração)
     const accessToken = jwt.sign(
       {
-        sub:    employee.id,
-        role:   employee.role,
-        unitId: employee.unit_id,
-        email:  employee.email,
+        sub:        employee.id,
+        role:       employee.role,
+        unitId:     employee.unit_id,
+        contractId: employee.contract_id || null,
+        email:      employee.email,
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
@@ -73,14 +75,15 @@ async function login(req, res, next) {
     res.json({
       accessToken,
       user: {
-        id:         employee.id,
-        name:       employee.full_name,
-        email:      employee.email,
-        role:       employee.role,
+        id:          employee.id,
+        name:        employee.full_name,
+        email:       employee.email,
+        role:        employee.role,
         badgeNumber: employee.badge_number,
-        unitId:     employee.unit_id,
-        unitName:   employee.unit_name,
-        unitCode:   employee.unit_code,
+        unitId:      employee.unit_id,
+        unitName:    employee.unit_name,
+        unitCode:    employee.unit_code,
+        contractId:  employee.contract_id || null,
       },
     });
   } catch (err) {
@@ -102,7 +105,7 @@ async function refresh(req, res, next) {
     const tokenHash = hashToken(rawToken);
 
     const result = await db.query(
-      `SELECT rt.*, e.role, e.unit_id, e.email, e.active
+      `SELECT rt.*, e.role, e.unit_id, e.contract_id, e.email, e.active
        FROM refresh_tokens rt
        JOIN employees e ON e.id = rt.employee_id
        WHERE rt.token_hash = $1`,
@@ -122,10 +125,11 @@ async function refresh(req, res, next) {
     // Emite novo access token
     const accessToken = jwt.sign(
       {
-        sub:    tokenRecord.employee_id,
-        role:   tokenRecord.role,
-        unitId: tokenRecord.unit_id,
-        email:  tokenRecord.email,
+        sub:        tokenRecord.employee_id,
+        role:       tokenRecord.role,
+        unitId:     tokenRecord.unit_id,
+        contractId: tokenRecord.contract_id || null,
+        email:      tokenRecord.email,
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }

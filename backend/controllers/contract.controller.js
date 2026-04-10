@@ -5,26 +5,36 @@ const logger = require('../utils/logger');
 // Retorna todos os contratos com seus postos
 async function list(req, res, next) {
   try {
+    const isGestor = req.user.role === 'gestor';
+    const contractFilter = isGestor && req.user.contractId
+      ? `WHERE id = ${parseInt(req.user.contractId, 10)}`
+      : '';
+
     const contracts = await db.query(
       `SELECT id, name, code, description, active, created_at
        FROM contracts
+       ${contractFilter}
        ORDER BY name`
     );
+
+    const unitContractFilter = isGestor && req.user.contractId
+      ? `WHERE contract_id = ${parseInt(req.user.contractId, 10)}`
+      : '';
 
     const units = await db.query(
       `SELECT id, contract_id, name, code, latitude, longitude, radius_meters, address, active
        FROM units
+       ${unitContractFilter}
        ORDER BY name`
     );
 
-    // Agrupa postos por contrato
     const result = contracts.rows.map((c) => ({
       ...c,
       units: units.rows.filter((u) => u.contract_id === c.id),
     }));
 
-    // Postos sem contrato
-    const unassigned = units.rows.filter((u) => !u.contract_id);
+    // Postos sem contrato (apenas para admin)
+    const unassigned = isGestor ? [] : units.rows.filter((u) => !u.contract_id);
 
     res.json({ contracts: result, unassigned });
   } catch (err) {

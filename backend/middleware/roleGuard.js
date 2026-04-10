@@ -11,8 +11,17 @@ function requireAdmin(req, res, next) {
 }
 
 /**
+ * Permite acesso a admin ou gestor.
+ */
+function requireAdminOrGestor(req, res, next) {
+  if (!['admin', 'gestor'].includes(req.user?.role)) {
+    return res.status(403).json({ error: 'Acesso restrito a administradores e gestores.' });
+  }
+  next();
+}
+
+/**
  * Permite acesso a qualquer usuário autenticado (admin ou employee).
- * Usado em conjunto com authMiddleware — garante apenas que req.user existe.
  */
 function requireEmployee(req, res, next) {
   if (!req.user) {
@@ -21,4 +30,4 @@ function requireEmployee(req, res, next) {
   next();
 }
 
-module.exports = { requireAdmin, requireEmployee };
+module.exports = { requireAdmin, requireAdminOrGestor, requireEmployee };

@@ -4,26 +4,26 @@ const router   = express.Router();
 const controller        = require('../controllers/admin.controller');
 const exportController  = require('../controllers/export.controller');
 const auth              = require('../middleware/auth');
-const { requireAdmin }  = require('../middleware/roleGuard');
+const { requireAdmin, requireAdminOrGestor } = require('../middleware/roleGuard');
 
-router.use(auth, requireAdmin);
+router.use(auth);
 
-// Dashboard
-router.get('/dashboard',           controller.getDashboard);
-router.get('/dashboard/absences',  controller.getAbsences);
+// Dashboard — apenas admin
+router.get('/dashboard',           requireAdmin, controller.getDashboard);
+router.get('/dashboard/absences',  requireAdmin, controller.getAbsences);
 
-// Registros de ponto
-router.get('/clocks',              controller.getClocks);
-router.get('/clocks/:id/photo',    controller.getClockPhoto);
+// Registros de ponto — admin e gestor (gestor filtrado por contrato)
+router.get('/clocks',              requireAdminOrGestor, controller.getClocks);
+router.get('/clocks/:id/photo',    requireAdminOrGestor, controller.getClockPhoto);
 
-// Tentativas bloqueadas
-router.get('/blocked',             controller.getBlocked);
+// Tentativas bloqueadas — apenas admin
+router.get('/blocked',             requireAdmin, controller.getBlocked);
 
-// Logs de auditoria
-router.get('/audit-logs',          controller.getAuditLogs);
+// Logs de auditoria — apenas admin
+router.get('/audit-logs',          requireAdmin, controller.getAuditLogs);
 
-// Exportações
-router.get('/export/pdf',          exportController.exportPdf);
-router.get('/export/excel',        exportController.exportExcel);
+// Exportações — apenas admin
+router.get('/export/pdf',          requireAdmin, exportController.exportPdf);
+router.get('/export/excel',        requireAdmin, exportController.exportExcel);
 
 module.exports = router;

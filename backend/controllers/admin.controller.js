@@ -56,6 +56,12 @@ async function getClocks(req, res, next) {
     const params  = [];
     const filters = [];
 
+    // Gestor só vê registros do seu contrato
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      filters.push(`u.contract_id = $${params.length}`);
+    }
+
     if (unitId) {
       params.push(parseInt(unitId, 10));
       filters.push(`cr.unit_id = $${params.length}`);

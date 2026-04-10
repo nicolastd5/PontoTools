@@ -2,19 +2,20 @@ const express  = require('express');
 const { body } = require('express-validator');
 const router   = express.Router();
 
-const controller       = require('../controllers/contract.controller');
-const auth             = require('../middleware/auth');
-const { requireAdmin } = require('../middleware/roleGuard');
-const validate         = require('../middleware/validate');
-const auditLog         = require('../middleware/auditLogger');
+const controller                         = require('../controllers/contract.controller');
+const auth                               = require('../middleware/auth');
+const { requireAdmin, requireAdminOrGestor } = require('../middleware/roleGuard');
+const validate                           = require('../middleware/validate');
+const auditLog                           = require('../middleware/auditLogger');
 
-router.use(auth, requireAdmin);
+router.use(auth, requireAdminOrGestor);
 
-// GET /api/contracts
+// GET /api/contracts — admin vê todos, gestor vê só o seu
 router.get('/', controller.list);
 
-// POST /api/contracts
+// POST /api/contracts — apenas admin
 router.post('/',
+  requireAdmin,
   body('name').notEmpty().withMessage('Nome do contrato obrigatório.'),
   body('code').notEmpty().withMessage('Código do contrato obrigatório.'),
   validate,
@@ -22,14 +23,16 @@ router.post('/',
   controller.create
 );
 
-// PUT /api/contracts/:id
+// PUT /api/contracts/:id — apenas admin
 router.put('/:id',
+  requireAdmin,
   auditLog('CONTRACT_UPDATED', 'contract'),
   controller.update
 );
 
-// DELETE /api/contracts/:id
+// DELETE /api/contracts/:id — apenas admin
 router.delete('/:id',
+  requireAdmin,
   auditLog('CONTRACT_DEACTIVATED', 'contract'),
   controller.deactivate
 );

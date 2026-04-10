@@ -17,10 +17,11 @@ function authMiddleware(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.user = {
-      id:     payload.sub,
-      role:   payload.role,
-      unitId: payload.unitId,
-      email:  payload.email,
+      id:         payload.sub,
+      role:       payload.role,
+      unitId:     payload.unitId,
+      contractId: payload.contractId || null,
+      email:      payload.email,
     };
     next();
   } catch (err) {

@@ -5,13 +5,13 @@ const router   = express.Router();
 
 const controller            = require('../controllers/employee.controller');
 const auth                  = require('../middleware/auth');
-const { requireAdmin }      = require('../middleware/roleGuard');
+const { requireAdmin, requireAdminOrGestor } = require('../middleware/roleGuard');
 const validate              = require('../middleware/validate');
 const auditLog              = require('../middleware/auditLogger');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-router.use(auth, requireAdmin);
+router.use(auth, requireAdminOrGestor);
 
 // GET /api/employees
 router.get('/', controller.list);
@@ -31,8 +31,8 @@ router.post('/',
   controller.create
 );
 
-// POST /api/employees/import
-router.post('/import', upload.single('file'), auditLog('EMPLOYEES_IMPORTED', 'employee'), controller.importEmployees);
+// POST /api/employees/import — apenas admin
+router.post('/import', requireAdmin, upload.single('file'), auditLog('EMPLOYEES_IMPORTED', 'employee'), controller.importEmployees);
 
 // GET /api/employees/:id
 router.get('/:id', controller.getById);

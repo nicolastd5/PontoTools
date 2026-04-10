@@ -19,7 +19,7 @@ import AdminLayout    from './components/shared/AdminLayout';
 import EmployeeLayout from './components/shared/EmployeeLayout';
 
 // Guarda de rota com verificação de role
-function PrivateRoute({ children, role }) {
+function PrivateRoute({ children, role, roles }) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -34,8 +34,12 @@ function PrivateRoute({ children, role }) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) {
-    return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />;
+
+  const allowed = roles ? roles.includes(user.role) : (role ? user.role === role : true);
+  if (!allowed) {
+    if (user.role === 'admin') return <Navigate to="/admin/dashboard" replace />;
+    if (user.role === 'gestor') return <Navigate to="/admin/employees" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
@@ -53,14 +57,14 @@ function AppRoutes() {
         path="/login"
         element={
           user
-            ? <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />
+            ? <Navigate to={user.role === 'employee' ? '/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/admin/employees'} replace />
             : <LoginPage />
         }
       />
 
       {/* Rotas do Portal Admin */}
       <Route path="/admin" element={
-        <PrivateRoute role="admin"><AdminLayout /></PrivateRoute>
+        <PrivateRoute roles={['admin','gestor']}><AdminLayout /></PrivateRoute>
       }>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard"  element={<AdminDashboardPage />} />

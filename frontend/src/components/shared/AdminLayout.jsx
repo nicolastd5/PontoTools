@@ -4,7 +4,7 @@ import { useAuth }         from '../../contexts/AuthContext';
 import { useToast }        from '../../contexts/ToastContext';
 import './AdminLayout.css';
 
-const NAV_ITEMS = [
+const ADMIN_NAV = [
   { to: '/admin/dashboard', label: 'Dashboard',     icon: '▦' },
   { to: '/admin/employees', label: 'Funcionários',  icon: '👤' },
   { to: '/admin/clocks',    label: 'Registros',     icon: '🕐' },
@@ -13,11 +13,18 @@ const NAV_ITEMS = [
   { to: '/admin/export',    label: 'Exportar',      icon: '📄' },
 ];
 
+const GESTOR_NAV = [
+  { to: '/admin/employees', label: 'Funcionários',  icon: '👤' },
+  { to: '/admin/clocks',    label: 'Registros',     icon: '🕐' },
+  { to: '/admin/contracts', label: 'Contratos',     icon: '📋' },
+];
+
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout }  = useAuth();
   const { success }       = useToast();
   const navigate          = useNavigate();
+  const NAV_ITEMS = user?.role === 'gestor' ? GESTOR_NAV : ADMIN_NAV;
 
   async function handleLogout() {
     await logout();
