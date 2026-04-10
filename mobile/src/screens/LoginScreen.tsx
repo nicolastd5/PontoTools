@@ -5,7 +5,11 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function LoginScreen() {
+interface Props {
+  onForgotPassword: () => void;
+}
+
+export default function LoginScreen({ onForgotPassword }: Props) {
   const { login }               = useAuth();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -58,6 +62,10 @@ export default function LoginScreen() {
         <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={handleLogin} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Entrar</Text>}
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.forgotBtn} onPress={onForgotPassword}>
+          <Text style={styles.forgotText}>Esqueci minha senha</Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -74,4 +82,6 @@ const styles = StyleSheet.create({
   btn:         { backgroundColor: '#1d4ed8', borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 8 },
   btnDisabled: { opacity: 0.6 },
   btnText:     { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  forgotBtn:   { marginTop: 16, alignItems: 'center' },
+  forgotText:  { color: '#1d4ed8', fontSize: 14, fontWeight: '500' },
 });

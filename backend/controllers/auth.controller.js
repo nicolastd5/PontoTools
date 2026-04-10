@@ -4,6 +4,7 @@ const jwt     = require('jsonwebtoken');
 const crypto  = require('crypto');
 const db      = require('../config/database');
 const logger  = require('../utils/logger');
+const { sendPasswordResetEmail } = require('../services/email.service');
 
 // Gera o hash SHA-256 de um token para armazenar no banco
 function hashToken(token) {
@@ -301,4 +302,111 @@ async function updateProfile(req, res, next) {
   }
 }
 
-module.exports = { login, refresh, logout, me, updateProfile };
+// ----------------------------------------------------------------
+// POST /api/auth/forgot-password
+// ----------------------------------------------------------------
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body;
+
+    // Sempre retorna 200 para não revelar se o email existe (anti-enumeração)
+    const result = await db.query(
+      `SELECT id FROM employees WHERE email = $1 AND active = TRUE`,
+      [email.toLowerCase().trim()]
+    );
+
+    if (result.rows[0]) {
+      const employeeId = result.rows[0].id;
+
+      // Invalida tokens anteriores não usados deste funcionário
+      await db.query(
+        `UPDATE password_reset_tokens SET used = TRUE
+         WHERE employee_id = $1 AND used = FALSE`,
+        [employeeId]
+      );
+
+      const rawToken   = crypto.randomBytes(32).toString('hex');
+      const tokenHash  = hashToken(rawToken);
+      const expiresAt  = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+      await db.query(
+        `INSERT INTO password_reset_tokens (employee_id, token_hash, expires_at)
+         VALUES ($1, $2, $3)`,
+        [employeeId, tokenHash, expiresAt]
+      );
+
+      const appUrl  = process.env.APP_URL || 'https://pontotools.shop';
+      const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+
+      await sendPasswordResetEmail(email.toLowerCase().trim(), resetUrl);
+
+      logger.info('Solicitação de reset de senha', { employeeId });
+    }
+
+    res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções em breve.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
+// POST /api/auth/reset-password
+// ----------------------------------------------------------------
+async function resetPassword(req, res, next) {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token e nova senha são obrigatórios.' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres.' });
+    }
+
+    const tokenHash = hashToken(token);
+
+    const result = await db.query(
+      `SELECT prt.id, prt.employee_id, prt.expires_at, prt.used
+       FROM password_reset_tokens prt
+       WHERE prt.token_hash = $1`,
+      [tokenHash]
+    );
+
+    const record = result.rows[0];
+
+    if (!record || record.used || new Date(record.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Link de recuperação inválido ou expirado.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // Atualiza senha e marca token como usado em transação
+    await db.query('BEGIN');
+    try {
+      await db.query(
+        `UPDATE employees SET password_hash = $1 WHERE id = $2`,
+        [passwordHash, record.employee_id]
+      );
+      await db.query(
+        `UPDATE password_reset_tokens SET used = TRUE WHERE id = $1`,
+        [record.id]
+      );
+      // Revoga todos os refresh tokens ativos do usuário
+      await db.query(
+        `UPDATE refresh_tokens SET revoked = TRUE WHERE employee_id = $1 AND revoked = FALSE`,
+        [record.employee_id]
+      );
+      await db.query('COMMIT');
+    } catch (err) {
+      await db.query('ROLLBACK');
+      throw err;
+    }
+
+    logger.info('Senha redefinida via token', { employeeId: record.employee_id });
+    res.json({ message: 'Senha redefinida com sucesso. Faça login com a nova senha.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { login, refresh, logout, me, updateProfile, forgotPassword, resetPassword };

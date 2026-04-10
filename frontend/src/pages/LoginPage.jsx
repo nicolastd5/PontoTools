@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth }  from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
@@ -70,9 +70,10 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p style={styles.hint}>
-          Entre com seu email e senha cadastrados.
-        </p>
+        <div style={styles.hints}>
+          <p style={styles.hint}>Entre com seu email e senha cadastrados.</p>
+          <Link to="/forgot-password" style={styles.forgotLink}>Esqueci minha senha</Link>
+        </div>
       </div>
     </div>
   );
@@ -133,11 +134,24 @@ const styles = {
     marginTop:    4,
     transition:   'background 0.15s',
   },
+  hints: {
+    marginTop:      24,
+    display:        'flex',
+    flexDirection:  'column',
+    alignItems:     'center',
+    gap:            8,
+  },
   hint: {
-    marginTop:  24,
     textAlign:  'center',
     fontSize:   12,
     color:      '#94a3b8',
     lineHeight: 1.6,
+    margin:     0,
+  },
+  forgotLink: {
+    fontSize:       13,
+    color:          '#1d4ed8',
+    textDecoration: 'none',
+    fontWeight:     500,
   },
 };

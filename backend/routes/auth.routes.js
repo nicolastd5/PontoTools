@@ -32,4 +32,20 @@ router.put('/profile',
   controller.updateProfile
 );
 
+// POST /api/auth/forgot-password
+router.post('/forgot-password',
+  loginLimiter,
+  body('email').isEmail().withMessage('Email inválido.'),
+  validate,
+  controller.forgotPassword
+);
+
+// POST /api/auth/reset-password
+router.post('/reset-password',
+  body('token').notEmpty().withMessage('Token obrigatório.'),
+  body('newPassword').isLength({ min: 6 }).withMessage('Senha deve ter pelo menos 6 caracteres.'),
+  validate,
+  controller.resetPassword
+);
+
 module.exports = router;

@@ -4,6 +4,8 @@ import { ToastProvider }         from './contexts/ToastContext';
 
 // Páginas
 import LoginPage               from './pages/LoginPage';
+import ForgotPasswordPage      from './pages/ForgotPasswordPage';
+import ResetPasswordPage       from './pages/ResetPasswordPage';
 import AdminDashboardPage      from './pages/admin/AdminDashboardPage';
 import AdminEmployeesPage      from './pages/admin/AdminEmployeesPage';
 import AdminClocksPage         from './pages/admin/AdminClocksPage';
@@ -62,6 +64,10 @@ function AppRoutes() {
             : <LoginPage />
         }
       />
+
+      {/* Recuperação de senha — públicas */}
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
       {/* Rotas do Portal Admin */}
       <Route path="/admin" element={
