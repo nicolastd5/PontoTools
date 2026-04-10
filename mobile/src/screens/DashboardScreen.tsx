@@ -40,7 +40,10 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
   const [todayRecords, setTodayRecords] = useState<ClockRecord[]>([]);
 
   useEffect(() => {
-    api.get('/clock/today').then((r) => setTodayRecords(r.data.records || [])).catch(() => {});
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    api.get('/clock/today', { params: { timezone: tz } })
+      .then((r) => setTodayRecords(r.data.records || []))
+      .catch(() => {});
   }, []);
 
   const handleClockPress = useCallback(async (clockType: ClockType) => {
@@ -66,8 +69,6 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
             try {
               const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-              // Cria um blob vazio como placeholder de foto
-              // O servidor aceita mas a foto será substituída futuramente
               const formData = new FormData();
               formData.append('clock_type', clockType);
               formData.append('latitude',   String(coords.latitude));
@@ -75,13 +76,12 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
               formData.append('accuracy',   String(coords.accuracy ?? ''));
               formData.append('timezone',   tz);
 
-              // Placeholder de foto — arquivo de 1px transparente
-              const placeholderPhoto = {
-                uri:  'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=',
-                type: 'image/jpeg',
-                name: 'photo.jpg',
-              };
-              formData.append('photo', placeholderPhoto as any);
+              // Placeholder de foto (1px JPEG) — será substituído por câmera futuramente
+              // React Native FormData aceita {uri, type, name} com file:// ou content://
+              // Para placeholder, usamos fetch() para converter data URI em blob
+              const dataUri = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=';
+              const photoBlob = await (await fetch(dataUri)).blob();
+              formData.append('photo', photoBlob, 'photo.jpg');
 
               const res = await api.post('/clock', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },

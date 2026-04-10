@@ -33,8 +33,11 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Não intercepta 401 de rotas de autenticação (login/refresh)
+    const isAuthRoute = originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/refresh');
+
     // Evita loop: só tenta refresh uma vez por request
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       if (isRefreshing) {
         // Enfileira requisições que chegarem enquanto o refresh está em andamento
         return new Promise((resolve, reject) => {

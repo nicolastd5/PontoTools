@@ -70,7 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
-    try { await api.post('/auth/logout'); } catch {}
+    try {
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      await api.post('/auth/logout', { refreshToken });
+    } catch {}
     await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
     setUser(null);
   }

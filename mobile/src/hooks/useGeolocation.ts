@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { Platform, PermissionsAndroid } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 
 interface Unit {
   latitude: number;
@@ -26,6 +28,23 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+async function requestLocationPermission(): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      {
+        title: 'Permissão de Localização',
+        message: 'O app precisa acessar sua localização para registrar o ponto.',
+        buttonPositive: 'Permitir',
+        buttonNegative: 'Negar',
+      },
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  }
+  // iOS: permissão é pedida automaticamente pelo sistema ao chamar watchPosition
+  return true;
+}
+
 export function useGeolocation(unit: Unit | null | undefined) {
   const [status, setStatus]                 = useState<GpsStatus>('loading');
   const [coords, setCoords]                 = useState<Coords | null>(null);
@@ -33,30 +52,43 @@ export function useGeolocation(unit: Unit | null | undefined) {
   const watchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setStatus('unavailable');
-      return;
-    }
+    let cancelled = false;
 
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        setCoords({ latitude, longitude, accuracy });
-        setStatus('granted');
-        if (unit?.latitude && unit?.longitude) {
-          const dist = haversineDistance(latitude, longitude, unit.latitude, unit.longitude);
-          setDistanceMeters(Math.round(dist * 10) / 10);
-        }
-      },
-      (err) => {
-        setStatus(err.code === 1 ? 'denied' : 'unavailable');
-        setCoords(null);
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-    );
+    (async () => {
+      const hasPermission = await requestLocationPermission();
+      if (cancelled) return;
+
+      if (!hasPermission) {
+        setStatus('denied');
+        return;
+      }
+
+      watchIdRef.current = Geolocation.watchPosition(
+        (position) => {
+          if (cancelled) return;
+          const { latitude, longitude, accuracy } = position.coords;
+          setCoords({ latitude, longitude, accuracy });
+          setStatus('granted');
+          if (unit?.latitude != null && unit?.longitude != null) {
+            const dist = haversineDistance(latitude, longitude, unit.latitude, unit.longitude);
+            setDistanceMeters(Math.round(dist * 10) / 10);
+          }
+        },
+        (err) => {
+          if (cancelled) return;
+          // code 1 = PERMISSION_DENIED, code 2 = POSITION_UNAVAILABLE
+          setStatus(err.code === 1 ? 'denied' : 'unavailable');
+          setCoords(null);
+        },
+        { enableHighAccuracy: true, distanceFilter: 5, interval: 5000, fastestInterval: 2000 },
+      );
+    })();
 
     return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current!);
+      cancelled = true;
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+      }
     };
   }, [unit]);
 

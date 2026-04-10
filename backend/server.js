@@ -26,10 +26,21 @@ const PORT = process.env.PORT || 3001;
 // ----------------------------------------------------------------
 app.use(helmet());
 
-// CORS — permite apenas o frontend configurado
+// CORS — permite frontend web e app mobile
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim());
+
 app.use(cors({
-  origin:      process.env.CORS_ORIGIN || 'http://localhost:5173',
-  credentials: true, // necessário para cookies HttpOnly do refresh token
+  origin: (origin, callback) => {
+    // Requests sem origin (mobile apps, curl, server-to-server) sao permitidos
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origem não permitida pelo CORS: ${origin}`));
+    }
+  },
+  credentials: true,
 }));
 
 // ----------------------------------------------------------------

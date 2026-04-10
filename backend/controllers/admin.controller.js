@@ -136,9 +136,21 @@ async function getClocks(req, res, next) {
 // ----------------------------------------------------------------
 async function getClockPhoto(req, res, next) {
   try {
+    const params = [parseInt(req.params.id, 10)];
+    let scopeFilter = '';
+
+    // Gestor só acessa fotos de registros do seu contrato
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      scopeFilter = `AND u.contract_id = $${params.length}`;
+    }
+
     const result = await db.query(
-      `SELECT photo_path FROM clock_records WHERE id = $1`,
-      [parseInt(req.params.id, 10)]
+      `SELECT cr.photo_path
+       FROM clock_records cr
+       JOIN units u ON u.id = cr.unit_id
+       ${scopeFilter ? 'WHERE cr.id = $1 ' + scopeFilter : 'WHERE cr.id = $1'}`,
+      params
     );
 
     if (!result.rows[0]) {

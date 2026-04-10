@@ -30,9 +30,11 @@ async function login(req, res, next) {
     const employee = result.rows[0];
 
     // Verifica senha (mesmo se o usuário não existir, para evitar timing attack)
+    // Hash dummy gerado com bcrypt.hashSync('dummy', 12) — precisa ser válido
+    const DUMMY_HASH = '$2b$12$LJ3m4ys3Lf0j0vSOfikVxuVHR6MfCpN9FnBiKaLueaKBqwLhLaGiC';
     const passwordValid = employee
       ? await bcrypt.compare(password, employee.password_hash)
-      : await bcrypt.compare(password, '$2b$12$invalidhashfortimingatackprotection');
+      : await bcrypt.compare(password, DUMMY_HASH);
 
     if (!employee || !passwordValid) {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
@@ -72,9 +74,12 @@ async function login(req, res, next) {
 
     logger.info('Login realizado', { employeeId: employee.id, email: employee.email });
 
-    res.json({
+    // Só retorna refreshToken no body para clientes não-browser (mobile)
+    // Browsers usam o cookie HttpOnly definido acima
+    const isBrowser = !!req.headers.origin;
+
+    const responseBody = {
       accessToken,
-      refreshToken: refreshTokenRaw,
       user: {
         id:          employee.id,
         name:        employee.full_name,
@@ -86,7 +91,13 @@ async function login(req, res, next) {
         unitCode:    employee.unit_code,
         contractId:  employee.contract_id || null,
       },
-    });
+    };
+
+    if (!isBrowser) {
+      responseBody.refreshToken = refreshTokenRaw;
+    }
+
+    res.json(responseBody);
   } catch (err) {
     next(err);
   }
@@ -123,6 +134,12 @@ async function refresh(req, res, next) {
       return res.status(401).json({ error: 'Conta desativada.' });
     }
 
+    // Revoga o refresh token usado
+    await db.query(
+      `UPDATE refresh_tokens SET revoked = TRUE WHERE token_hash = $1`,
+      [tokenHash]
+    );
+
     // Emite novo access token
     const accessToken = jwt.sign(
       {
@@ -136,7 +153,32 @@ async function refresh(req, res, next) {
       { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
     );
 
-    res.json({ accessToken });
+    // Emite novo refresh token (rotação)
+    const newRefreshRaw  = crypto.randomBytes(48).toString('hex');
+    const newRefreshHash = hashToken(newRefreshRaw);
+    const expiresAt      = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await db.query(
+      `INSERT INTO refresh_tokens (employee_id, token_hash, expires_at)
+       VALUES ($1, $2, $3)`,
+      [tokenRecord.employee_id, newRefreshHash, expiresAt]
+    );
+
+    // Cookie HttpOnly para browsers
+    res.cookie('refreshToken', newRefreshRaw, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      expires:  expiresAt,
+    });
+
+    const isBrowser = !!req.headers.origin;
+    const responseBody = { accessToken };
+    if (!isBrowser) {
+      responseBody.refreshToken = newRefreshRaw;
+    }
+
+    res.json(responseBody);
   } catch (err) {
     next(err);
   }
@@ -147,7 +189,8 @@ async function refresh(req, res, next) {
 // ----------------------------------------------------------------
 async function logout(req, res, next) {
   try {
-    const rawToken = req.cookies?.refreshToken;
+    // Aceita refresh token via cookie (web) ou body (mobile)
+    const rawToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (rawToken) {
       const tokenHash = hashToken(rawToken);

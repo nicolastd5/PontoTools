@@ -48,7 +48,7 @@ async function list(req, res, next) {
     );
 
     const countResult = await db.query(
-      `SELECT COUNT(*) AS total FROM employees e ${whereClause}`,
+      `SELECT COUNT(*) AS total FROM employees e JOIN units u ON u.id = e.unit_id ${whereClause}`,
       params
     );
 
@@ -102,13 +102,21 @@ async function create(req, res, next) {
 // ----------------------------------------------------------------
 async function getById(req, res, next) {
   try {
+    const params = [parseInt(req.params.id, 10)];
+    let scopeFilter = '';
+
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      scopeFilter = `AND u.contract_id = $${params.length}`;
+    }
+
     const result = await db.query(
       `SELECT e.id, e.badge_number, e.full_name, e.email, e.active, e.created_at, e.updated_at,
               e.unit_id, u.name AS unit_name, u.code AS unit_code
        FROM employees e
        JOIN units u ON u.id = e.unit_id
-       WHERE e.id = $1`,
-      [parseInt(req.params.id, 10)]
+       WHERE e.id = $1 ${scopeFilter}`,
+      params
     );
 
     if (!result.rows[0]) {
@@ -128,6 +136,18 @@ async function update(req, res, next) {
   try {
     const { unit_id, badge_number, full_name, email, password } = req.body;
     const id = parseInt(req.params.id, 10);
+
+    // Gestor só atualiza funcionários do seu contrato
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      const check = await db.query(
+        `SELECT e.id FROM employees e JOIN units u ON u.id = e.unit_id
+         WHERE e.id = $1 AND u.contract_id = $2`,
+        [id, req.user.contractId]
+      );
+      if (!check.rows[0]) {
+        return res.status(403).json({ error: 'Sem permissão para este funcionário.' });
+      }
+    }
 
     let passwordHash = null;
     if (password) {
@@ -164,10 +184,22 @@ async function toggleActive(req, res, next) {
     const { active } = req.body;
     const id = parseInt(req.params.id, 10);
 
+    // Gestor só altera funcionários do seu contrato
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      const check = await db.query(
+        `SELECT e.id FROM employees e JOIN units u ON u.id = e.unit_id
+         WHERE e.id = $1 AND u.contract_id = $2`,
+        [id, req.user.contractId]
+      );
+      if (!check.rows[0]) {
+        return res.status(403).json({ error: 'Sem permissão para este funcionário.' });
+      }
+    }
+
     const result = await db.query(
       `UPDATE employees SET active = $1 WHERE id = $2
        RETURNING id, full_name, active`,
-      [Boolean(active), id]
+      [active === true || active === 'true', id]
     );
 
     if (!result.rows[0]) {

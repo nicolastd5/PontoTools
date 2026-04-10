@@ -119,10 +119,12 @@ async function registerClock(req, res, next) {
 // ----------------------------------------------------------------
 async function getHistory(req, res, next) {
   try {
-    const { page = 1, limit = 20, startDate, endDate } = req.query;
-    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    const { startDate, endDate } = req.query;
+    const page   = parseInt(req.query.page, 10) || 1;
+    const limit  = parseInt(req.query.limit, 10) || 20;
+    const offset = (page - 1) * limit;
 
-    const params = [req.user.id, parseInt(limit, 10), offset];
+    const params = [req.user.id, limit, offset];
     let dateFilter = '';
 
     if (startDate) {
@@ -156,13 +158,14 @@ async function getHistory(req, res, next) {
       [req.user.id, ...params.slice(3)]
     );
 
+    const total = parseInt(countResult.rows[0].total, 10);
     res.json({
       records: result.rows,
       pagination: {
-        page:       parseInt(page, 10),
-        limit:      parseInt(limit, 10),
-        total:      parseInt(countResult.rows[0].total, 10),
-        totalPages: Math.ceil(countResult.rows[0].total / limit),
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (err) {
@@ -176,13 +179,17 @@ async function getHistory(req, res, next) {
 // ----------------------------------------------------------------
 async function getToday(req, res, next) {
   try {
+    // Usa o timezone do cliente (query param) para determinar "hoje"
+    // Fallback para America/Sao_Paulo se nao informado
+    const tz = req.query.timezone || 'America/Sao_Paulo';
+
     const result = await db.query(
       `SELECT id, clock_type, clocked_at_utc, timezone, is_inside_zone, distance_meters
        FROM clock_records
        WHERE employee_id = $1
-         AND clocked_at_utc::date = CURRENT_DATE
+         AND (clocked_at_utc AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
        ORDER BY clocked_at_utc ASC`,
-      [req.user.id]
+      [req.user.id, tz]
     );
 
     res.json({ records: result.rows });

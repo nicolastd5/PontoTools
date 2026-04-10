@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = 'http://56.124.74.200:3001';
+export const BASE_URL = 'http://56.124.74.200';
 
 const api = axios.create({
   baseURL: BASE_URL + '/api',
@@ -28,7 +28,8 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthRoute = original.url?.includes('/auth/login') || original.url?.includes('/auth/refresh');
+    if (error.response?.status === 401 && !original._retry && !isAuthRoute) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -44,6 +45,9 @@ api.interceptors.response.use(
         if (!refreshToken) throw new Error('Sem refresh token');
         const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken });
         await AsyncStorage.setItem('accessToken', data.accessToken);
+        if (data.refreshToken) {
+          await AsyncStorage.setItem('refreshToken', data.refreshToken);
+        }
         processQueue(null, data.accessToken);
         original.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(original);
