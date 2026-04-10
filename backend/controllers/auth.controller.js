@@ -74,6 +74,7 @@ async function login(req, res, next) {
 
     res.json({
       accessToken,
+      refreshToken: refreshTokenRaw,
       user: {
         id:          employee.id,
         name:        employee.full_name,
