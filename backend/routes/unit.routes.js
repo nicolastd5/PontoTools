@@ -11,6 +11,9 @@ const auditLog                               = require('../middleware/auditLogge
 // GET /api/units — acessível para todos os usuários autenticados
 router.get('/', auth, controller.list);
 
+// GET /api/units/:id — obter unidade pelo ID
+router.get('/:id', auth, controller.getOne);
+
 // POST — gestor pode criar posto (dentro do contrato dele)
 router.post('/',
   auth, requireAdminOrGestor,

@@ -77,4 +77,16 @@ async function deactivate(req, res, next) {
   }
 }
 
-module.exports = { list, create, update, deactivate };
+async function getOne(req, res, next) {
+  try {
+    const result = await db.query(
+      `SELECT id, name, code, latitude, longitude, radius_meters, address, active
+       FROM units WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Unidade não encontrada.' });
+    res.json(result.rows[0]);
+  } catch (err) { next(err); }
+}
+
+module.exports = { list, create, update, deactivate, getOne };
