@@ -1,7 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const BASE_URL = 'http://56.124.74.200';
+export const BASE_URL = 'https://pontotools.shop';
 
 const api = axios.create({
   baseURL: BASE_URL + '/api',
