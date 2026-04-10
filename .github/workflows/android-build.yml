@@ -32,11 +32,22 @@ jobs:
           rm -rf node_modules
           npm install --legacy-peer-deps
 
+      - name: Gerar bundle JS
+        working-directory: mobile
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
+
       - name: Tornar gradlew executável
         working-directory: mobile/android
         run: chmod +x gradlew
 
-      - name: Build APK debug
+      - name: Build APK debug (com bundle embutido)
         working-directory: mobile/android
         run: |
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle-build.log
