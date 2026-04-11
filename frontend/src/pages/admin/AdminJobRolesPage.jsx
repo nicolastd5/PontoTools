@@ -10,7 +10,7 @@ function useJobRoles() {
   });
 }
 
-const EMPTY_FORM = { name: '', description: '', has_break: true };
+const EMPTY_FORM = { name: '', description: '', has_break: true, max_photos: 1 };
 
 export default function AdminJobRolesPage() {
   const queryClient = useQueryClient();
@@ -46,7 +46,7 @@ export default function AdminJobRolesPage() {
   }
 
   function openEdit(row) {
-    setForm({ name: row.name, description: row.description || '', has_break: row.has_break });
+    setForm({ name: row.name, description: row.description || '', has_break: row.has_break, max_photos: row.max_photos ?? 1 });
     setEditId(row.id);
     setModal(true);
   }
@@ -78,7 +78,7 @@ export default function AdminJobRolesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                {['Cargo', 'Descrição', 'Intervalo', 'Status', 'Ações'].map((h) => (
+                {['Cargo', 'Descrição', 'Intervalo', 'Fotos', 'Status', 'Ações'].map((h) => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -95,6 +95,11 @@ export default function AdminJobRolesPage() {
                       color:      jr.has_break ? '#1e40af' : '#854d0e',
                     }}>
                       {jr.has_break ? 'Com intervalo' : 'Sem intervalo'}
+                    </span>
+                  </td>
+                  <td style={styles.td}>
+                    <span style={{ fontWeight: 600, color: jr.max_photos > 1 ? '#1d4ed8' : '#64748b' }}>
+                      {jr.max_photos ?? 1} foto{(jr.max_photos ?? 1) > 1 ? 's' : ''}
                     </span>
                   </td>
                   <td style={styles.td}>
@@ -150,6 +155,19 @@ export default function AdminJobRolesPage() {
                   rows={3}
                   style={{ ...inputStyle, resize: 'vertical' }}
                 />
+              </div>
+
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Quantidade máxima de fotos por registro</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={form.max_photos}
+                  onChange={(e) => setForm((p) => ({ ...p, max_photos: parseInt(e.target.value, 10) || 1 }))}
+                  style={{ ...inputStyle, width: 80 }}
+                />
+                <span style={{ fontSize: 12, color: '#64748b' }}>Máximo 5 fotos por registro</span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: '#f8fafc', borderRadius: 10, padding: '14px 16px', border: '1.5px solid #e2e8f0' }}>

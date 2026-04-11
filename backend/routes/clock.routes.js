@@ -21,11 +21,11 @@ const upload = multer({
   },
 });
 
-// POST /api/clock — bate ponto
+// POST /api/clock — bate ponto (aceita até 5 fotos)
 router.post('/',
   auth,
   clockLimiter,
-  upload.single('photo'),
+  upload.array('photo', 5),
   body('clock_type').isIn(['entry', 'exit', 'break_start', 'break_end'])
     .withMessage('Tipo de batida inválido.'),
   body('latitude').isFloat({ min: -90, max: 90 })

@@ -7,16 +7,21 @@ const logger  = require('../utils/logger');
 
 // ----------------------------------------------------------------
 // POST /api/clock
-// Recebe multipart/form-data: campos + foto
+// Recebe multipart/form-data: campos + foto(s)
 // ----------------------------------------------------------------
 async function registerClock(req, res, next) {
   try {
-    const { clock_type, latitude, longitude, accuracy, timezone } = req.body;
-    const photoFile = req.file;
+    const { clock_type, latitude, longitude, accuracy, timezone, observation } = req.body;
+    const photoFiles = req.files || (req.file ? [req.file] : []);
 
-    // Busca a unidade do funcionário para validação de zona
+    // Busca a unidade e cargo do funcionário
     const unitResult = await db.query(
-      `SELECT id, latitude, longitude, radius_meters FROM units WHERE id = $1`,
+      `SELECT u.id, u.latitude, u.longitude, u.radius_meters,
+              jr.max_photos
+       FROM units u
+       JOIN employees e ON e.unit_id = u.id
+       LEFT JOIN job_roles jr ON jr.id = e.job_role_id
+       WHERE u.id = $1`,
       [req.user.unitId]
     );
     const unit = unitResult.rows[0];
@@ -63,17 +68,19 @@ async function registerClock(req, res, next) {
       });
     }
 
-    // Salva a foto no storage configurado
-    const filename = `${unit.id}/${new Date().toISOString().split('T')[0]}/${req.user.id}_${Date.now()}.jpg`;
-    await storage.save(photoFile.buffer, filename);
+    // Salva a primeira foto (obrigatória)
+    const firstPhoto = photoFiles[0];
+    const dateStr    = new Date().toISOString().split('T')[0];
+    const filename   = `${unit.id}/${dateStr}/${req.user.id}_${Date.now()}.jpg`;
+    await storage.save(firstPhoto.buffer, filename);
 
-    // Grava o registro de ponto aprovado
+    // Grava o registro de ponto
     const clockResult = await db.query(
       `INSERT INTO clock_records
          (employee_id, unit_id, clock_type, clocked_at_utc, timezone,
           latitude, longitude, accuracy_meters, distance_meters, is_inside_zone,
-          photo_path, device_info, ip_address)
-       VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          photo_path, observation, device_info, ip_address)
+       VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id, clocked_at_utc, clock_type, is_inside_zone, distance_meters`,
       [
         req.user.id,
@@ -86,12 +93,26 @@ async function registerClock(req, res, next) {
         distanceMeters,
         isInside,
         filename,
+        observation?.trim() || null,
         JSON.stringify({ userAgent: req.headers['user-agent'] }),
         req.ip,
       ]
     );
 
     const record = clockResult.rows[0];
+
+    // Salva fotos extras (se houver e o cargo permitir)
+    const maxPhotos = unit.max_photos || 1;
+    if (photoFiles.length > 1 && maxPhotos > 1) {
+      for (let i = 1; i < Math.min(photoFiles.length, maxPhotos); i++) {
+        const extraFilename = `${unit.id}/${dateStr}/${req.user.id}_${Date.now()}_${i}.jpg`;
+        await storage.save(photoFiles[i].buffer, extraFilename);
+        await db.query(
+          `INSERT INTO clock_photos (clock_record_id, photo_path, photo_index) VALUES ($1, $2, $3)`,
+          [record.id, extraFilename, i + 1]
+        );
+      }
+    }
 
     logger.info('Ponto registrado', {
       employeeId:  req.user.id,
@@ -115,7 +136,6 @@ async function registerClock(req, res, next) {
 
 // ----------------------------------------------------------------
 // GET /api/clock/history
-// Histórico do funcionário autenticado (paginado, com filtro de data)
 // ----------------------------------------------------------------
 async function getHistory(req, res, next) {
   try {
@@ -140,7 +160,7 @@ async function getHistory(req, res, next) {
       `SELECT
          cr.id, cr.clock_type, cr.clocked_at_utc, cr.timezone,
          cr.latitude, cr.longitude, cr.distance_meters, cr.accuracy_meters,
-         cr.is_inside_zone, cr.photo_path,
+         cr.is_inside_zone, cr.photo_path, cr.observation,
          u.name AS unit_name
        FROM clock_records cr
        JOIN units u ON u.id = cr.unit_id
@@ -150,7 +170,6 @@ async function getHistory(req, res, next) {
       params
     );
 
-    // Total para paginação
     const countResult = await db.query(
       `SELECT COUNT(*) AS total
        FROM clock_records cr
@@ -161,12 +180,7 @@ async function getHistory(req, res, next) {
     const total = parseInt(countResult.rows[0].total, 10);
     res.json({
       records: result.rows,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (err) {
     next(err);
@@ -175,12 +189,10 @@ async function getHistory(req, res, next) {
 
 // ----------------------------------------------------------------
 // GET /api/clock/today
-// Registros de hoje do funcionário (para montar estado da UI)
+// Registros de hoje + estado dos botões
 // ----------------------------------------------------------------
 async function getToday(req, res, next) {
   try {
-    // Usa o timezone do cliente (query param) para determinar "hoje"
-    // Fallback para America/Sao_Paulo se nao informado
     const tz = req.query.timezone || 'America/Sao_Paulo';
 
     const result = await db.query(
@@ -192,7 +204,22 @@ async function getToday(req, res, next) {
       [req.user.id, tz]
     );
 
-    res.json({ records: result.rows });
+    const records = result.rows;
+
+    // Determina quais botões estão disponíveis baseado nos registros de hoje
+    // Regra: entry só disponível se não teve entry ainda ou se último foi exit
+    // Lógica de sequência: entry -> break_start -> break_end -> exit -> (nova entry)
+    const types = records.map((r) => r.clock_type);
+    const lastType = types[types.length - 1] || null;
+
+    const available = {
+      entry:       !lastType || lastType === 'exit',
+      break_start: lastType === 'entry' || lastType === 'break_end',
+      break_end:   lastType === 'break_start',
+      exit:        lastType === 'entry' || lastType === 'break_end',
+    };
+
+    res.json({ records, available });
   } catch (err) {
     next(err);
   }

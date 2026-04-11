@@ -25,7 +25,7 @@ function useUnits() {
 export default function AdminClocksPage() {
   const [filters, setFilters] = useState({ unitId: '', clockType: '', startDate: '', endDate: '' });
   const [page, setPage]       = useState(1);
-  const [photoModal, setPhotoModal] = useState(null);
+  const [photoModal, setPhotoModal] = useState(null); // null | { id, observation }
 
   const { data, isLoading } = useClocks(
     Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '')),
@@ -69,9 +69,15 @@ export default function AdminClocksPage() {
       render: (v) => <span style={{ color: v > 100 ? '#dc2626' : '#16a34a', fontWeight: 600 }}>{Math.round(v)}m</span>,
     },
     {
+      key: 'observation', label: 'Observação',
+      render: (v) => v
+        ? <span style={{ fontSize: 12, color: '#374151', maxWidth: 160, display: 'inline-block' }} title={v}>{v.length > 40 ? v.slice(0, 40) + '…' : v}</span>
+        : <span style={{ color: '#cbd5e1', fontSize: 12 }}>—</span>,
+    },
+    {
       key: 'photo_path', label: 'Foto',
       render: (v, row) => (
-        <button onClick={() => setPhotoModal(row.id)} style={photoBtn}>
+        <button onClick={() => setPhotoModal({ id: row.id, observation: row.observation })} style={photoBtn}>
           Ver foto
         </button>
       ),
@@ -126,13 +132,13 @@ export default function AdminClocksPage() {
 
       {/* Modal de foto */}
       {photoModal && (
-        <PhotoModal recordId={photoModal} onClose={() => setPhotoModal(null)} />
+        <PhotoModal recordId={photoModal.id} observation={photoModal.observation} onClose={() => setPhotoModal(null)} />
       )}
     </div>
   );
 }
 
-function PhotoModal({ recordId, onClose }) {
+function PhotoModal({ recordId, observation, onClose }) {
   const [src, setSrc]       = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ok | placeholder | error
 
@@ -180,6 +186,12 @@ function PhotoModal({ recordId, onClose }) {
             <div style={{ padding: 32, color: '#dc2626', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
               <p>Erro ao carregar foto.</p>
+            </div>
+          )}
+          {observation && (
+            <div style={{ marginTop: 16, padding: '12px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'left' }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>Observação</p>
+              <p style={{ fontSize: 14, color: '#0f172a' }}>{observation}</p>
             </div>
           )}
         </div>
