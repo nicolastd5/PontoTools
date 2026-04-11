@@ -18,8 +18,11 @@ function useUnits() {
 function useContracts() {
   return useQuery({ queryKey: ['contracts'], queryFn: () => api.get('/contracts').then((r) => r.data.contracts) });
 }
+function useJobRoles() {
+  return useQuery({ queryKey: ['job-roles'], queryFn: () => api.get('/job-roles?active=true').then((r) => r.data.jobRoles) });
+}
 
-const EMPTY_FORM = { unit_id: '', badge_number: '', full_name: '', email: '', password: '', role: 'employee', contract_id: '' };
+const EMPTY_FORM = { unit_id: '', badge_number: '', full_name: '', email: '', password: '', role: 'employee', contract_id: '', job_role_id: '' };
 
 export default function AdminEmployeesPage() {
   const queryClient = useQueryClient();
@@ -41,6 +44,7 @@ export default function AdminEmployeesPage() {
   );
   const { data: units = [] } = useUnits();
   const { data: contracts = [] } = useContracts();
+  const { data: jobRoles = [] } = useJobRoles();
 
   const toggleActive = useMutation({
     mutationFn: ({ id, active }) => api.patch(`/employees/${id}/active`, { active }),
@@ -104,6 +108,7 @@ export default function AdminEmployeesPage() {
       full_name:    row.full_name,
       email:        row.email,
       password:     '',
+      job_role_id:  row.job_role_id || '',
     });
     setEditId(row.id);
     setModal('form');
@@ -127,6 +132,8 @@ export default function AdminEmployeesPage() {
     e.preventDefault();
     const body = { ...form, unit_id: parseInt(form.unit_id, 10) };
     if (!body.password) delete body.password;
+    if (body.job_role_id) body.job_role_id = parseInt(body.job_role_id, 10);
+    else delete body.job_role_id;
     if (editId) {
       updateMutation.mutate({ id: editId, body });
     } else {
@@ -304,6 +311,21 @@ export default function AdminEmployeesPage() {
                 >
                   <option value="">Selecione a unidade</option>
                   {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Cargo</label>
+                <select
+                  value={form.job_role_id}
+                  onChange={(e) => setForm((p) => ({ ...p, job_role_id: e.target.value }))}
+                  style={inputStyle}
+                >
+                  <option value="">Sem cargo definido</option>
+                  {jobRoles.map((jr) => (
+                    <option key={jr.id} value={jr.id}>
+                      {jr.name}{!jr.has_break ? ' (sem intervalo)' : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div style={fieldStyle}>

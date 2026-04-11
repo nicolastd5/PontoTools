@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { to: '/admin/clocks',    label: 'Registros',     icon: '🕐' },
   { to: '/admin/blocked',   label: 'Bloqueios',     icon: '⛔' },
   { to: '/admin/contracts', label: 'Contratos',     icon: '📋' },
+  { to: '/admin/job-roles', label: 'Cargos',        icon: '🏷️' },
   { to: '/admin/export',    label: 'Exportar',      icon: '📄' },
 ];
 

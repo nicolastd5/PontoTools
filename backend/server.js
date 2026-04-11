@@ -14,6 +14,7 @@ const clockRoutes    = require('./routes/clock.routes');
 const employeeRoutes = require('./routes/employee.routes');
 const unitRoutes     = require('./routes/unit.routes');
 const contractRoutes = require('./routes/contract.routes');
+const jobRoleRoutes  = require('./routes/jobRole.routes');
 const adminRoutes    = require('./routes/admin.routes');
 const errorHandler   = require('./utils/errorHandler');
 const logger         = require('./utils/logger');
@@ -69,6 +70,7 @@ app.use('/api/clock',     clockRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/units',     unitRoutes);
 app.use('/api/contracts', contractRoutes);
+app.use('/api/job-roles', jobRoleRoutes);
 app.use('/api/admin',     adminRoutes);
 
 // Rota não encontrada

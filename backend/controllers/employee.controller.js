@@ -38,9 +38,11 @@ async function list(req, res, next) {
 
     const result = await db.query(
       `SELECT e.id, e.badge_number, e.full_name, e.email, e.active, e.created_at,
-              e.unit_id, u.name AS unit_name, u.code AS unit_code
+              e.unit_id, u.name AS unit_name, u.code AS unit_code,
+              e.job_role_id, jr.name AS job_role_name, jr.has_break AS job_role_has_break
        FROM employees e
        JOIN units u ON u.id = e.unit_id
+       LEFT JOIN job_roles jr ON jr.id = e.job_role_id
        ${whereClause}
        ORDER BY u.name, e.full_name
        LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`,
@@ -71,7 +73,7 @@ async function list(req, res, next) {
 // ----------------------------------------------------------------
 async function create(req, res, next) {
   try {
-    const { unit_id, badge_number, full_name, email, password, role, contract_id } = req.body;
+    const { unit_id, badge_number, full_name, email, password, role, contract_id, job_role_id } = req.body;
 
     // Apenas admin pode criar gestores
     const finalRole = (role === 'gestor' && req.user?.role === 'admin') ? 'gestor' : 'employee';
@@ -81,13 +83,15 @@ async function create(req, res, next) {
       ? req.user.contractId
       : (contract_id ? parseInt(contract_id, 10) : null);
 
+    const finalJobRoleId = job_role_id ? parseInt(job_role_id, 10) : null;
+
     const passwordHash = await bcrypt.hash(password, 12);
 
     const result = await db.query(
-      `INSERT INTO employees (unit_id, badge_number, full_name, email, password_hash, role, contract_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO employees (unit_id, badge_number, full_name, email, password_hash, role, contract_id, job_role_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, badge_number, full_name, email, role, active, created_at`,
-      [unit_id, badge_number.trim(), full_name.trim(), email.toLowerCase().trim(), passwordHash, finalRole, finalContractId]
+      [unit_id, badge_number.trim(), full_name.trim(), email.toLowerCase().trim(), passwordHash, finalRole, finalContractId, finalJobRoleId]
     );
 
     logger.info('Funcionário/gestor criado', { badgeNumber: badge_number, role: finalRole });
@@ -112,9 +116,11 @@ async function getById(req, res, next) {
 
     const result = await db.query(
       `SELECT e.id, e.badge_number, e.full_name, e.email, e.active, e.created_at, e.updated_at,
-              e.unit_id, u.name AS unit_name, u.code AS unit_code
+              e.unit_id, u.name AS unit_name, u.code AS unit_code,
+              e.job_role_id, jr.name AS job_role_name, jr.has_break AS job_role_has_break
        FROM employees e
        JOIN units u ON u.id = e.unit_id
+       LEFT JOIN job_roles jr ON jr.id = e.job_role_id
        WHERE e.id = $1 ${scopeFilter}`,
       params
     );
@@ -134,7 +140,7 @@ async function getById(req, res, next) {
 // ----------------------------------------------------------------
 async function update(req, res, next) {
   try {
-    const { unit_id, badge_number, full_name, email, password } = req.body;
+    const { unit_id, badge_number, full_name, email, password, job_role_id } = req.body;
     const id = parseInt(req.params.id, 10);
 
     // Gestor só atualiza funcionários do seu contrato
@@ -154,16 +160,22 @@ async function update(req, res, next) {
       passwordHash = await bcrypt.hash(password, 12);
     }
 
+    const finalJobRoleId = job_role_id !== undefined
+      ? (job_role_id ? parseInt(job_role_id, 10) : null)
+      : undefined;
+
     const result = await db.query(
       `UPDATE employees SET
-         unit_id      = COALESCE($1, unit_id),
-         badge_number = COALESCE($2, badge_number),
-         full_name    = COALESCE($3, full_name),
-         email        = COALESCE($4, email),
-         password_hash = COALESCE($5, password_hash)
-       WHERE id = $6
-       RETURNING id, badge_number, full_name, email, active`,
-      [unit_id, badge_number, full_name, email ? email.toLowerCase() : null, passwordHash, id]
+         unit_id       = COALESCE($1, unit_id),
+         badge_number  = COALESCE($2, badge_number),
+         full_name     = COALESCE($3, full_name),
+         email         = COALESCE($4, email),
+         password_hash = COALESCE($5, password_hash),
+         job_role_id   = CASE WHEN $6::boolean THEN $7::integer ELSE job_role_id END
+       WHERE id = $8
+       RETURNING id, badge_number, full_name, email, active, job_role_id`,
+      [unit_id, badge_number, full_name, email ? email.toLowerCase() : null, passwordHash,
+       finalJobRoleId !== undefined, finalJobRoleId ?? null, id]
     );
 
     if (!result.rows[0]) {
