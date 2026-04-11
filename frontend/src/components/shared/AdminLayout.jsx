@@ -8,6 +8,7 @@ const ADMIN_NAV = [
   { to: '/admin/dashboard',     label: 'Dashboard',       icon: '▦' },
   { to: '/admin/employees',     label: 'Funcionários',    icon: '👤' },
   { to: '/admin/clocks',        label: 'Registros',       icon: '🕐' },
+  { to: '/admin/photos',        label: 'Galeria',         icon: '🖼️' },
   { to: '/admin/blocked',       label: 'Bloqueios',       icon: '⛔' },
   { to: '/admin/services',      label: 'Serviços',        icon: '🔧' },
   { to: '/admin/notifications', label: 'Notificações',    icon: '🔔' },
@@ -19,6 +20,7 @@ const ADMIN_NAV = [
 const GESTOR_NAV = [
   { to: '/admin/employees',     label: 'Funcionários',    icon: '👤' },
   { to: '/admin/clocks',        label: 'Registros',       icon: '🕐' },
+  { to: '/admin/photos',        label: 'Galeria',         icon: '🖼️' },
   { to: '/admin/services',      label: 'Serviços',        icon: '🔧' },
   { to: '/admin/notifications', label: 'Notificações',    icon: '🔔' },
   { to: '/admin/contracts',     label: 'Contratos',       icon: '📋' },

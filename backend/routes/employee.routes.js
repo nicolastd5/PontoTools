@@ -43,6 +43,9 @@ router.put('/:id', auditLog('EMPLOYEE_UPDATED', 'employee'), controller.update);
 // PATCH /api/employees/:id/active
 router.patch('/:id/active', auditLog('EMPLOYEE_TOGGLED', 'employee'), controller.toggleActive);
 
+// DELETE /api/employees/:id — apenas admin
+router.delete('/:id', requireAdmin, auditLog('EMPLOYEE_DELETED', 'employee'), controller.deleteEmployee);
+
 // PATCH /api/employees/:id/reset-password — apenas admin
 router.patch('/:id/reset-password',
   requireAdmin,

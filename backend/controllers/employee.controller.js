@@ -381,4 +381,72 @@ async function resetPasswordByAdmin(req, res, next) {
   }
 }
 
-module.exports = { list, create, getById, update, toggleActive, importEmployees, downloadTemplate, resetPasswordByAdmin };
+// ----------------------------------------------------------------
+// DELETE /api/employees/:id
+// Apaga funcionário e todos os dados relacionados (fotos, registros, etc.)
+// Apenas admin
+// ----------------------------------------------------------------
+async function deleteEmployee(req, res, next) {
+  const storage = require('../config/storage');
+  const client  = await db.connect();
+  try {
+    const id = parseInt(req.params.id, 10);
+
+    // Impede auto-deleção
+    if (id === req.user.id) {
+      return res.status(400).json({ error: 'Você não pode deletar sua própria conta.' });
+    }
+
+    await client.query('BEGIN');
+
+    // 1. Apaga arquivos físicos de fotos de ponto (principal + extras)
+    const clockPhotos = await client.query(
+      `SELECT cp.photo_path FROM clock_photos cp
+       JOIN clock_records cr ON cr.id = cp.clock_record_id
+       WHERE cr.employee_id = $1`, [id]
+    );
+    const mainPhotos = await client.query(
+      `SELECT photo_path FROM clock_records WHERE employee_id = $1 AND photo_path NOT LIKE 'placeholder/%'`, [id]
+    );
+    await Promise.all([
+      ...clockPhotos.rows.map((r) => storage.delete(r.photo_path)),
+      ...mainPhotos.rows.map((r) => storage.delete(r.photo_path)),
+    ]);
+
+    // 2. Apaga arquivos físicos de fotos de serviço
+    const servicePhotos = await client.query(
+      `SELECT sp.photo_path FROM service_photos sp
+       JOIN service_orders so ON so.id = sp.service_order_id
+       WHERE so.assigned_employee_id = $1`, [id]
+    );
+    await Promise.all(servicePhotos.rows.map((r) => storage.delete(r.photo_path)));
+
+    // 3. Apaga clock_photos (ON DELETE CASCADE via clock_records, mas precisa ir antes)
+    await client.query(
+      `DELETE FROM clock_photos WHERE clock_record_id IN
+       (SELECT id FROM clock_records WHERE employee_id = $1)`, [id]
+    );
+
+    // 4. Apaga registros de ponto (RESTRICT — precisa apagar manualmente)
+    await client.query(`DELETE FROM clock_records WHERE employee_id = $1`, [id]);
+
+    // 5. Apaga tentativas bloqueadas
+    await client.query(`DELETE FROM blocked_attempts WHERE employee_id = $1`, [id]);
+
+    // 6. O resto (notifications, push_subscriptions, service_orders, password_resets)
+    //    tem ON DELETE CASCADE — são apagados automaticamente com o DELETE do employee
+    await client.query(`DELETE FROM employees WHERE id = $1`, [id]);
+
+    await client.query('COMMIT');
+
+    logger.info('Funcionário deletado', { deletedId: id, by: req.user.id });
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { list, create, getById, update, toggleActive, importEmployees, downloadTemplate, resetPasswordByAdmin, deleteEmployee };

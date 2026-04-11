@@ -52,6 +52,22 @@ export default function AdminEmployeesPage() {
     onError:   () => error('Erro ao alterar status.'),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/employees/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['employees']);
+      success('Funcionário deletado permanentemente.');
+    },
+    onError: (err) => error(err.response?.data?.error || 'Erro ao deletar funcionário.'),
+  });
+
+  function handleDelete(row) {
+    if (!window.confirm(
+      `Deletar "${row.full_name}" permanentemente?\n\nIsso apagará todos os registros de ponto, fotos e dados relacionados. Esta ação não pode ser desfeita.`
+    )) return;
+    deleteMutation.mutate(row.id);
+  }
+
   const createMutation = useMutation({
     mutationFn: (body) => api.post('/employees', body),
     onSuccess: () => {
@@ -191,6 +207,11 @@ export default function AdminEmployeesPage() {
           {isAdmin && (
             <button onClick={() => openResetPassword(row)} style={{ ...actionBtn, color: '#b45309', borderColor: '#fde68a' }}>
               Resetar senha
+            </button>
+          )}
+          {isAdmin && (
+            <button onClick={() => handleDelete(row)} style={{ ...actionBtn, color: '#dc2626', borderColor: '#fca5a5' }}>
+              Deletar
             </button>
           )}
         </div>

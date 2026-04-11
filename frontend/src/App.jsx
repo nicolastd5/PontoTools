@@ -17,6 +17,7 @@ import AdminProfilePage       from './pages/admin/AdminProfilePage';
 import AdminExportPage         from './pages/admin/AdminExportPage';
 import AdminServicesPage       from './pages/admin/AdminServicesPage';
 import AdminNotificationsPage  from './pages/admin/AdminNotificationsPage';
+import AdminPhotosPage         from './pages/admin/AdminPhotosPage';
 import EmployeeDashboardPage   from './pages/employee/EmployeeDashboardPage';
 import EmployeeHistoryPage     from './pages/employee/EmployeeHistoryPage';
 import EmployeeServicesPage    from './pages/employee/EmployeeServicesPage';
@@ -90,6 +91,7 @@ function AppRoutes() {
         <Route path="export"         element={<AdminExportPage />} />
         <Route path="services"       element={<AdminServicesPage />} />
         <Route path="notifications"  element={<AdminNotificationsPage />} />
+        <Route path="photos"         element={<AdminPhotosPage />} />
       </Route>
 
       {/* Rotas do App do Funcionário */}
