@@ -39,10 +39,10 @@ async function list(req, res, next) {
          so.id, so.title, so.description, so.status,
          so.scheduled_date, so.due_time, so.problem_description,
          so.created_at, so.updated_at,
-         e.name  AS employee_name,
-         cb.name AS created_by_name,
-         u.name  AS unit_name,
-         u.code  AS unit_code
+         e.full_name  AS employee_name,
+         cb.full_name AS created_by_name,
+         u.name       AS unit_name,
+         u.code       AS unit_code
        FROM service_orders so
        JOIN employees e  ON e.id  = so.assigned_employee_id
        JOIN employees cb ON cb.id = so.created_by_id
@@ -67,13 +67,13 @@ async function create(req, res, next) {
 
     // Busca unidade do funcionário
     const empResult = await db.query(
-      `SELECT e.unit_id, e.name FROM employees e WHERE e.id = $1`,
+      `SELECT e.unit_id, e.full_name FROM employees e WHERE e.id = $1`,
       [assigned_employee_id]
     );
     if (!empResult.rows[0]) {
       return res.status(404).json({ error: 'Funcionário não encontrado.' });
     }
-    const { unit_id, name: empName } = empResult.rows[0];
+    const { unit_id, full_name: empName } = empResult.rows[0];
 
     const result = await db.query(
       `INSERT INTO service_orders
@@ -118,9 +118,9 @@ async function getOne(req, res, next) {
     const result = await db.query(
       `SELECT
          so.*,
-         e.name  AS employee_name,
-         cb.name AS created_by_name,
-         u.name  AS unit_name
+         e.full_name  AS employee_name,
+         cb.full_name AS created_by_name,
+         u.name       AS unit_name
        FROM service_orders so
        JOIN employees e  ON e.id  = so.assigned_employee_id
        JOIN employees cb ON cb.id = so.created_by_id

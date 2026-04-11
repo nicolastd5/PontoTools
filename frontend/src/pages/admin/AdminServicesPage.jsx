@@ -167,7 +167,7 @@ export default function AdminServicesPage() {
                 <select value={form.assigned_employee_id} onChange={(e) => setForm((p) => ({ ...p, assigned_employee_id: e.target.value }))}
                   required style={inputStyle}>
                   <option value="">Selecione o funcionário</option>
-                  {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  {employees.map((e) => <option key={e.id} value={e.id}>{e.full_name}</option>)}
                 </select>
               </Field>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>

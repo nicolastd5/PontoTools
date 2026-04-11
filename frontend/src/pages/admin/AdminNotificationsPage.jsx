@@ -96,7 +96,7 @@ export default function AdminNotificationsPage() {
       <div style={s.filters}>
         <select value={filters.employeeId} onChange={(e) => setFilters({ employeeId: e.target.value })} style={s.select}>
           <option value="">Todos os funcionários</option>
-          {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+          {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
         </select>
         {filters.employeeId && (
           <button onClick={() => setFilters({ employeeId: '' })} style={s.clearBtn}>Limpar</button>
@@ -168,7 +168,7 @@ export default function AdminNotificationsPage() {
                   <select value={form.employee_id} onChange={(e) => setForm((p) => ({ ...p, employee_id: e.target.value }))}
                     required style={inputStyle}>
                     <option value="">Selecione</option>
-                    {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    {employees.map((e) => <option key={e.id} value={e.id}>{e.full_name}</option>)}
                   </select>
                 </Field>
               ) : (

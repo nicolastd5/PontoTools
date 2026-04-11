@@ -22,7 +22,7 @@ async function list(req, res, next) {
 
     const result = await db.query(
       `SELECT n.id, n.title, n.body, n.type, n.read, n.push_sent, n.created_at,
-              e.name AS employee_name
+              e.full_name AS employee_name
        FROM notifications n
        JOIN employees e ON e.id = n.employee_id
        ${where}
