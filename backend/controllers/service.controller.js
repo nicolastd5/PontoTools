@@ -323,4 +323,83 @@ async function deletePhoto(req, res, next) {
   }
 }
 
-module.exports = { list, create, getOne, updateStatus, addPhoto, getPhoto, deletePhoto };
+// ----------------------------------------------------------------
+// PATCH /api/services/:id/reschedule
+// Admin/gestor reagenda data e horário do serviço
+// ----------------------------------------------------------------
+async function reschedule(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { scheduled_date, due_time } = req.body;
+
+    const current = await db.query(
+      `SELECT so.assigned_employee_id, so.title, u.contract_id
+       FROM service_orders so
+       JOIN units u ON u.id = so.unit_id
+       WHERE so.id = $1`,
+      [id]
+    );
+    if (!current.rows[0]) return res.status(404).json({ error: 'Serviço não encontrado.' });
+    if (req.user.role === 'gestor' && current.rows[0].contract_id !== req.user.contractId) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+
+    const result = await db.query(
+      `UPDATE service_orders
+       SET scheduled_date = $1, due_time = $2, updated_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [scheduled_date, due_time || null, id]
+    );
+
+    // Notifica o funcionário sobre o reagendamento
+    await push.notify(
+      current.rows[0].assigned_employee_id,
+      'Serviço reagendado',
+      `O serviço "${current.rows[0].title}" foi reagendado para ${new Date(scheduled_date).toLocaleDateString('pt-BR')}.`,
+      'service_assigned'
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
+// DELETE /api/services/:id
+// Admin/gestor deleta serviço (fotos + registro)
+// ----------------------------------------------------------------
+async function deleteService(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+
+    const current = await db.query(
+      `SELECT so.id, u.contract_id FROM service_orders so
+       JOIN units u ON u.id = so.unit_id
+       WHERE so.id = $1`,
+      [id]
+    );
+    if (!current.rows[0]) return res.status(404).json({ error: 'Serviço não encontrado.' });
+    if (req.user.role === 'gestor' && current.rows[0].contract_id !== req.user.contractId) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+
+    // Remove arquivos de foto do storage
+    const photos = await db.query(
+      `SELECT photo_path FROM service_photos WHERE service_order_id = $1`,
+      [id]
+    );
+    await Promise.allSettled(photos.rows.map((p) => storage.delete(p.photo_path)));
+
+    // Deleta o serviço (cascade remove service_photos)
+    await db.query(`DELETE FROM service_orders WHERE id = $1`, [id]);
+
+    logger.info('Serviço deletado', { serviceId: id, deletedBy: req.user.id });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, getOne, updateStatus, addPhoto, getPhoto, deletePhoto, reschedule, deleteService };

@@ -3,10 +3,10 @@ const multer   = require('multer');
 const { body } = require('express-validator');
 const router   = express.Router();
 
-const controller          = require('../controllers/service.controller');
-const auth                = require('../middleware/auth');
+const controller               = require('../controllers/service.controller');
+const auth                     = require('../middleware/auth');
 const { requireAdminOrGestor } = require('../middleware/roleGuard');
-const validate            = require('../middleware/validate');
+const validate                 = require('../middleware/validate');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -58,5 +58,17 @@ router.get('/:id/photos/:photoId', auth, controller.getPhoto);
 
 // Deletar foto — apenas admin/gestor
 router.delete('/:id/photos/:photoId', auth, requireAdminOrGestor, controller.deletePhoto);
+
+// Reagendar — apenas admin/gestor
+router.patch('/:id/reschedule',
+  auth,
+  requireAdminOrGestor,
+  body('scheduled_date').isDate().withMessage('Data inválida.'),
+  validate,
+  controller.reschedule
+);
+
+// Deletar serviço — apenas admin/gestor
+router.delete('/:id', auth, requireAdminOrGestor, controller.deleteService);
 
 module.exports = router;

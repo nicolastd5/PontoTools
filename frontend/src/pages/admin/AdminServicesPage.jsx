@@ -37,12 +37,14 @@ export default function AdminServicesPage() {
   const queryClient = useQueryClient();
   const { success, error } = useToast();
 
-  const [filters, setFilters]     = useState({ status: '' });
-  const [modal, setModal]         = useState(false);
-  const [detailModal, setDetail]  = useState(null);
-  const [form, setForm]           = useState(EMPTY_FORM);
-  const [photoIdx, setPhotoIdx]   = useState(0);
-  const [photoSrc, setPhotoSrc]   = useState({});
+  const [filters, setFilters]       = useState({ status: '' });
+  const [modal, setModal]           = useState(false);
+  const [detailModal, setDetail]    = useState(null);
+  const [rescheduleModal, setRescheduleModal] = useState(null);
+  const [rescheduleForm, setRescheduleForm]   = useState({ scheduled_date: '', due_time: '' });
+  const [form, setForm]             = useState(EMPTY_FORM);
+  const [photoIdx, setPhotoIdx]     = useState(0);
+  const [photoSrc, setPhotoSrc]     = useState({});
 
   const { data: services = [], isLoading } = useServices(
     Object.fromEntries(Object.entries(filters).filter(([, v]) => v))
@@ -96,6 +98,43 @@ export default function AdminServicesPage() {
     },
     onError: () => error('Erro ao remover foto.'),
   });
+
+  const deleteServiceMutation = useMutation({
+    mutationFn: (id) => api.delete(`/services/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Serviço excluído.');
+      setDetail(null);
+    },
+    onError: () => error('Erro ao excluir serviço.'),
+  });
+
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ id, body }) => api.patch(`/services/${id}/reschedule`, body),
+    onSuccess: async () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Serviço reagendado.');
+      if (detailModal) {
+        const res = await api.get(`/services/${detailModal.id}`);
+        setDetail(res.data);
+      }
+      setRescheduleModal(null);
+    },
+    onError: () => error('Erro ao reagendar serviço.'),
+  });
+
+  function openReschedule(service) {
+    setRescheduleForm({
+      scheduled_date: service.scheduled_date?.slice(0, 10) || '',
+      due_time: service.due_time?.slice(0, 5) || '',
+    });
+    setRescheduleModal(service);
+  }
+
+  function handleReschedule(e) {
+    e.preventDefault();
+    rescheduleMutation.mutate({ id: rescheduleModal.id, body: rescheduleForm });
+  }
 
   const allPhotos = detailModal ? [...(detailModal.photos || [])] : [];
   const beforePhotos = allPhotos.filter((p) => p.phase === 'before');
@@ -246,6 +285,54 @@ export default function AdminServicesPage() {
             {allPhotos.length === 0 && (
               <p style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>Nenhuma foto registrada.</p>
             )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+              <button
+                onClick={() => openReschedule(detailModal)}
+                style={{ ...s.outlineBtn, borderColor: '#0891b2', color: '#0891b2' }}>
+                Reagendar
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm(`Excluir o serviço "${detailModal.title}" permanentemente?`))
+                    deleteServiceMutation.mutate(detailModal.id);
+                }}
+                disabled={deleteServiceMutation.isLoading}
+                style={{ ...s.primaryBtn, background: '#dc2626' }}>
+                {deleteServiceMutation.isLoading ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal reagendamento */}
+      {rescheduleModal && (
+        <div style={overlay} onClick={() => setRescheduleModal(null)}>
+          <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modalTitle}>Reagendar Serviço</h2>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{rescheduleModal.title}</p>
+            <form onSubmit={handleReschedule} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Field label="Nova data *">
+                  <input type="date" value={rescheduleForm.scheduled_date}
+                    onChange={(e) => setRescheduleForm((p) => ({ ...p, scheduled_date: e.target.value }))}
+                    required style={inputStyle} />
+                </Field>
+                <Field label="Novo horário limite">
+                  <input type="time" value={rescheduleForm.due_time}
+                    onChange={(e) => setRescheduleForm((p) => ({ ...p, due_time: e.target.value }))}
+                    style={inputStyle} />
+                </Field>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button type="button" onClick={() => setRescheduleModal(null)} style={s.outlineBtn}>Cancelar</button>
+                <button type="submit" disabled={rescheduleMutation.isLoading}
+                  style={{ ...s.primaryBtn, opacity: rescheduleMutation.isLoading ? 0.7 : 1 }}>
+                  {rescheduleMutation.isLoading ? 'Salvando...' : 'Confirmar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
