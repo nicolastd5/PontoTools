@@ -195,8 +195,10 @@ async function subscribeFcm(req, res, next) {
         [fcm_token, existing.rows[0].id]
       );
     } else {
+      // endpoint/p256dh/auth ficam NULL para registros nativos (migration 11 torna nullable)
       await db.query(
-        `INSERT INTO push_subscriptions (employee_id, fcm_token) VALUES ($1, $2)`,
+        `INSERT INTO push_subscriptions (employee_id, fcm_token, endpoint, p256dh, auth)
+         VALUES ($1, $2, NULL, NULL, NULL)`,
         [req.user.id, fcm_token]
       );
     }
