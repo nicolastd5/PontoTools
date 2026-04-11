@@ -71,6 +71,7 @@ export default function EmployeeDashboardPage() {
   const todayRecords    = todayData?.records || [];
   const requireLocation = todayData?.requireLocation ?? true;
   const available       = todayData?.available ?? { entry: true, break_start: false, break_end: false, exit: false };
+  const maxPhotos       = todayData?.maxPhotos ?? 1;
   const gpsOk           = gpsStatus === 'granted';
 
   function handleClockClick(clockType) {
@@ -87,25 +88,31 @@ export default function EmployeeDashboardPage() {
     setCameraFor(clockType);
   }
 
-  async function handlePhotoCapture(blob) {
+  async function handlePhotoCapture(blobs) {
     const clockType = cameraFor;
     setCameraFor(null);
 
     const formData = new FormData();
     formData.append('clock_type', clockType);
     formData.append('timezone',   TZ);
-    formData.append('photo',      blob, 'photo.jpg');
 
-    // Envia coordenadas se disponíveis (sempre que possível, independente de requireLocation)
     if (coords) {
       formData.append('latitude',  String(coords.latitude));
       formData.append('longitude', String(coords.longitude));
       formData.append('accuracy',  String(coords.accuracy || ''));
     } else {
-      // Coordenadas dummy para cargos com localização livre sem GPS ativo
       formData.append('latitude',  '0');
       formData.append('longitude', '0');
       formData.append('accuracy',  '');
+    }
+
+    if (blobs.length > 0) {
+      blobs.forEach((blob, i) => formData.append('photo', blob, `photo_${i}.jpg`));
+    } else {
+      // Placeholder 1px JPEG quando o funcionário não tirou foto
+      const dataUri = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=';
+      const blob = await (await fetch(dataUri)).blob();
+      formData.append('photo', blob, 'photo.jpg');
     }
 
     await clockMutation.mutateAsync(formData);
@@ -116,10 +123,10 @@ export default function EmployeeDashboardPage() {
       {/* Cabeçalho com relógio em tempo real */}
       <div style={styles.dateBar}>
         <span style={styles.dateText}>
-          {formatInTimeZone(now, TZ, "EEEE, dd 'de' MMMM", { locale: undefined })}
+          {now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </span>
         <span style={styles.timeText}>
-          {formatInTimeZone(now, TZ, 'HH:mm:ss')}
+          {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </span>
       </div>
 
@@ -210,6 +217,7 @@ export default function EmployeeDashboardPage() {
       {cameraFor && (
         <CameraCapture
           clockType={cameraFor}
+          maxPhotos={maxPhotos}
           onCapture={handlePhotoCapture}
           onCancel={() => setCameraFor(null)}
         />
