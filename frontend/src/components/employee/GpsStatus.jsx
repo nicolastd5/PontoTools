@@ -1,5 +1,5 @@
 // Indicador de status do GPS e distância da zona
-export default function GpsStatus({ status, distanceMeters, isInsideZone, radiusMeters }) {
+export default function GpsStatus({ status, distanceMeters, isInsideZone, radiusMeters, requireLocation = true }) {
   if (status === 'loading') {
     return (
       <div style={styles.loading}>
@@ -39,20 +39,30 @@ export default function GpsStatus({ status, distanceMeters, isInsideZone, radius
     ? `${Math.round(distanceMeters)}m da unidade`
     : 'Calculando distância...';
 
+  // Quando localização livre: sempre verde, sem indicar bloqueio
+  const inside  = requireLocation ? isInsideZone : true;
+  const bgColor = inside ? '#f0fdf4' : '#fef2f2';
+  const bdColor = inside ? '#86efac' : '#fca5a5';
+  const dotColor    = inside ? '#16a34a' : '#dc2626';
+  const statusColor = inside ? '#15803d' : '#dc2626';
+  const statusLabel = requireLocation
+    ? (isInsideZone ? 'Dentro da zona' : 'Fora da zona')
+    : 'GPS obtido';
+
   return (
-    <div style={{ ...styles.indicator, background: isInsideZone ? '#f0fdf4' : '#fef2f2', borderColor: isInsideZone ? '#86efac' : '#fca5a5' }}>
+    <div style={{ ...styles.indicator, background: bgColor, borderColor: bdColor }}>
       <div style={styles.indicatorLeft}>
-        <div style={{ ...styles.dot, background: isInsideZone ? '#16a34a' : '#dc2626' }} />
+        <div style={{ ...styles.dot, background: dotColor }} />
         <div>
-          <div style={{ ...styles.statusText, color: isInsideZone ? '#15803d' : '#dc2626' }}>
-            {isInsideZone ? 'Dentro da zona' : 'Fora da zona'}
+          <div style={{ ...styles.statusText, color: statusColor }}>
+            {statusLabel}
           </div>
           <div style={styles.distanceText}>{distLabel}</div>
         </div>
       </div>
-      <div style={styles.radius}>
-        raio: {radiusMeters}m
-      </div>
+      {requireLocation && (
+        <div style={styles.radius}>raio: {radiusMeters}m</div>
+      )}
     </div>
   );
 }

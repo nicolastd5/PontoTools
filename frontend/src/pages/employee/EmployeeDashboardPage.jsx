@@ -1,5 +1,5 @@
 // App principal do funcionário — batida de ponto com GPS e câmera
-import { useState }         from 'react';
+import { useState, useEffect }  from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone }  from 'date-fns-tz';
 import api                   from '../../services/api';
@@ -21,24 +21,33 @@ const CLOCK_TYPE_LABELS = {
   break_start: 'Início intervalo', break_end: 'Fim intervalo',
 };
 
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+function useLiveClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
 export default function EmployeeDashboardPage() {
   const { user }        = useAuth();
   const { success, error, warning } = useToast();
   const queryClient     = useQueryClient();
+  const now             = useLiveClock();
 
-  const [cameraFor, setCameraFor] = useState(null); // clock_type em andamento
+  const [cameraFor, setCameraFor] = useState(null);
 
-  // GPS em tempo real
   const { status: gpsStatus, coords, distanceMeters, isInsideZone } = useGeolocation(user?.unit);
 
-  // Registros de hoje para mostrar na tela
   const { data: todayData } = useQuery({
-    queryKey:        ['clock-today'],
-    queryFn:         () => api.get('/clock/today').then((r) => r.data),
-    refetchInterval: 30 * 1000,
+    queryKey: ['clock-today'],
+    queryFn:  () => api.get('/clock/today', { params: { timezone: TZ } }).then((r) => r.data),
+    refetchInterval: 15 * 1000,
   });
 
-  // Mutation de batida de ponto
   const clockMutation = useMutation({
     mutationFn: (formData) => api.post('/clock', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -46,7 +55,7 @@ export default function EmployeeDashboardPage() {
     onSuccess: (res) => {
       queryClient.invalidateQueries(['clock-today']);
       success(`Ponto registrado! ${CLOCK_TYPE_LABELS[res.data.clockType]} às ${
-        formatInTimeZone(new Date(res.data.clockedAtUtc), Intl.DateTimeFormat().resolvedOptions().timeZone, 'HH:mm')
+        formatInTimeZone(new Date(res.data.clockedAtUtc), TZ, 'HH:mm')
       }`);
     },
     onError: (err) => {
@@ -59,7 +68,12 @@ export default function EmployeeDashboardPage() {
     },
   });
 
-  async function handleClockClick(clockType) {
+  const todayRecords    = todayData?.records || [];
+  const requireLocation = todayData?.requireLocation ?? true;
+  const available       = todayData?.available ?? { entry: true, break_start: false, break_end: false, exit: false };
+  const gpsOk           = gpsStatus === 'granted';
+
+  function handleClockClick(clockType) {
     if (requireLocation) {
       if (gpsStatus !== 'granted') {
         warning('Habilite o GPS para registrar o ponto.');
@@ -77,47 +91,66 @@ export default function EmployeeDashboardPage() {
     const clockType = cameraFor;
     setCameraFor(null);
 
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
     const formData = new FormData();
     formData.append('clock_type', clockType);
-    formData.append('latitude',   String(coords.latitude));
-    formData.append('longitude',  String(coords.longitude));
-    formData.append('accuracy',   String(coords.accuracy || ''));
-    formData.append('timezone',   tz);
+    formData.append('timezone',   TZ);
     formData.append('photo',      blob, 'photo.jpg');
+
+    // Envia coordenadas se disponíveis (sempre que possível, independente de requireLocation)
+    if (coords) {
+      formData.append('latitude',  String(coords.latitude));
+      formData.append('longitude', String(coords.longitude));
+      formData.append('accuracy',  String(coords.accuracy || ''));
+    } else {
+      // Coordenadas dummy para cargos com localização livre sem GPS ativo
+      formData.append('latitude',  '0');
+      formData.append('longitude', '0');
+      formData.append('accuracy',  '');
+    }
 
     await clockMutation.mutateAsync(formData);
   }
 
-  const todayRecords    = todayData?.records || [];
-  const requireLocation = todayData?.requireLocation ?? true;
-  const available       = todayData?.available ?? { entry: true, break_start: false, break_end: false, exit: false };
-  const gpsOk           = gpsStatus === 'granted';
-
   return (
     <div>
-      {/* Cabeçalho com data atual */}
+      {/* Cabeçalho com relógio em tempo real */}
       <div style={styles.dateBar}>
         <span style={styles.dateText}>
-          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {formatInTimeZone(now, TZ, "EEEE, dd 'de' MMMM", { locale: undefined })}
         </span>
         <span style={styles.timeText}>
-          {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+          {formatInTimeZone(now, TZ, 'HH:mm:ss')}
         </span>
       </div>
 
-      {/* Status do GPS */}
-      <div style={{ marginBottom: 20 }}>
-        <GpsStatus
-          status={gpsStatus}
-          distanceMeters={distanceMeters}
-          isInsideZone={isInsideZone}
-          radiusMeters={user?.unit?.radiusMeters}
-        />
-      </div>
+      {/* Status do GPS — oculto quando localização é livre e GPS não obtido */}
+      {(requireLocation || gpsOk) && (
+        <div style={{ marginBottom: 20 }}>
+          <GpsStatus
+            status={gpsStatus}
+            distanceMeters={distanceMeters}
+            isInsideZone={isInsideZone}
+            radiusMeters={user?.unit?.radiusMeters}
+            requireLocation={requireLocation}
+          />
+        </div>
+      )}
 
-      {/* Botões de batida — só habilitados dentro da zona */}
+      {/* Info quando localização é livre e GPS não está disponível */}
+      {!requireLocation && !gpsOk && (
+        <div style={{ ...styles.freeBanner, marginBottom: 20 }}>
+          📍 Localização livre — você pode registrar de qualquer lugar.
+        </div>
+      )}
+
+      {/* Info quando localização é livre e GPS está disponível */}
+      {!requireLocation && gpsOk && distanceMeters !== null && (
+        <div style={{ ...styles.freeBanner, marginBottom: 20 }}>
+          📍 {Math.round(distanceMeters)}m da unidade — localização livre para este cargo.
+        </div>
+      )}
+
+      {/* Botões de batida */}
       <div style={styles.clockGrid}>
         {CLOCK_TYPES.map((ct) => {
           const gpsBlocks = requireLocation && (!gpsOk || !isInsideZone);
@@ -146,17 +179,11 @@ export default function EmployeeDashboardPage() {
         })}
       </div>
 
-      {/* Aviso de bloqueio (só quando localização é exigida) */}
+      {/* Aviso de bloqueio por zona (só quando localização é exigida) */}
       {requireLocation && gpsOk && !isInsideZone && distanceMeters !== null && (
         <div style={styles.blockedBanner}>
           ⛔ Fora da zona — {Math.round(distanceMeters)}m de distância
           (limite: {user?.unit?.radiusMeters}m). Aproxime-se da unidade para registrar o ponto.
-        </div>
-      )}
-      {/* Info quando localização é livre */}
-      {!requireLocation && distanceMeters !== null && (
-        <div style={styles.freeBanner}>
-          📍 {Math.round(distanceMeters)}m da unidade — localização livre para este cargo.
         </div>
       )}
 
@@ -166,15 +193,9 @@ export default function EmployeeDashboardPage() {
           <h3 style={styles.todayTitle}>Registros de Hoje</h3>
           {todayRecords.map((r) => (
             <div key={r.id} style={styles.todayRecord}>
-              <div style={styles.todayType}>
-                {CLOCK_TYPE_LABELS[r.clock_type]}
-              </div>
+              <div style={styles.todayType}>{CLOCK_TYPE_LABELS[r.clock_type]}</div>
               <div style={styles.todayTime}>
-                {formatInTimeZone(
-                  new Date(r.clocked_at_utc),
-                  r.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-                  'HH:mm'
-                )}
+                {formatInTimeZone(new Date(r.clocked_at_utc), r.timezone || TZ, 'HH:mm')}
               </div>
               <div style={{
                 width: 8, height: 8, borderRadius: '50%',
@@ -205,7 +226,7 @@ const styles = {
     marginBottom:   20,
   },
   dateText: { fontSize: 14, color: '#475569', textTransform: 'capitalize', fontWeight: 500 },
-  timeText: { fontSize: 18, fontWeight: 800, color: '#0f172a' },
+  timeText: { fontSize: 18, fontWeight: 800, color: '#0f172a', fontVariant: 'tabular-nums' },
   clockGrid: {
     display:             'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
@@ -213,21 +234,21 @@ const styles = {
     marginBottom:        16,
   },
   clockBtn: {
-    display:        'flex',
-    flexDirection:  'column',
-    alignItems:     'center',
-    gap:            8,
-    padding:        '20px 16px',
-    border:         '2px solid',
-    borderRadius:   14,
-    transition:     'all 0.15s',
-    position:       'relative',
+    display:       'flex',
+    flexDirection: 'column',
+    alignItems:    'center',
+    gap:           8,
+    padding:       '20px 16px',
+    border:        '2px solid',
+    borderRadius:  14,
+    transition:    'all 0.15s',
+    position:      'relative',
   },
   clockIcon:  { fontSize: 28 },
   clockLabel: { fontSize: 13, fontWeight: 700 },
   lockIcon: {
-    position:  'absolute', top: 8, right: 8,
-    fontSize:  14, opacity: 0.6,
+    position: 'absolute', top: 8, right: 8,
+    fontSize: 14, opacity: 0.6,
   },
   freeBanner: {
     padding:      '12px 16px',
@@ -237,7 +258,6 @@ const styles = {
     color:        '#64748b',
     fontSize:     13,
     fontWeight:   500,
-    marginBottom: 16,
   },
   blockedBanner: {
     padding:      '12px 16px',

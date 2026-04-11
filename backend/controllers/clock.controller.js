@@ -30,10 +30,13 @@ async function registerClock(req, res, next) {
       return res.status(400).json({ error: 'Unidade do funcionário não encontrada.' });
     }
 
-    const { isInside, distanceMeters } = validateZone(
-      { latitude, longitude },
-      unit
-    );
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+    const hasValidCoords = !isNaN(lat) && !isNaN(lon) && !(lat === 0 && lon === 0);
+
+    const { isInside, distanceMeters } = hasValidCoords
+      ? validateZone({ latitude: lat, longitude: lon }, unit)
+      : { isInside: false, distanceMeters: null };
 
     // Se fora da zona e o cargo exige localização: bloqueia e registra tentativa
     if (!isInside && unit.require_location) {
@@ -44,8 +47,8 @@ async function registerClock(req, res, next) {
         [
           req.user.id,
           unit.id,
-          parseFloat(latitude),
-          parseFloat(longitude),
+          hasValidCoords ? lat : null,
+          hasValidCoords ? lon : null,
           distanceMeters,
           timezone,
           req.ip,
@@ -87,8 +90,8 @@ async function registerClock(req, res, next) {
         unit.id,
         clock_type,
         timezone,
-        parseFloat(latitude),
-        parseFloat(longitude),
+        hasValidCoords ? lat : null,
+        hasValidCoords ? lon : null,
         accuracy ? parseFloat(accuracy) : null,
         distanceMeters,
         isInside,
