@@ -438,4 +438,50 @@ async function getClockExtraPhoto(req, res, next) {
   }
 }
 
-module.exports = { getDashboard, getAbsences, getClocks, getClockPhoto, getClockPhotos, getClockExtraPhoto, deleteClockPhoto, deleteClockExtraPhoto, getBlocked, getAuditLogs };
+// ----------------------------------------------------------------
+// DELETE /api/admin/clocks/:id
+// Apaga registro de ponto completo (fotos físicas + clock_photos + clock_records)
+// ----------------------------------------------------------------
+async function deleteClockRecord(req, res, next) {
+  try {
+    const recordId = parseInt(req.params.id, 10);
+    const params   = [recordId];
+    let scopeFilter = '';
+
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      scopeFilter = `AND u.contract_id = $${params.length}`;
+    }
+
+    const result = await db.query(
+      `SELECT cr.photo_path FROM clock_records cr
+       JOIN units u ON u.id = cr.unit_id
+       WHERE cr.id = $1 ${scopeFilter}`,
+      params
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const { photo_path } = result.rows[0];
+
+    // Apaga fotos extras físicas
+    const extras = await db.query(
+      `SELECT photo_path FROM clock_photos WHERE clock_record_id = $1`, [recordId]
+    );
+    await Promise.all(extras.rows.map((r) => storage.delete(r.photo_path)));
+
+    // Apaga foto principal física (se não for placeholder)
+    if (photo_path && !photo_path.startsWith('placeholder/')) {
+      await storage.delete(photo_path);
+    }
+
+    // Apaga o registro (clock_photos cascateia via ON DELETE CASCADE)
+    await db.query(`DELETE FROM clock_records WHERE id = $1`, [recordId]);
+
+    logger.info('Registro de ponto deletado', { recordId, by: req.user.id });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getDashboard, getAbsences, getClocks, getClockPhoto, getClockPhotos, getClockExtraPhoto, deleteClockPhoto, deleteClockExtraPhoto, deleteClockRecord, getBlocked, getAuditLogs };

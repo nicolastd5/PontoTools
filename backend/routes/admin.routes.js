@@ -14,6 +14,7 @@ router.get('/dashboard/absences',  requireAdmin, controller.getAbsences);
 
 // Registros de ponto — admin e gestor (gestor filtrado por contrato)
 router.get('/clocks',              requireAdminOrGestor, controller.getClocks);
+router.delete('/clocks/:id',                 requireAdminOrGestor, controller.deleteClockRecord);
 router.get('/clocks/:id/photo',              requireAdminOrGestor, controller.getClockPhoto);
 router.delete('/clocks/:id/photo',           requireAdminOrGestor, controller.deleteClockPhoto);
 router.get('/clocks/:id/photos',             requireAdminOrGestor, controller.getClockPhotos);

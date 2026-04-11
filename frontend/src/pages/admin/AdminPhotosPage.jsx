@@ -135,6 +135,26 @@ export default function AdminPhotosPage() {
     }
   }
 
+  async function handleDeleteRecord() {
+    if (!lightbox) return;
+    const { record } = lightbox;
+    if (!window.confirm(
+      `Apagar o registro de ponto de ${record.employee_name} (${CLOCK_LABELS[record.clock_type]}) permanentemente?\n\nEsta ação não pode ser desfeita.`
+    )) return;
+    setDeleting('record');
+    try {
+      await api.delete(`/admin/clocks/${record.id}`);
+      setLightbox(null);
+      setThumbs((p) => { const n = { ...p }; delete n[record.id]; return n; });
+      // Remove do cache local para sumir da grade sem refetch
+      success('Registro apagado.');
+    } catch {
+      error('Erro ao apagar registro.');
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   const lb = lightbox;
   const current = lb ? lb.photoList[lb.idx] : null;
   const total   = lb ? lb.photoList.length : 0;
@@ -248,17 +268,21 @@ export default function AdminPhotosPage() {
             </div>
 
             {/* Controles */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '12px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px 20px', flexWrap: 'wrap' }}>
               {total > 1 && (
                 <button onClick={() => setLightbox((p) => ({ ...p, idx: Math.max(0, p.idx - 1) }))}
                   disabled={lb.idx === 0} style={{ ...pageBtn, opacity: lb.idx === 0 ? 0.3 : 1 }}>◀</button>
               )}
               {current.url && !current.isPlaceholder && (
                 <button onClick={handleDelete} disabled={!!deleting}
-                  style={{ padding: '7px 18px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#dc2626', cursor: 'pointer', fontWeight: 600, opacity: deleting ? 0.6 : 1 }}>
-                  {deleting ? 'Apagando...' : '🗑 Apagar foto'}
+                  style={{ padding: '7px 14px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#dc2626', cursor: 'pointer', fontWeight: 600, opacity: deleting ? 0.6 : 1 }}>
+                  {deleting === current.key ? 'Apagando...' : '🗑 Apagar foto'}
                 </button>
               )}
+              <button onClick={handleDeleteRecord} disabled={!!deleting}
+                style={{ padding: '7px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#991b1b', cursor: 'pointer', fontWeight: 700, opacity: deleting ? 0.6 : 1 }}>
+                {deleting === 'record' ? 'Apagando...' : '🗑 Apagar registro'}
+              </button>
               {total > 1 && (
                 <button onClick={() => setLightbox((p) => ({ ...p, idx: Math.min(total - 1, p.idx + 1) }))}
                   disabled={lb.idx === total - 1} style={{ ...pageBtn, opacity: lb.idx === total - 1 ? 0.3 : 1 }}>▶</button>
