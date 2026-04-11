@@ -9,8 +9,9 @@ import { launchCamera, type CameraOptions } from 'react-native-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
+import TabBar from '../components/TabBar';
 
-type Screen = 'dashboard' | 'history';
+type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
 
 const CLOCK_TYPES = [
   { key: 'entry',       label: 'Entrada',          color: '#16a34a', bg: '#f0fdf4' },
@@ -50,7 +51,13 @@ function useClock() {
   return now;
 }
 
-export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+export default function DashboardScreen({
+  onNavigate,
+  unreadCount = 0,
+}: {
+  onNavigate: (s: Screen) => void;
+  unreadCount?: number;
+}) {
   const { user, logout }      = useAuth();
   const { status: gpsStatus, coords, distanceMeters, isInsideZone } = useGeolocation(user?.unit);
   const now = useClock();
@@ -191,15 +198,7 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      {/* Tab bar */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={[styles.tab, styles.tabActive]}>
-          <Text style={[styles.tabText, styles.tabTextActive]}>🕐 Ponto</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => onNavigate('history')}>
-          <Text style={styles.tabText}>📋 Histórico</Text>
-        </TouchableOpacity>
-      </View>
+      <TabBar active="dashboard" onNavigate={onNavigate} unreadCount={unreadCount} />
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {/* Relógio com segundos */}
@@ -367,11 +366,6 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
 }
 
 const styles = StyleSheet.create({
-  tabBar:        { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  tab:           { flex: 1, paddingVertical: 14, alignItems: 'center' },
-  tabActive:     { borderBottomWidth: 2, borderBottomColor: '#1d4ed8' },
-  tabText:       { fontSize: 14, color: '#94a3b8', fontWeight: '600' },
-  tabTextActive: { color: '#1d4ed8' },
   clockBox:      { backgroundColor: '#fff', borderRadius: 14, padding: 20, marginBottom: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e2e8f0' },
   clockTime:     { fontSize: 44, fontWeight: '800', color: '#0f172a', letterSpacing: 2, fontVariant: ['tabular-nums'] },
   clockDate:     { fontSize: 13, color: '#64748b', marginTop: 4, textTransform: 'capitalize' },

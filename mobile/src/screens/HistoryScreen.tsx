@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet,
-  ActivityIndicator, RefreshControl, SafeAreaView, TouchableOpacity,
+  ActivityIndicator, RefreshControl, SafeAreaView,
 } from 'react-native';
 import { formatInTimeZone } from 'date-fns-tz';
 import api from '../services/api';
+import TabBar from '../components/TabBar';
 
-type Screen = 'dashboard' | 'history';
+type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
 
 const LABELS: Record<string, string> = {
   entry: 'Entrada', exit: 'Saída',
@@ -22,7 +23,13 @@ interface ClockRecord {
   unit_name: string;
 }
 
-export default function HistoryScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+export default function HistoryScreen({
+  onNavigate,
+  unreadCount = 0,
+}: {
+  onNavigate: (s: Screen) => void;
+  unreadCount?: number;
+}) {
   const [records, setRecords]       = useState<ClockRecord[]>([]);
   const [page, setPage]             = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -45,15 +52,7 @@ export default function HistoryScreen({ onNavigate }: { onNavigate: (s: Screen) 
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      {/* Tab bar */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tab} onPress={() => onNavigate('dashboard')}>
-          <Text style={styles.tabText}>🕐 Ponto</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, styles.tabActive]}>
-          <Text style={[styles.tabText, styles.tabTextActive]}>📋 Histórico</Text>
-        </TouchableOpacity>
-      </View>
+      <TabBar active="history" onNavigate={onNavigate} unreadCount={unreadCount} />
 
       <FlatList
         data={records}
@@ -88,11 +87,6 @@ export default function HistoryScreen({ onNavigate }: { onNavigate: (s: Screen) 
 }
 
 const styles = StyleSheet.create({
-  tabBar:        { flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  tab:           { flex: 1, paddingVertical: 14, alignItems: 'center' },
-  tabActive:     { borderBottomWidth: 2, borderBottomColor: '#1d4ed8' },
-  tabText:       { fontSize: 14, color: '#94a3b8', fontWeight: '600' },
-  tabTextActive: { color: '#1d4ed8' },
   row:           { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowType:       { fontSize: 15, fontWeight: '700', color: '#0f172a' },
   rowUnit:       { fontSize: 12, color: '#64748b', marginTop: 2 },
