@@ -37,6 +37,10 @@ psql $DATABASE_URL -f database/01_schema.sql
 psql $DATABASE_URL -f database/02_seed.sql
 psql $DATABASE_URL -f database/03_contracts.sql
 psql $DATABASE_URL -f database/04_gestor.sql
+psql $DATABASE_URL -f database/05_password_reset.sql
+psql $DATABASE_URL -f database/06_job_roles.sql
+psql $DATABASE_URL -f database/07_clock_extras.sql
+psql $DATABASE_URL -f database/08_job_role_location.sql
 ```
 
 ## Architecture
@@ -58,7 +62,10 @@ Express.js + PostgreSQL (direct `pg`, no ORM).
 - `employee` — can only register and view their own clock records
 
 **Clock record flow (`clock.controller.js`):**  
-Receives `multipart/form-data` (lat/lon + photo). Validates GPS zone via `services/geoValidation.service.js` (Haversine distance vs `unit.radius_meters`). Blocked attempts are logged in `blocked_attempts` table. Accepted records insert into `clock_records` and save the photo via `config/storage.js`.
+Receives `multipart/form-data` (lat/lon + up to 5 photos + optional observation). Looks up employee's `job_role` to get `max_photos`, `has_break`, and `require_location`. If `require_location=true`, validates GPS zone via `services/geoValidation.service.js` (Haversine vs `unit.radius_meters`) — blocked attempts go to `blocked_attempts` table. If `require_location=false`, the clock is accepted from anywhere but coordinates are still stored. Accepted records insert into `clock_records` (primary photo in `photo_path`); extra photos go to `clock_photos` table. `GET /clock/today` returns `records`, `available` (per-button boolean derived from last clock_type and `has_break`), `maxPhotos`, and `requireLocation`.
+
+**Job roles (`job_roles` table, `jobRole.controller.js`):**  
+Configurable per cargo: `has_break` (whether break_start/break_end buttons appear), `max_photos` (1–5), `require_location` (whether GPS zone is enforced). Employees are linked via `employees.job_role_id`.
 
 **Photo storage:**  
 Controlled by `STORAGE_DRIVER=local|s3`. Local stores in `PHOTOS_BASE_PATH`. S3 uses `AWS_*` env vars.
@@ -72,6 +79,9 @@ Controlled by `STORAGE_DRIVER=local|s3`. Local stores in `PHOTOS_BASE_PATH`. S3 
 React 18 + Vite PWA. Uses React Query for server state, React Router v6.
 
 - `src/services/api.js` — Axios instance with `baseURL: '/api'` (relative, proxied by Nginx in prod). Uses `withCredentials: true` for the HttpOnly refresh cookie. Has auto-refresh interceptor.
+- `src/hooks/useCamera.js` — manages `getUserMedia` lifecycle (open/stop/capture); supports `facingMode` switching (front/back). `capture(facing)` applies horizontal mirror only for front camera.
+- `src/components/employee/CameraCapture.jsx` — modal wrapper around `useCamera`; 🔄 button overlaid on video to switch camera.
+- `src/pages/employee/EmployeeDashboardPage.jsx` — employee clock-in UI; reads `available`, `requireLocation`, and `maxPhotos` from `GET /clock/today` to control button state and GPS enforcement.
 - Frontend is built to `frontend/dist/` and served as static files by Nginx in production (no Node process).
 
 ### Mobile — `mobile/`
@@ -88,7 +98,7 @@ React Native 0.74.5 (TypeScript). Android only in CI.
 - **Nginx:** reverse proxy; serves `frontend/dist/` as static files, proxies `/api/` to `127.0.0.1:3001`, proxies `status.pontotools.shop` to `127.0.0.1:8080`
 - **TLS:** Let's Encrypt via Certbot
 - **Process manager:** PM2 (`pm2 restart backend` after deploys)
-- **Deploy:** SSH into EC2, `cd ~/pontotools && git pull origin main && pm2 restart backend`
+- **Deploy:** SSH into EC2, `cd ~/pontotools && git pull origin main && pm2 restart backend && cd frontend && npm run build`
 
 ## Environment Variables
 
