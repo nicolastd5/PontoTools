@@ -1,5 +1,5 @@
-// Serviço de Web Push — envia notificações via browser PushManager
 const webpush = require('web-push');
+const admin   = require('firebase-admin');
 const db      = require('../config/database');
 const logger  = require('../utils/logger');
 
@@ -9,13 +9,17 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY || '',
 );
 
-/**
- * Salva notificação no banco e tenta enviar push para o funcionário.
- * @param {number} employeeId
- * @param {string} title
- * @param {string} body
- * @param {string} type  manual | service_assigned | service_late | service_problem
- */
+// Inicializa firebase-admin apenas uma vez
+if (!admin.apps.length && process.env.FIREBASE_PROJECT_ID) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId:   process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
 async function notify(employeeId, title, body, type = 'manual') {
   // 1. Persiste no banco
   const result = await db.query(
@@ -27,22 +31,24 @@ async function notify(employeeId, title, body, type = 'manual') {
 
   // 2. Busca subscriptions do funcionário
   const subs = await db.query(
-    `SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE employee_id = $1`,
+    `SELECT id, endpoint, p256dh, auth, fcm_token
+     FROM push_subscriptions WHERE employee_id = $1`,
     [employeeId]
   );
 
   if (subs.rows.length === 0) return;
 
   const payload = JSON.stringify({ title, body, type });
+  let sent = 0;
 
-  // 3. Envia push para cada subscription (em paralelo)
-  const results = await Promise.allSettled(
-    subs.rows.map((sub) =>
+  // 3. Web Push (browsers)
+  const webSubs = subs.rows.filter((s) => s.endpoint);
+  const webResults = await Promise.allSettled(
+    webSubs.map((sub) =>
       webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload
       ).catch(async (err) => {
-        // 410 Gone = subscription expirada, remove do banco
         if (err.statusCode === 410) {
           await db.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
         }
@@ -50,8 +56,35 @@ async function notify(employeeId, title, body, type = 'manual') {
       })
     )
   );
+  sent += webResults.filter((r) => r.status === 'fulfilled').length;
 
-  const sent = results.filter((r) => r.status === 'fulfilled').length;
+  // 4. FCM (Android app nativo)
+  const fcmSubs = subs.rows.filter((s) => s.fcm_token);
+  if (fcmSubs.length > 0 && admin.apps.length) {
+    const fcmResults = await Promise.allSettled(
+      fcmSubs.map((sub) =>
+        admin.messaging().send({
+          token: sub.fcm_token,
+          notification: { title, body },
+          data: { type },
+          android: { priority: 'high' },
+        }).catch(async (err) => {
+          // Token inválido ou desregistrado — remove
+          const code = err?.errorInfo?.code || '';
+          if (code === 'messaging/registration-token-not-registered' ||
+              code === 'messaging/invalid-registration-token') {
+            await db.query(
+              'UPDATE push_subscriptions SET fcm_token = NULL WHERE id = $1',
+              [sub.id]
+            );
+          }
+          throw err;
+        })
+      )
+    );
+    sent += fcmResults.filter((r) => r.status === 'fulfilled').length;
+  }
+
   if (sent > 0) {
     await db.query('UPDATE notifications SET push_sent = TRUE WHERE id = $1', [notifId]);
   }
@@ -59,9 +92,6 @@ async function notify(employeeId, title, body, type = 'manual') {
   logger.info('Notificação enviada', { employeeId, type, sent, total: subs.rows.length });
 }
 
-/**
- * Cron: verifica serviços atrasados e envia notificação (roda a cada hora).
- */
 async function checkLateServices() {
   try {
     const result = await db.query(
@@ -89,10 +119,8 @@ async function checkLateServices() {
   }
 }
 
-// Inicia cron a cada hora
 function startCron() {
   setInterval(checkLateServices, 60 * 60 * 1000);
-  // Roda uma vez na inicialização também
   checkLateServices();
 }
 
