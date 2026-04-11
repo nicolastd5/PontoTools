@@ -14,15 +14,15 @@ async function registerClock(req, res, next) {
     const { clock_type, latitude, longitude, accuracy, timezone, observation } = req.body;
     const photoFiles = req.files || (req.file ? [req.file] : []);
 
-    // Busca a unidade e cargo do funcionário
+    // Busca a unidade e cargo do funcionário autenticado (filtra pelo employee específico)
     const unitResult = await db.query(
       `SELECT u.id, u.latitude, u.longitude, u.radius_meters,
               jr.max_photos, COALESCE(jr.require_location, TRUE) AS require_location
        FROM units u
-       JOIN employees e ON e.unit_id = u.id
+       JOIN employees e ON e.unit_id = u.id AND e.id = $2
        LEFT JOIN job_roles jr ON jr.id = e.job_role_id
        WHERE u.id = $1`,
-      [req.user.unitId]
+      [req.user.unitId, req.user.id]
     );
     const unit = unitResult.rows[0];
 
@@ -73,8 +73,11 @@ async function registerClock(req, res, next) {
 
     // Salva a primeira foto (obrigatória)
     const firstPhoto = photoFiles[0];
-    const dateStr    = new Date().toISOString().split('T')[0];
-    const filename   = `${unit.id}/${dateStr}/${req.user.id}_${Date.now()}.jpg`;
+    if (!firstPhoto) {
+      return res.status(400).json({ error: 'Foto obrigatória.' });
+    }
+    const dateStr  = new Date().toISOString().split('T')[0];
+    const filename = `${unit.id}/${dateStr}/${req.user.id}_${Date.now()}.jpg`;
     await storage.save(firstPhoto.buffer, filename);
 
     // Grava o registro de ponto

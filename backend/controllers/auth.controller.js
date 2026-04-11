@@ -380,26 +380,29 @@ async function resetPassword(req, res, next) {
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
-    // Atualiza senha e marca token como usado em transação
-    await db.query('BEGIN');
+    // Atualiza senha e marca token como usado em transação com cliente dedicado
+    const client = await db.connect();
     try {
-      await db.query(
+      await client.query('BEGIN');
+      await client.query(
         `UPDATE employees SET password_hash = $1 WHERE id = $2`,
         [passwordHash, record.employee_id]
       );
-      await db.query(
+      await client.query(
         `UPDATE password_reset_tokens SET used = TRUE WHERE id = $1`,
         [record.id]
       );
       // Revoga todos os refresh tokens ativos do usuário
-      await db.query(
+      await client.query(
         `UPDATE refresh_tokens SET revoked = TRUE WHERE employee_id = $1 AND revoked = FALSE`,
         [record.employee_id]
       );
-      await db.query('COMMIT');
+      await client.query('COMMIT');
     } catch (err) {
-      await db.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw err;
+    } finally {
+      client.release();
     }
 
     logger.info('Senha redefinida via token', { employeeId: record.employee_id });

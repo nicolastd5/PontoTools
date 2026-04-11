@@ -13,6 +13,14 @@ async function list(req, res, next) {
     if (req.user.role === 'employee') {
       params.push(req.user.id);
       filters.push(`n.employee_id = $${params.length}`);
+    } else if (req.user.role === 'gestor') {
+      // Gestor só vê notificações de funcionários do próprio contrato
+      params.push(req.user.contractId);
+      filters.push(`u.contract_id = $${params.length}`);
+      if (req.query.employeeId) {
+        params.push(parseInt(req.query.employeeId, 10));
+        filters.push(`n.employee_id = $${params.length}`);
+      }
     } else if (req.query.employeeId) {
       params.push(parseInt(req.query.employeeId, 10));
       filters.push(`n.employee_id = $${params.length}`);
@@ -25,6 +33,7 @@ async function list(req, res, next) {
               e.full_name AS employee_name
        FROM notifications n
        JOIN employees e ON e.id = n.employee_id
+       JOIN units u ON u.id = e.unit_id
        ${where}
        ORDER BY n.created_at DESC
        LIMIT 100`,
@@ -86,11 +95,29 @@ async function send(req, res, next) {
     let employeeIds = [];
 
     if (employee_id) {
-      employeeIds = [parseInt(employee_id, 10)];
+      const eid = parseInt(employee_id, 10);
+      // Gestor só pode enviar para employees do próprio contrato
+      if (req.user.role === 'gestor') {
+        const check = await db.query(
+          `SELECT e.id FROM employees e JOIN units u ON u.id = e.unit_id
+           WHERE e.id = $1 AND u.contract_id = $2`,
+          [eid, req.user.contractId]
+        );
+        if (!check.rows[0]) return res.status(403).json({ error: 'Acesso negado.' });
+      }
+      employeeIds = [eid];
     } else if (unit_id) {
-      // Todos da unidade
+      const uid = parseInt(unit_id, 10);
+      // Gestor só pode enviar para unidades do próprio contrato
+      if (req.user.role === 'gestor') {
+        const check = await db.query(
+          `SELECT id FROM units WHERE id = $1 AND contract_id = $2`,
+          [uid, req.user.contractId]
+        );
+        if (!check.rows[0]) return res.status(403).json({ error: 'Acesso negado.' });
+      }
       const result = await db.query(
-        `SELECT id FROM employees WHERE unit_id = $1 AND active = TRUE`, [unit_id]
+        `SELECT id FROM employees WHERE unit_id = $1 AND active = TRUE`, [uid]
       );
       employeeIds = result.rows.map((r) => r.id);
     } else {
@@ -156,11 +183,12 @@ async function subscribeFcm(req, res, next) {
 
     // Upsert: se já existe linha para este employee sem endpoint (app nativo), atualiza.
     // Caso contrário, insere nova linha.
+    // Upsert: um registro FCM por employee (endpoint NULL = nativo, endpoint real = Web Push)
     const existing = await db.query(
-      `SELECT id FROM push_subscriptions WHERE employee_id = $1 AND (endpoint = '' OR endpoint IS NULL)`,
+      `SELECT id FROM push_subscriptions
+       WHERE employee_id = $1 AND (endpoint IS NULL OR endpoint = '')`,
       [req.user.id]
     );
-
     if (existing.rows.length > 0) {
       await db.query(
         `UPDATE push_subscriptions SET fcm_token = $1 WHERE id = $2`,
@@ -168,8 +196,7 @@ async function subscribeFcm(req, res, next) {
       );
     } else {
       await db.query(
-        `INSERT INTO push_subscriptions (employee_id, fcm_token, endpoint, p256dh, auth)
-         VALUES ($1, $2, '', '', '')`,
+        `INSERT INTO push_subscriptions (employee_id, fcm_token) VALUES ($1, $2)`,
         [req.user.id, fcm_token]
       );
     }

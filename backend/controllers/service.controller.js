@@ -65,11 +65,16 @@ async function create(req, res, next) {
   try {
     const { title, description, assigned_employee_id, scheduled_date, due_time } = req.body;
 
-    // Busca unidade do funcionário
-    const empResult = await db.query(
-      `SELECT e.unit_id, e.full_name FROM employees e WHERE e.id = $1`,
-      [assigned_employee_id]
-    );
+    // Busca unidade do funcionário — gestor só pode atribuir a employees do próprio contrato
+    const empQuery = req.user.role === 'gestor'
+      ? `SELECT e.unit_id, e.full_name FROM employees e
+         JOIN units u ON u.id = e.unit_id
+         WHERE e.id = $1 AND u.contract_id = $2`
+      : `SELECT e.unit_id, e.full_name FROM employees e WHERE e.id = $1`;
+    const empParams = req.user.role === 'gestor'
+      ? [assigned_employee_id, req.user.contractId]
+      : [assigned_employee_id];
+    const empResult = await db.query(empQuery, empParams);
     if (!empResult.rows[0]) {
       return res.status(404).json({ error: 'Funcionário não encontrado.' });
     }
@@ -120,7 +125,8 @@ async function getOne(req, res, next) {
          so.*,
          e.full_name  AS employee_name,
          cb.full_name AS created_by_name,
-         u.name       AS unit_name
+         u.name       AS unit_name,
+         u.contract_id
        FROM service_orders so
        JOIN employees e  ON e.id  = so.assigned_employee_id
        JOIN employees cb ON cb.id = so.created_by_id
@@ -134,6 +140,10 @@ async function getOne(req, res, next) {
 
     // Funcionário só pode ver os seus
     if (req.user.role === 'employee' && service.assigned_employee_id !== req.user.id) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+    // Gestor só pode ver serviços do próprio contrato
+    if (req.user.role === 'gestor' && service.contract_id !== req.user.contractId) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
@@ -159,12 +169,18 @@ async function updateStatus(req, res, next) {
     const { status, problem_description } = req.body;
 
     const current = await db.query(
-      `SELECT assigned_employee_id, status, title, created_by_id FROM service_orders WHERE id = $1`,
+      `SELECT so.assigned_employee_id, so.status, so.title, so.created_by_id, u.contract_id
+       FROM service_orders so
+       JOIN units u ON u.id = so.unit_id
+       WHERE so.id = $1`,
       [id]
     );
     if (!current.rows[0]) return res.status(404).json({ error: 'Serviço não encontrado.' });
 
     if (req.user.role === 'employee' && current.rows[0].assigned_employee_id !== req.user.id) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+    if (req.user.role === 'gestor' && current.rows[0].contract_id !== req.user.contractId) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
@@ -208,10 +224,17 @@ async function addPhoto(req, res, next) {
     }
 
     const current = await db.query(
-      `SELECT assigned_employee_id FROM service_orders WHERE id = $1`, [id]
+      `SELECT so.assigned_employee_id, u.contract_id
+       FROM service_orders so
+       JOIN units u ON u.id = so.unit_id
+       WHERE so.id = $1`,
+      [id]
     );
     if (!current.rows[0]) return res.status(404).json({ error: 'Serviço não encontrado.' });
     if (req.user.role === 'employee' && current.rows[0].assigned_employee_id !== req.user.id) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+    if (req.user.role === 'gestor' && current.rows[0].contract_id !== req.user.contractId) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
@@ -240,15 +263,19 @@ async function getPhoto(req, res, next) {
     const { id, photoId } = req.params;
 
     const result = await db.query(
-      `SELECT sp.photo_path, so.assigned_employee_id
+      `SELECT sp.photo_path, so.assigned_employee_id, u.contract_id
        FROM service_photos sp
        JOIN service_orders so ON so.id = sp.service_order_id
+       JOIN units u ON u.id = so.unit_id
        WHERE sp.id = $1 AND sp.service_order_id = $2`,
       [photoId, id]
     );
 
     if (!result.rows[0]) return res.status(404).json({ error: 'Foto não encontrada.' });
     if (req.user.role === 'employee' && result.rows[0].assigned_employee_id !== req.user.id) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+    if (req.user.role === 'gestor' && result.rows[0].contract_id !== req.user.contractId) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
@@ -270,13 +297,17 @@ async function deletePhoto(req, res, next) {
     const { id, photoId } = req.params;
 
     const result = await db.query(
-      `SELECT sp.photo_path FROM service_photos sp
+      `SELECT sp.photo_path, u.contract_id FROM service_photos sp
        JOIN service_orders so ON so.id = sp.service_order_id
+       JOIN units u ON u.id = so.unit_id
        WHERE sp.id = $1 AND sp.service_order_id = $2`,
       [photoId, id]
     );
 
     if (!result.rows[0]) return res.status(404).json({ error: 'Foto não encontrada.' });
+    if (req.user.role === 'gestor' && result.rows[0].contract_id !== req.user.contractId) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
 
     const { photo_path } = result.rows[0];
 

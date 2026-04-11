@@ -83,6 +83,17 @@ async function create(req, res, next) {
       ? req.user.contractId
       : (contract_id ? parseInt(contract_id, 10) : null);
 
+    // Gestor só pode atribuir a unidades do próprio contrato
+    if (req.user?.role === 'gestor' && unit_id) {
+      const unitCheck = await db.query(
+        `SELECT id FROM units WHERE id = $1 AND contract_id = $2`,
+        [unit_id, req.user.contractId]
+      );
+      if (!unitCheck.rows[0]) {
+        return res.status(403).json({ error: 'Unidade não pertence ao seu contrato.' });
+      }
+    }
+
     const finalJobRoleId = job_role_id ? parseInt(job_role_id, 10) : null;
 
     const passwordHash = await bcrypt.hash(password, 12);
@@ -152,6 +163,16 @@ async function update(req, res, next) {
       );
       if (!check.rows[0]) {
         return res.status(403).json({ error: 'Sem permissão para este funcionário.' });
+      }
+      // Gestor não pode mover funcionário para unidade de outro contrato
+      if (unit_id) {
+        const unitCheck = await db.query(
+          `SELECT id FROM units WHERE id = $1 AND contract_id = $2`,
+          [unit_id, req.user.contractId]
+        );
+        if (!unitCheck.rows[0]) {
+          return res.status(403).json({ error: 'Unidade não pertence ao seu contrato.' });
+        }
       }
     }
 
