@@ -3,15 +3,17 @@ import { useState, useRef, useCallback } from 'react';
 
 /**
  * Gerencia o ciclo de vida da câmera:
- * open() → stream → captura → blob → stop()
+ * open(facing?) → stream → captura → blob → stop()
  *
  * @returns {{
- *   videoRef:  React.Ref       - ref para o elemento <video>
- *   isOpen:    boolean         - câmera ativa
- *   error:     string | null   - mensagem de erro
- *   open:      () => Promise   - inicia câmera
- *   stop:      () => void      - para câmera
- *   capture:   () => Promise<Blob> - captura frame atual
+ *   videoRef:      React.Ref       - ref para o elemento <video>
+ *   isOpen:        boolean         - câmera ativa
+ *   error:         string | null   - mensagem de erro
+ *   facing:        'user'|'environment' - câmera atual
+ *   open:          (facing?) => Promise   - inicia câmera
+ *   stop:          () => void      - para câmera
+ *   switchCamera:  () => Promise   - alterna frontal/traseira
+ *   capture:       () => Promise<Blob> - captura frame atual
  * }}
  */
 export function useCamera() {
@@ -19,13 +21,21 @@ export function useCamera() {
   const streamRef = useRef(null);
   const [isOpen,  setIsOpen]  = useState(false);
   const [error,   setError]   = useState(null);
+  const [facing,  setFacing]  = useState('user');
 
-  const open = useCallback(async () => {
+  const open = useCallback(async (facingMode = 'user') => {
     setError(null);
+
+    // Para stream anterior se houver
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: 'user',  // câmera frontal por padrão
+          facingMode,
           width:  { ideal: 1280 },
           height: { ideal: 720 },
         },
@@ -39,6 +49,7 @@ export function useCamera() {
         await videoRef.current.play();
       }
 
+      setFacing(facingMode);
       setIsOpen(true);
     } catch (err) {
       const msg =
@@ -62,11 +73,16 @@ export function useCamera() {
     setIsOpen(false);
   }, []);
 
+  const switchCamera = useCallback(async () => {
+    const nextFacing = facing === 'user' ? 'environment' : 'user';
+    await open(nextFacing);
+  }, [facing, open]);
+
   /**
    * Captura o frame atual do vídeo como Blob JPEG.
-   * Retorna null se o vídeo não estiver ativo.
+   * Aplica espelho horizontal somente para câmera frontal.
    */
-  const capture = useCallback(() => {
+  const capture = useCallback((currentFacing = facing) => {
     return new Promise((resolve, reject) => {
       const video = videoRef.current;
 
@@ -75,19 +91,19 @@ export function useCamera() {
         return;
       }
 
-      // Cria canvas com as dimensões reais do vídeo
       const canvas  = document.createElement('canvas');
       canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
 
       const ctx = canvas.getContext('2d');
 
-      // Espelha horizontalmente para câmera frontal (efeito espelho natural)
-      ctx.translate(canvas.width, 0);
-      ctx.scale(-1, 1);
+      // Espelha horizontalmente apenas para câmera frontal
+      if (currentFacing === 'user') {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.drawImage(video, 0, 0);
 
-      // Converte para Blob JPEG (qualidade 85%)
       canvas.toBlob(
         (blob) => {
           if (blob) resolve(blob);
@@ -97,7 +113,7 @@ export function useCamera() {
         0.85
       );
     });
-  }, [isOpen]);
+  }, [isOpen, facing]);
 
-  return { videoRef, isOpen, error, open, stop, capture };
+  return { videoRef, isOpen, error, facing, open, stop, switchCamera, capture };
 }

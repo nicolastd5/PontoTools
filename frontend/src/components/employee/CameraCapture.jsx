@@ -6,7 +6,7 @@ import { useCamera } from '../../hooks/useCamera';
  * @param {{ clockType: string, onCapture: (blob) => void, onCancel: () => void }} props
  */
 export default function CameraCapture({ clockType, onCapture, onCancel }) {
-  const { videoRef, isOpen, error, open, stop, capture } = useCamera();
+  const { videoRef, isOpen, error, facing, open, stop, switchCamera, capture } = useCamera();
 
   const LABELS = {
     entry: 'Entrada', exit: 'Saída',
@@ -15,14 +15,14 @@ export default function CameraCapture({ clockType, onCapture, onCancel }) {
 
   // Abre câmera ao montar o modal
   useEffect(() => {
-    open();
+    open('user');
     // Para a câmera ao desmontar (fechar modal)
     return () => stop();
   }, []); // eslint-disable-line
 
   async function handleCapture() {
     try {
-      const blob = await capture();
+      const blob = await capture(facing);
       stop(); // para a câmera imediatamente após capturar
       onCapture(blob);
     } catch (err) {
@@ -63,8 +63,8 @@ export default function CameraCapture({ clockType, onCapture, onCancel }) {
                   muted
                   style={{
                     ...styles.video,
-                    // Espelha horizontalmente (natural para câmera frontal)
-                    transform: 'scaleX(-1)',
+                    // Espelha horizontalmente apenas para câmera frontal
+                    transform: facing === 'user' ? 'scaleX(-1)' : 'none',
                   }}
                 />
                 {!isOpen && (
@@ -72,10 +72,18 @@ export default function CameraCapture({ clockType, onCapture, onCancel }) {
                     Iniciando câmera...
                   </div>
                 )}
+                {/* Botão de trocar câmera (canto superior direito do vídeo) */}
+                {isOpen && (
+                  <button onClick={switchCamera} style={styles.switchBtn} title="Trocar câmera">
+                    🔄
+                  </button>
+                )}
               </div>
 
               <p style={styles.hint}>
-                Posicione seu rosto no centro e clique em Capturar
+                {facing === 'user'
+                  ? 'Câmera frontal — posicione seu rosto no centro'
+                  : 'Câmera traseira — aponte para o que deseja registrar'}
               </p>
 
               <div style={styles.actions}>
@@ -151,6 +159,22 @@ const styles = {
     justifyContent: 'center',
     color:          '#fff',
     fontSize:       14,
+  },
+  switchBtn: {
+    position:     'absolute',
+    top:          10,
+    right:        10,
+    background:   'rgba(0,0,0,0.5)',
+    border:       'none',
+    borderRadius: '50%',
+    width:        40,
+    height:       40,
+    fontSize:     18,
+    cursor:       'pointer',
+    display:      'flex',
+    alignItems:   'center',
+    justifyContent: 'center',
+    color:        '#fff',
   },
   hint: { fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 16 },
   actions: { display: 'flex', gap: 10 },
