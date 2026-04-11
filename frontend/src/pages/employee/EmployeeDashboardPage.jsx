@@ -60,19 +60,16 @@ export default function EmployeeDashboardPage() {
   });
 
   async function handleClockClick(clockType) {
-    // Bloqueia se GPS não está disponível
-    if (gpsStatus !== 'granted') {
-      warning('Habilite o GPS para registrar o ponto.');
-      return;
+    if (requireLocation) {
+      if (gpsStatus !== 'granted') {
+        warning('Habilite o GPS para registrar o ponto.');
+        return;
+      }
+      if (!isInsideZone) {
+        warning(`Você está a ${Math.round(distanceMeters || 0)}m da unidade. Máximo permitido: ${user?.unit?.radiusMeters}m.`);
+        return;
+      }
     }
-
-    // Bloqueia se fora da zona
-    if (!isInsideZone) {
-      warning(`Você está a ${Math.round(distanceMeters || 0)}m da unidade. Máximo permitido: ${user?.unit?.radiusMeters}m.`);
-      return;
-    }
-
-    // Abre câmera para captura
     setCameraFor(clockType);
   }
 
@@ -93,8 +90,9 @@ export default function EmployeeDashboardPage() {
     await clockMutation.mutateAsync(formData);
   }
 
-  const todayRecords = todayData?.records || [];
-  const gpsOk        = gpsStatus === 'granted';
+  const todayRecords    = todayData?.records || [];
+  const requireLocation = todayData?.requireLocation ?? true;
+  const gpsOk           = gpsStatus === 'granted';
 
   return (
     <div>
@@ -121,7 +119,8 @@ export default function EmployeeDashboardPage() {
       {/* Botões de batida — só habilitados dentro da zona */}
       <div style={styles.clockGrid}>
         {CLOCK_TYPES.map((ct) => {
-          const disabled = !gpsOk || !isInsideZone || clockMutation.isPending;
+          const gpsBlocks = requireLocation && (!gpsOk || !isInsideZone);
+          const disabled  = gpsBlocks || clockMutation.isPending;
           return (
             <button
               key={ct.key}
@@ -138,17 +137,23 @@ export default function EmployeeDashboardPage() {
             >
               <span style={styles.clockIcon}>{ct.icon}</span>
               <span style={styles.clockLabel}>{ct.label}</span>
-              {!gpsOk && <span style={styles.lockIcon}>🔒</span>}
+              {requireLocation && !gpsOk && <span style={styles.lockIcon}>🔒</span>}
             </button>
           );
         })}
       </div>
 
-      {/* Aviso de bloqueio */}
-      {gpsOk && !isInsideZone && distanceMeters !== null && (
+      {/* Aviso de bloqueio (só quando localização é exigida) */}
+      {requireLocation && gpsOk && !isInsideZone && distanceMeters !== null && (
         <div style={styles.blockedBanner}>
           ⛔ Fora da zona — {Math.round(distanceMeters)}m de distância
           (limite: {user?.unit?.radiusMeters}m). Aproxime-se da unidade para registrar o ponto.
+        </div>
+      )}
+      {/* Info quando localização é livre */}
+      {!requireLocation && distanceMeters !== null && (
+        <div style={styles.freeBanner}>
+          📍 {Math.round(distanceMeters)}m da unidade — localização livre para este cargo.
         </div>
       )}
 
@@ -220,6 +225,16 @@ const styles = {
   lockIcon: {
     position:  'absolute', top: 8, right: 8,
     fontSize:  14, opacity: 0.6,
+  },
+  freeBanner: {
+    padding:      '12px 16px',
+    background:   '#f8fafc',
+    borderRadius: 10,
+    border:       '1px solid #e2e8f0',
+    color:        '#64748b',
+    fontSize:     13,
+    fontWeight:   500,
+    marginBottom: 16,
   },
   blockedBanner: {
     padding:      '12px 16px',
