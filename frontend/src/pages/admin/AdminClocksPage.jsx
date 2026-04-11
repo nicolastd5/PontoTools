@@ -205,6 +205,22 @@ function PhotoModal({ recordId, observation, onClose }) {
   const current = photoList[idx] || photoList[0];
   const total   = photoList.length;
 
+  async function handleDelete() {
+    if (!window.confirm('Apagar esta foto permanentemente?')) return;
+    try {
+      if (current.key === 'primary') {
+        await api.delete(`/admin/clocks/${recordId}/photo`);
+        setPhotoList((prev) => { const n = [...prev]; n[0] = { ...n[0], url: null, status: 'placeholder' }; return n; });
+      } else {
+        await api.delete(`/admin/clocks/${recordId}/photos/${current.extraId}`);
+        setPhotoList((prev) => prev.filter((p) => p.key !== current.key));
+        setIdx((i) => Math.max(0, i - 1));
+      }
+    } catch {
+      alert('Erro ao apagar foto.');
+    }
+  }
+
   return (
     <div style={modal.overlay} onClick={onClose}>
       <div style={modal.box} onClick={(e) => e.stopPropagation()}>
@@ -225,7 +241,7 @@ function PhotoModal({ recordId, observation, onClose }) {
           {current.status === 'placeholder' && (
             <div style={{ padding: 32, color: '#94a3b8', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>📷</div>
-              <p>Foto placeholder — câmera não disponível.</p>
+              <p>Foto removida ou não disponível.</p>
             </div>
           )}
           {current.status === 'error' && (
@@ -243,6 +259,16 @@ function PhotoModal({ recordId, observation, onClose }) {
               <span style={{ fontSize: 13, color: '#64748b', alignSelf: 'center' }}>{idx + 1} / {total}</span>
               <button onClick={() => setIdx((i) => Math.min(total - 1, i + 1))} disabled={idx === total - 1}
                 style={{ ...navBtn, opacity: idx === total - 1 ? 0.3 : 1 }}>▶</button>
+            </div>
+          )}
+
+          {/* Botão deletar — só quando há foto real */}
+          {current.status === 'ok' && (
+            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>
+              <button onClick={handleDelete}
+                style={{ padding: '7px 18px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#dc2626', cursor: 'pointer', fontWeight: 600 }}>
+                🗑 Apagar foto
+              </button>
             </div>
           )}
 

@@ -84,6 +84,19 @@ export default function AdminServicesPage() {
     } catch {}
   }
 
+  const deletePhotoMutation = useMutation({
+    mutationFn: ({ serviceId, photoId }) => api.delete(`/services/${serviceId}/photos/${photoId}`),
+    onSuccess: async () => {
+      success('Foto removida.');
+      if (detailModal) {
+        const res = await api.get(`/services/${detailModal.id}`);
+        setDetail(res.data);
+        setPhotoSrc({});
+      }
+    },
+    onError: () => error('Erro ao remover foto.'),
+  });
+
   const allPhotos = detailModal ? [...(detailModal.photos || [])] : [];
   const beforePhotos = allPhotos.filter((p) => p.phase === 'before');
   const afterPhotos  = allPhotos.filter((p) => p.phase === 'after');
@@ -224,9 +237,11 @@ export default function AdminServicesPage() {
             )}
 
             {/* Fotos antes */}
-            <PhotoSection title="Fotos — Antes" photos={beforePhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detailModal.id} />
+            <PhotoSection title="Fotos — Antes" photos={beforePhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detailModal.id}
+              onDelete={(photoId) => deletePhotoMutation.mutate({ serviceId: detailModal.id, photoId })} />
             {/* Fotos depois */}
-            <PhotoSection title="Fotos — Depois" photos={afterPhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detailModal.id} />
+            <PhotoSection title="Fotos — Depois" photos={afterPhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detailModal.id}
+              onDelete={(photoId) => deletePhotoMutation.mutate({ serviceId: detailModal.id, photoId })} />
 
             {allPhotos.length === 0 && (
               <p style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>Nenhuma foto registrada.</p>
@@ -238,7 +253,7 @@ export default function AdminServicesPage() {
   );
 }
 
-function PhotoSection({ title, photos, photoSrc, onLoad, serviceId }) {
+function PhotoSection({ title, photos, photoSrc, onLoad, serviceId, onDelete }) {
   if (photos.length === 0) return null;
   return (
     <div style={{ marginBottom: 16 }}>
@@ -247,11 +262,18 @@ function PhotoSection({ title, photos, photoSrc, onLoad, serviceId }) {
         {photos.map((photo) => {
           onLoad({ ...photo, service_order_id: serviceId });
           return (
-            <div key={photo.id} style={{ width: 100, height: 100, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
+            <div key={photo.id} style={{ position: 'relative', width: 100, height: 100, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
               {photoSrc[photo.id]
                 ? <img src={photoSrc[photo.id]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#cbd5e1', fontSize: 12 }}>…</div>
               }
+              {onDelete && (
+                <button
+                  onClick={() => { if (window.confirm('Apagar esta foto permanentemente?')) onDelete(photo.id); }}
+                  style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(220,38,38,0.85)', border: 'none', borderRadius: '50%', width: 22, height: 22, color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                  ✕
+                </button>
+              )}
             </div>
           );
         })}

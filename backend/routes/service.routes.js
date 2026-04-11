@@ -56,4 +56,7 @@ router.post('/:id/photos',
 // Servir foto
 router.get('/:id/photos/:photoId', auth, controller.getPhoto);
 
+// Deletar foto — apenas admin/gestor
+router.delete('/:id/photos/:photoId', auth, requireAdminOrGestor, controller.deletePhoto);
+
 module.exports = router;

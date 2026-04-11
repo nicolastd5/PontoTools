@@ -261,4 +261,35 @@ async function getPhoto(req, res, next) {
   }
 }
 
-module.exports = { list, create, getOne, updateStatus, addPhoto, getPhoto };
+// ----------------------------------------------------------------
+// DELETE /api/services/:id/photos/:photoId
+// Admin/gestor deleta foto de serviço (arquivo + registro)
+// ----------------------------------------------------------------
+async function deletePhoto(req, res, next) {
+  try {
+    const { id, photoId } = req.params;
+
+    const result = await db.query(
+      `SELECT sp.photo_path FROM service_photos sp
+       JOIN service_orders so ON so.id = sp.service_order_id
+       WHERE sp.id = $1 AND sp.service_order_id = $2`,
+      [photoId, id]
+    );
+
+    if (!result.rows[0]) return res.status(404).json({ error: 'Foto não encontrada.' });
+
+    const { photo_path } = result.rows[0];
+
+    // Remove arquivo do storage
+    await storage.delete(photo_path);
+
+    // Remove registro do banco
+    await db.query(`DELETE FROM service_photos WHERE id = $1`, [photoId]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, getOne, updateStatus, addPhoto, getPhoto, deletePhoto };

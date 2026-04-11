@@ -182,6 +182,88 @@ async function getClockPhoto(req, res, next) {
 }
 
 // ----------------------------------------------------------------
+// DELETE /api/admin/clocks/:id/photo
+// Deleta foto principal do registro (arquivo + substitui por placeholder)
+// ----------------------------------------------------------------
+async function deleteClockPhoto(req, res, next) {
+  try {
+    const recordId = parseInt(req.params.id, 10);
+    const params   = [recordId];
+    let scopeFilter = '';
+
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      scopeFilter = `AND u.contract_id = $${params.length}`;
+    }
+
+    const result = await db.query(
+      `SELECT cr.photo_path FROM clock_records cr
+       JOIN units u ON u.id = cr.unit_id
+       WHERE cr.id = $1 ${scopeFilter}`,
+      params
+    );
+
+    if (!result.rows[0]) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const { photo_path } = result.rows[0];
+
+    // Não deleta se já é placeholder
+    if (!photo_path.startsWith('placeholder/')) {
+      await storage.delete(photo_path);
+    }
+
+    // Substitui por placeholder no banco
+    await db.query(
+      `UPDATE clock_records SET photo_path = 'placeholder/deleted.jpg' WHERE id = $1`,
+      [recordId]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
+// DELETE /api/admin/clocks/:id/photos/:photoId
+// Deleta foto extra (clock_photos)
+// ----------------------------------------------------------------
+async function deleteClockExtraPhoto(req, res, next) {
+  try {
+    const recordId = parseInt(req.params.id, 10);
+    const photoId  = parseInt(req.params.photoId, 10);
+    const params   = [recordId];
+    let scopeFilter = '';
+
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      scopeFilter = `AND u.contract_id = $${params.length}`;
+    }
+
+    // Verifica acesso ao registro
+    const check = await db.query(
+      `SELECT cr.id FROM clock_records cr JOIN units u ON u.id = cr.unit_id
+       WHERE cr.id = $1 ${scopeFilter}`,
+      params
+    );
+    if (!check.rows[0]) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const photo = await db.query(
+      `SELECT photo_path FROM clock_photos WHERE id = $1 AND clock_record_id = $2`,
+      [photoId, recordId]
+    );
+    if (!photo.rows[0]) return res.status(404).json({ error: 'Foto não encontrada.' });
+
+    await storage.delete(photo.rows[0].photo_path);
+    await db.query(`DELETE FROM clock_photos WHERE id = $1`, [photoId]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
 // GET /api/admin/blocked
 // Tentativas bloqueadas com filtros
 // ----------------------------------------------------------------
@@ -356,4 +438,4 @@ async function getClockExtraPhoto(req, res, next) {
   }
 }
 
-module.exports = { getDashboard, getAbsences, getClocks, getClockPhoto, getClockPhotos, getClockExtraPhoto, getBlocked, getAuditLogs };
+module.exports = { getDashboard, getAbsences, getClocks, getClockPhoto, getClockPhotos, getClockExtraPhoto, deleteClockPhoto, deleteClockExtraPhoto, getBlocked, getAuditLogs };
