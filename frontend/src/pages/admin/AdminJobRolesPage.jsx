@@ -10,7 +10,7 @@ function useJobRoles() {
   });
 }
 
-const EMPTY_FORM = { name: '', description: '', has_break: true, max_photos: 1 };
+const EMPTY_FORM = { name: '', description: '', has_break: true, max_photos: 1, require_location: true };
 
 export default function AdminJobRolesPage() {
   const queryClient = useQueryClient();
@@ -46,7 +46,7 @@ export default function AdminJobRolesPage() {
   }
 
   function openEdit(row) {
-    setForm({ name: row.name, description: row.description || '', has_break: row.has_break, max_photos: row.max_photos ?? 1 });
+    setForm({ name: row.name, description: row.description || '', has_break: row.has_break, max_photos: row.max_photos ?? 1, require_location: row.require_location ?? true });
     setEditId(row.id);
     setModal(true);
   }
@@ -59,7 +59,7 @@ export default function AdminJobRolesPage() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    saveMutation.mutate({ ...form, has_break: Boolean(form.has_break) });
+    saveMutation.mutate({ ...form, has_break: Boolean(form.has_break), require_location: Boolean(form.require_location) });
   }
 
   return (
@@ -78,7 +78,7 @@ export default function AdminJobRolesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                {['Cargo', 'Descrição', 'Intervalo', 'Fotos', 'Status', 'Ações'].map((h) => (
+                {['Cargo', 'Descrição', 'Intervalo', 'Localização', 'Fotos', 'Status', 'Ações'].map((h) => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -95,6 +95,15 @@ export default function AdminJobRolesPage() {
                       color:      jr.has_break ? '#1e40af' : '#854d0e',
                     }}>
                       {jr.has_break ? 'Com intervalo' : 'Sem intervalo'}
+                    </span>
+                  </td>
+                  <td style={styles.td}>
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      background: jr.require_location !== false ? '#dcfce7' : '#fef9c3',
+                      color:      jr.require_location !== false ? '#166534' : '#854d0e',
+                    }}>
+                      {jr.require_location !== false ? 'Exigida' : 'Livre'}
                     </span>
                   </td>
                   <td style={styles.td}>
@@ -186,6 +195,26 @@ export default function AdminJobRolesPage() {
                     {form.has_break
                       ? 'Funcionários deste cargo registram início e fim de intervalo.'
                       : 'Funcionários deste cargo não registram intervalo — apenas entrada e saída.'}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: '#f8fafc', borderRadius: 10, padding: '14px 16px', border: '1.5px solid #e2e8f0' }}>
+                <input
+                  type="checkbox"
+                  id="require_location"
+                  checked={form.require_location}
+                  onChange={(e) => setForm((p) => ({ ...p, require_location: e.target.checked }))}
+                  style={{ width: 18, height: 18, marginTop: 2, accentColor: '#1d4ed8', cursor: 'pointer' }}
+                />
+                <div>
+                  <label htmlFor="require_location" style={{ ...labelStyle, cursor: 'pointer' }}>
+                    Exigir proximidade da unidade
+                  </label>
+                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+                    {form.require_location
+                      ? 'Funcionários só podem registrar ponto dentro do raio da unidade.'
+                      : 'Funcionários podem registrar de qualquer lugar. A localização ainda é gravada.'}
                   </p>
                 </div>
               </div>

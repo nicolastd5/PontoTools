@@ -61,7 +61,8 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
   const [available, setAvailable]       = useState<Available>({
     entry: true, break_start: false, break_end: false, exit: false,
   });
-  const [maxPhotos, setMaxPhotos]       = useState(1);
+  const [maxPhotos, setMaxPhotos]           = useState(1);
+  const [requireLocation, setRequireLocation] = useState(true);
 
   // Modal de confirmação
   const [confirmModal, setConfirmModal] = useState<ClockType | null>(null);
@@ -76,6 +77,7 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
         setTodayRecords(r.data.records || []);
         if (r.data.available) setAvailable(r.data.available);
         if (r.data.maxPhotos) setMaxPhotos(r.data.maxPhotos);
+        if (r.data.requireLocation !== undefined) setRequireLocation(r.data.requireLocation);
       })
       .catch(() => {});
   }
@@ -83,15 +85,17 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
   useEffect(() => { loadToday(); }, []);
 
   const handleClockPress = useCallback((clockType: ClockType) => {
-    if (gpsStatus !== 'granted') {
-      Alert.alert('GPS necessário', 'Habilite a localização para registrar o ponto.');
-      return;
+    if (requireLocation) {
+      if (gpsStatus !== 'granted') {
+        Alert.alert('GPS necessário', 'Habilite a localização para registrar o ponto.');
+        return;
+      }
+      if (!isInsideZone) {
+        Alert.alert('Fora da zona', `Você está a ${Math.round(distanceMeters ?? 0)}m. Máximo: ${user?.unit?.radiusMeters}m.`);
+        return;
+      }
     }
-    if (!isInsideZone) {
-      Alert.alert('Fora da zona', `Você está a ${Math.round(distanceMeters ?? 0)}m. Máximo: ${user?.unit?.radiusMeters}m.`);
-      return;
-    }
-    if (!coords) return;
+    if (!coords && requireLocation) return;
     setObservation('');
     setPhotoUris([]);
     setCameraFacing('front');
@@ -177,6 +181,8 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
   }
 
   const gpsOk = gpsStatus === 'granted';
+  // Botões bloqueados por GPS apenas se o cargo exige localização
+  const gpsBlocksButtons = requireLocation && (!gpsOk || !isInsideZone);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
@@ -202,13 +208,23 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
         </View>
 
         {/* Status GPS */}
-        <View style={[styles.gpsBox, { backgroundColor: gpsOk ? (isInsideZone ? '#f0fdf4' : '#fef2f2') : '#fef9c3' }]}>
-          <Text style={[styles.gpsText, { color: gpsOk ? (isInsideZone ? '#16a34a' : '#dc2626') : '#92400e' }]}>
-            {gpsStatus === 'loading'     && '⏳ Obtendo localização...'}
-            {gpsStatus === 'denied'      && '🔒 GPS negado — habilite nas configurações'}
-            {gpsStatus === 'unavailable' && '📡 GPS indisponível'}
-            {gpsStatus === 'granted' && isInsideZone  && `✅ Dentro da zona (${Math.round(distanceMeters ?? 0)}m)`}
-            {gpsStatus === 'granted' && !isInsideZone && `⛔ Fora da zona — ${Math.round(distanceMeters ?? 0)}m (máx: ${user?.unit?.radiusMeters}m)`}
+        <View style={[styles.gpsBox, {
+          backgroundColor: !requireLocation
+            ? '#f8fafc'
+            : gpsOk ? (isInsideZone ? '#f0fdf4' : '#fef2f2') : '#fef9c3',
+        }]}>
+          <Text style={[styles.gpsText, {
+            color: !requireLocation
+              ? '#64748b'
+              : gpsOk ? (isInsideZone ? '#16a34a' : '#dc2626') : '#92400e',
+          }]}>
+            {!requireLocation && gpsStatus === 'granted' && `📍 ${Math.round(distanceMeters ?? 0)}m da unidade (localização livre)`}
+            {!requireLocation && gpsStatus !== 'granted' && '📍 Localização livre — GPS não exigido'}
+            {requireLocation && gpsStatus === 'loading'     && '⏳ Obtendo localização...'}
+            {requireLocation && gpsStatus === 'denied'      && '🔒 GPS negado — habilite nas configurações'}
+            {requireLocation && gpsStatus === 'unavailable' && '📡 GPS indisponível'}
+            {requireLocation && gpsStatus === 'granted' && isInsideZone  && `✅ Dentro da zona (${Math.round(distanceMeters ?? 0)}m)`}
+            {requireLocation && gpsStatus === 'granted' && !isInsideZone && `⛔ Fora da zona — ${Math.round(distanceMeters ?? 0)}m (máx: ${user?.unit?.radiusMeters}m)`}
           </Text>
         </View>
 
@@ -217,9 +233,8 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
         {/* Botões de ponto */}
         <View style={styles.grid}>
           {CLOCK_TYPES.map((ct) => {
-            const gpsDisabled = !gpsOk || !isInsideZone || loading;
             const seqDisabled = !available[ct.key as keyof Available];
-            const disabled    = gpsDisabled || seqDisabled;
+            const disabled    = gpsBlocksButtons || seqDisabled || loading;
             return (
               <TouchableOpacity
                 key={ct.key}
@@ -228,12 +243,12 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
                 style={[styles.clockBtn, {
                   backgroundColor: disabled ? '#f1f5f9' : ct.bg,
                   borderColor:     disabled ? '#e2e8f0' : ct.color + '40',
-                  opacity:         seqDisabled && !gpsDisabled ? 0.45 : 1,
+                  opacity:         seqDisabled && !gpsBlocksButtons ? 0.45 : 1,
                 }]}
               >
                 <Text style={[styles.clockLabel, { color: disabled ? '#94a3b8' : ct.color }]}>{ct.label}</Text>
-                {!gpsOk && <Text style={styles.lock}>🔒</Text>}
-                {gpsOk && seqDisabled && <Text style={styles.lock}>⏸</Text>}
+                {requireLocation && !gpsOk && <Text style={styles.lock}>🔒</Text>}
+                {(!requireLocation || gpsOk) && seqDisabled && <Text style={styles.lock}>⏸</Text>}
               </TouchableOpacity>
             );
           })}

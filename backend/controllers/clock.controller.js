@@ -17,7 +17,7 @@ async function registerClock(req, res, next) {
     // Busca a unidade e cargo do funcionário
     const unitResult = await db.query(
       `SELECT u.id, u.latitude, u.longitude, u.radius_meters,
-              jr.max_photos
+              jr.max_photos, COALESCE(jr.require_location, TRUE) AS require_location
        FROM units u
        JOIN employees e ON e.unit_id = u.id
        LEFT JOIN job_roles jr ON jr.id = e.job_role_id
@@ -35,8 +35,8 @@ async function registerClock(req, res, next) {
       unit
     );
 
-    // Se fora da zona: registra tentativa bloqueada e rejeita
-    if (!isInside) {
+    // Se fora da zona e o cargo exige localização: bloqueia e registra tentativa
+    if (!isInside && unit.require_location) {
       await db.query(
         `INSERT INTO blocked_attempts
            (employee_id, unit_id, attempted_at, block_reason, latitude, longitude, distance_meters, timezone, ip_address, device_info)
@@ -204,16 +204,19 @@ async function getToday(req, res, next) {
       [req.user.id, tz]
     );
 
-    // Busca max_photos do cargo do funcionário
+    // Busca configurações do cargo do funcionário
     const jobResult = await db.query(
-      `SELECT COALESCE(jr.max_photos, 1) AS max_photos, jr.has_break
+      `SELECT COALESCE(jr.max_photos, 1)        AS max_photos,
+              COALESCE(jr.has_break, TRUE)       AS has_break,
+              COALESCE(jr.require_location, TRUE) AS require_location
        FROM employees e
        LEFT JOIN job_roles jr ON jr.id = e.job_role_id
        WHERE e.id = $1`,
       [req.user.id]
     );
-    const maxPhotos = jobResult.rows[0]?.max_photos ?? 1;
-    const hasBreak  = jobResult.rows[0]?.has_break ?? true;
+    const maxPhotos       = jobResult.rows[0]?.max_photos ?? 1;
+    const hasBreak        = jobResult.rows[0]?.has_break ?? true;
+    const requireLocation = jobResult.rows[0]?.require_location ?? true;
 
     const records = result.rows;
     const types = records.map((r) => r.clock_type);
@@ -228,7 +231,7 @@ async function getToday(req, res, next) {
         : lastType === 'entry',
     };
 
-    res.json({ records, available, maxPhotos });
+    res.json({ records, available, maxPhotos, requireLocation });
   } catch (err) {
     next(err);
   }
