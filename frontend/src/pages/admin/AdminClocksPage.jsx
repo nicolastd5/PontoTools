@@ -1,4 +1,4 @@
-import { useState }    from 'react';
+import { useState, useEffect }    from 'react';
 import { useQuery }   from '@tanstack/react-query';
 import { formatInTimeZone } from 'date-fns-tz';
 import api            from '../../services/api';
@@ -133,6 +133,29 @@ export default function AdminClocksPage() {
 }
 
 function PhotoModal({ recordId, onClose }) {
+  const [src, setSrc]       = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | ok | placeholder | error
+
+  useEffect(() => {
+    let objectUrl = null;
+    setStatus('loading');
+    setSrc(null);
+
+    api.get(`/admin/clocks/${recordId}/photo`, { responseType: 'blob' })
+      .then((res) => {
+        if (res.headers['x-photo-placeholder'] === 'true') {
+          setStatus('placeholder');
+          return;
+        }
+        objectUrl = URL.createObjectURL(res.data);
+        setSrc(objectUrl);
+        setStatus('ok');
+      })
+      .catch(() => setStatus('error'));
+
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [recordId]);
+
   return (
     <div style={modal.overlay} onClick={onClose}>
       <div style={modal.box} onClick={(e) => e.stopPropagation()}>
@@ -141,18 +164,24 @@ function PhotoModal({ recordId, onClose }) {
           <button onClick={onClose} style={modal.closeBtn}>✕</button>
         </div>
         <div style={modal.body}>
-          <img
-            src={`/api/admin/clocks/${recordId}/photo`}
-            alt="Foto do ponto"
-            style={modal.img}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'block';
-            }}
-          />
-          <div style={{ display: 'none', padding: 24, textAlign: 'center', color: '#94a3b8' }}>
-            Foto não disponível (ambiente de teste).
-          </div>
+          {status === 'loading' && (
+            <p style={{ color: '#64748b', padding: 24 }}>Carregando foto...</p>
+          )}
+          {status === 'ok' && (
+            <img src={src} alt="Foto do ponto" style={modal.img} />
+          )}
+          {status === 'placeholder' && (
+            <div style={{ padding: 32, color: '#94a3b8', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>📷</div>
+              <p>Foto placeholder — câmera não implementada no app ainda.</p>
+            </div>
+          )}
+          {status === 'error' && (
+            <div style={{ padding: 32, color: '#dc2626', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+              <p>Erro ao carregar foto.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

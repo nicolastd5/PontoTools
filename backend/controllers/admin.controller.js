@@ -159,9 +159,16 @@ async function getClockPhoto(req, res, next) {
 
     const { photo_path } = result.rows[0];
 
-    // Placeholder retorna imagem genérica
+    // Placeholder: retorna imagem 1px transparente
     if (photo_path.startsWith('placeholder/')) {
-      return res.status(200).json({ placeholder: true, message: 'Foto de teste — sem arquivo real.' });
+      const placeholder = Buffer.from(
+        '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=',
+        'base64'
+      );
+      res.set('Content-Type', 'image/jpeg');
+      res.set('Cache-Control', 'private, max-age=3600');
+      res.set('X-Photo-Placeholder', 'true');
+      return res.send(placeholder);
     }
 
     const buffer = await storage.getBuffer(photo_path);
