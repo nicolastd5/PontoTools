@@ -92,6 +92,7 @@ export default function EmployeeDashboardPage() {
 
   const todayRecords    = todayData?.records || [];
   const requireLocation = todayData?.requireLocation ?? true;
+  const available       = todayData?.available ?? { entry: true, break_start: false, break_end: false, exit: false };
   const gpsOk           = gpsStatus === 'granted';
 
   return (
@@ -120,7 +121,8 @@ export default function EmployeeDashboardPage() {
       <div style={styles.clockGrid}>
         {CLOCK_TYPES.map((ct) => {
           const gpsBlocks = requireLocation && (!gpsOk || !isInsideZone);
-          const disabled  = gpsBlocks || clockMutation.isPending;
+          const seqBlocks = !available[ct.key];
+          const disabled  = gpsBlocks || seqBlocks || clockMutation.isPending;
           return (
             <button
               key={ct.key}
@@ -132,12 +134,13 @@ export default function EmployeeDashboardPage() {
                 borderColor: disabled ? '#e2e8f0' : ct.color + '40',
                 color:       disabled ? '#94a3b8' : ct.color,
                 cursor:      disabled ? 'not-allowed' : 'pointer',
-                opacity:     clockMutation.isPending ? 0.7 : 1,
+                opacity:     seqBlocks && !gpsBlocks ? 0.45 : clockMutation.isPending ? 0.7 : 1,
               }}
             >
               <span style={styles.clockIcon}>{ct.icon}</span>
               <span style={styles.clockLabel}>{ct.label}</span>
               {requireLocation && !gpsOk && <span style={styles.lockIcon}>🔒</span>}
+              {(!requireLocation || gpsOk) && seqBlocks && <span style={styles.lockIcon}>⏸</span>}
             </button>
           );
         })}
