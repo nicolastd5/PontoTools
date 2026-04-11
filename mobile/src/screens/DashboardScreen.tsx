@@ -41,7 +41,6 @@ interface Available {
   exit: boolean;
 }
 
-// Hook para relógio em tempo real com segundos
 function useClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -62,19 +61,21 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
   const [available, setAvailable]       = useState<Available>({
     entry: true, break_start: false, break_end: false, exit: false,
   });
+  const [maxPhotos, setMaxPhotos]       = useState(1);
 
-  // Modal de confirmação com observação e foto
-  const [confirmModal, setConfirmModal]   = useState<ClockType | null>(null);
-  const [observation, setObservation]     = useState('');
-  const [photoUri, setPhotoUri]           = useState<string | null>(null);
-  const [cameraFacing, setCameraFacing]   = useState<'front' | 'back'>('front');
-  const [takingPhoto, setTakingPhoto]     = useState(false);
+  // Modal de confirmação
+  const [confirmModal, setConfirmModal] = useState<ClockType | null>(null);
+  const [observation, setObservation]   = useState('');
+  const [photoUris, setPhotoUris]       = useState<string[]>([]);
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
+  const [takingPhoto, setTakingPhoto]   = useState(false);
 
   function loadToday() {
     api.get('/clock/today', { params: { timezone: tz } })
       .then((r) => {
         setTodayRecords(r.data.records || []);
         if (r.data.available) setAvailable(r.data.available);
+        if (r.data.maxPhotos) setMaxPhotos(r.data.maxPhotos);
       })
       .catch(() => {});
   }
@@ -92,16 +93,18 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
     }
     if (!coords) return;
     setObservation('');
-    setPhotoUri(null);
+    setPhotoUris([]);
+    setCameraFacing('front');
     setConfirmModal(clockType);
   }, [gpsStatus, isInsideZone, coords, distanceMeters, user]);
 
-  const handleTakePhoto = useCallback(async () => {
+  // Abre câmera com a facing escolhida e adiciona a foto à lista
+  const handleTakePhoto = useCallback(async (facing: 'front' | 'back') => {
     setTakingPhoto(true);
     try {
       const options: CameraOptions = {
         mediaType: 'photo',
-        cameraType: cameraFacing,
+        cameraType: facing,
         quality: 0.7,
         maxWidth: 1024,
         maxHeight: 1024,
@@ -111,11 +114,18 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
       const result = await launchCamera(options);
       if (result.didCancel || result.errorCode) return;
       const asset = result.assets?.[0];
-      if (asset?.uri) setPhotoUri(asset.uri);
+      if (asset?.uri) {
+        setPhotoUris((prev) => [...prev, asset.uri!]);
+      }
     } finally {
       setTakingPhoto(false);
     }
-  }, [cameraFacing]);
+  }, []);
+
+  const handleSwitchAndShoot = useCallback(async (nextFacing: 'front' | 'back') => {
+    setCameraFacing(nextFacing);
+    await handleTakePhoto(nextFacing);
+  }, [handleTakePhoto]);
 
   async function submitClock() {
     if (!confirmModal || !coords) return;
@@ -131,11 +141,12 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
       formData.append('timezone',   tz);
       if (observation.trim()) formData.append('observation', observation.trim());
 
-      if (photoUri) {
-        // Foto real da câmera
-        formData.append('photo', { uri: photoUri, type: 'image/jpeg', name: 'photo.jpg' } as any);
+      if (photoUris.length > 0) {
+        photoUris.forEach((uri, i) => {
+          formData.append('photo', { uri, type: 'image/jpeg', name: `photo_${i}.jpg` } as any);
+        });
       } else {
-        // Placeholder 1px se não tirou foto
+        // Placeholder 1px
         const dataUri = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=';
         const photoBlob = await (await fetch(dataUri)).blob();
         formData.append('photo', photoBlob, 'photo.jpg');
@@ -153,8 +164,6 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
         is_inside_zone: res.data.isInsideZone,
       };
       setTodayRecords((prev) => [...prev, newRecord]);
-
-      // Atualiza disponibilidade dos botões
       loadToday();
 
       Alert.alert('Ponto registrado!', `${LABELS[clockType]} às ${formatInTimeZone(new Date(res.data.clockedAtUtc), tz, 'HH:mm:ss')}`);
@@ -251,7 +260,7 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Modal de confirmação com observação */}
+      {/* Modal de confirmação */}
       <Modal visible={confirmModal !== null} transparent animationType="slide">
         <View style={modal.overlay}>
           <View style={modal.box}>
@@ -260,49 +269,54 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
               {formatInTimeZone(now, tz, 'HH:mm:ss')} · {formatInTimeZone(now, tz, 'dd/MM/yyyy')}
             </Text>
 
-            {/* Seção de foto */}
-            <View style={modal.photoSection}>
-              {photoUri ? (
-                <View style={modal.photoPreview}>
-                  <Image source={{ uri: photoUri }} style={modal.photoImg} />
-                  <View style={modal.photoActions}>
+            {/* Fotos tiradas */}
+            {photoUris.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                {photoUris.map((uri, i) => (
+                  <View key={i} style={{ marginRight: 8, position: 'relative' }}>
+                    <Image source={{ uri }} style={modal.photoThumb} />
                     <TouchableOpacity
-                      style={modal.photoBtn}
-                      onPress={() => setCameraFacing(f => f === 'front' ? 'back' : 'front')}
+                      style={modal.photoRemove}
+                      onPress={() => setPhotoUris((prev) => prev.filter((_, idx) => idx !== i))}
                     >
-                      <Text style={modal.photoBtnText}>🔄 {cameraFacing === 'front' ? 'Traseira' : 'Frontal'}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={modal.photoBtn} onPress={handleTakePhoto} disabled={takingPhoto}>
-                      <Text style={modal.photoBtnText}>📷 Refazer</Text>
+                      <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>✕</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
-              ) : (
-                <View style={modal.photoEmpty}>
-                  <Text style={modal.photoEmptyIcon}>📷</Text>
-                  <Text style={modal.photoEmptyText}>Nenhuma foto tirada</Text>
-                  <View style={modal.photoActions}>
-                    <TouchableOpacity
-                      style={modal.photoBtn}
-                      onPress={() => setCameraFacing(f => f === 'front' ? 'back' : 'front')}
-                    >
-                      <Text style={modal.photoBtnText}>
-                        {cameraFacing === 'front' ? '🤳 Frontal' : '📸 Traseira'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[modal.photoBtn, modal.photoBtnPrimary]}
-                      onPress={handleTakePhoto}
-                      disabled={takingPhoto}
-                    >
-                      <Text style={[modal.photoBtnText, { color: '#fff' }]}>
-                        {takingPhoto ? 'Abrindo...' : '📷 Tirar Foto'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Botões de câmera */}
+            <View style={modal.cameraRow}>
+              {/* Trocar câmera + Tirar foto (frente/trás em um só toque) */}
+              <TouchableOpacity
+                style={[modal.camBtn, cameraFacing === 'front' && modal.camBtnActive]}
+                onPress={() => handleSwitchAndShoot('front')}
+                disabled={takingPhoto || photoUris.length >= maxPhotos}
+              >
+                <Text style={modal.camBtnText}>🤳 Frontal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[modal.camBtn, cameraFacing === 'back' && modal.camBtnActive]}
+                onPress={() => handleSwitchAndShoot('back')}
+                disabled={takingPhoto || photoUris.length >= maxPhotos}
+              >
+                <Text style={modal.camBtnText}>📸 Traseira</Text>
+              </TouchableOpacity>
             </View>
+
+            {maxPhotos > 1 && (
+              <Text style={modal.photoCount}>
+                {photoUris.length}/{maxPhotos} foto{maxPhotos > 1 ? 's' : ''}
+                {photoUris.length >= maxPhotos ? ' (máximo atingido)' : ' — toque para adicionar'}
+              </Text>
+            )}
+
+            {takingPhoto && (
+              <Text style={{ textAlign: 'center', color: '#64748b', fontSize: 13, marginBottom: 8 }}>
+                Abrindo câmera...
+              </Text>
+            )}
 
             <Text style={modal.label}>Observação (opcional)</Text>
             <TextInput
@@ -358,26 +372,23 @@ const styles = StyleSheet.create({
 });
 
 const modal = StyleSheet.create({
-  overlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  box:              { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
-  title:            { fontSize: 18, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
-  subtitle:         { fontSize: 13, color: '#64748b', marginBottom: 16, fontVariant: ['tabular-nums'] },
-  photoSection:     { marginBottom: 16 },
-  photoEmpty:       { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12, borderStyle: 'dashed', padding: 16, alignItems: 'center' },
-  photoEmptyIcon:   { fontSize: 32, marginBottom: 6 },
-  photoEmptyText:   { fontSize: 13, color: '#94a3b8', marginBottom: 12 },
-  photoPreview:     { borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' },
-  photoImg:         { width: '100%', height: 180, resizeMode: 'cover' },
-  photoActions:     { flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' },
-  photoBtn:         { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc' },
-  photoBtnPrimary:  { backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' },
-  photoBtnText:     { fontSize: 13, fontWeight: '600', color: '#374151' },
-  label:            { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input:            { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', minHeight: 64, textAlignVertical: 'top' },
-  charCount:        { fontSize: 11, color: '#94a3b8', textAlign: 'right', marginTop: 4, marginBottom: 16 },
-  actions:          { flexDirection: 'row', gap: 12 },
-  cancelBtn:        { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center' },
-  cancelText:       { color: '#64748b', fontWeight: '600' },
-  confirmBtn:       { flex: 1, padding: 14, borderRadius: 10, backgroundColor: '#1d4ed8', alignItems: 'center' },
-  confirmText:      { color: '#fff', fontWeight: '700', fontSize: 15 },
+  overlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  box:           { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
+  title:         { fontSize: 18, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
+  subtitle:      { fontSize: 13, color: '#64748b', marginBottom: 16, fontVariant: ['tabular-nums'] },
+  photoThumb:    { width: 80, height: 80, borderRadius: 8, resizeMode: 'cover' },
+  photoRemove:   { position: 'absolute', top: 2, right: 2, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
+  cameraRow:     { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  camBtn:        { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc', alignItems: 'center' },
+  camBtnActive:  { borderColor: '#1d4ed8', backgroundColor: '#eff6ff' },
+  camBtnText:    { fontSize: 14, fontWeight: '600', color: '#374151' },
+  photoCount:    { fontSize: 11, color: '#94a3b8', textAlign: 'center', marginBottom: 12 },
+  label:         { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  input:         { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', minHeight: 64, textAlignVertical: 'top' },
+  charCount:     { fontSize: 11, color: '#94a3b8', textAlign: 'right', marginTop: 4, marginBottom: 16 },
+  actions:       { flexDirection: 'row', gap: 12 },
+  cancelBtn:     { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center' },
+  cancelText:    { color: '#64748b', fontWeight: '600' },
+  confirmBtn:    { flex: 1, padding: 14, borderRadius: 10, backgroundColor: '#1d4ed8', alignItems: 'center' },
+  confirmText:   { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

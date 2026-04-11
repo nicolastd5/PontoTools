@@ -204,22 +204,31 @@ async function getToday(req, res, next) {
       [req.user.id, tz]
     );
 
-    const records = result.rows;
+    // Busca max_photos do cargo do funcionário
+    const jobResult = await db.query(
+      `SELECT COALESCE(jr.max_photos, 1) AS max_photos, jr.has_break
+       FROM employees e
+       LEFT JOIN job_roles jr ON jr.id = e.job_role_id
+       WHERE e.id = $1`,
+      [req.user.id]
+    );
+    const maxPhotos = jobResult.rows[0]?.max_photos ?? 1;
+    const hasBreak  = jobResult.rows[0]?.has_break ?? true;
 
-    // Determina quais botões estão disponíveis baseado nos registros de hoje
-    // Regra: entry só disponível se não teve entry ainda ou se último foi exit
-    // Lógica de sequência: entry -> break_start -> break_end -> exit -> (nova entry)
+    const records = result.rows;
     const types = records.map((r) => r.clock_type);
     const lastType = types[types.length - 1] || null;
 
     const available = {
       entry:       !lastType || lastType === 'exit',
-      break_start: lastType === 'entry' || lastType === 'break_end',
-      break_end:   lastType === 'break_start',
-      exit:        lastType === 'entry' || lastType === 'break_end',
+      break_start: hasBreak && (lastType === 'entry' || lastType === 'break_end'),
+      break_end:   hasBreak && lastType === 'break_start',
+      exit:        hasBreak
+        ? (lastType === 'entry' || lastType === 'break_end')
+        : lastType === 'entry',
     };
 
-    res.json({ records, available });
+    res.json({ records, available, maxPhotos });
   } catch (err) {
     next(err);
   }
