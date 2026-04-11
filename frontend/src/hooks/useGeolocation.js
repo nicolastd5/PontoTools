@@ -29,17 +29,22 @@ export function useGeolocation(unit) {
   const [coords,          setCoords]          = useState(null);
   const [distanceMeters,  setDistanceMeters]  = useState(null);
   const watchIdRef = useRef(null);
+  const unitRef    = useRef(unit);
+
+  // Mantém unitRef atualizado sem recriar callbacks nem reiniciar o watch
+  useEffect(() => { unitRef.current = unit; }, [unit]);
 
   const handleSuccess = useCallback((position) => {
     const { latitude, longitude, accuracy } = position.coords;
     setCoords({ latitude, longitude, accuracy });
     setStatus('granted');
 
-    if (unit?.latitude && unit?.longitude) {
-      const dist = haversineDistance(latitude, longitude, unit.latitude, unit.longitude);
+    const u = unitRef.current;
+    if (u?.latitude && u?.longitude) {
+      const dist = haversineDistance(latitude, longitude, u.latitude, u.longitude);
       setDistanceMeters(Math.round(dist * 10) / 10);
     }
-  }, [unit]);
+  }, []); // sem dependências — usa ref
 
   const handleError = useCallback((err) => {
     // Código 1 = PERMISSION_DENIED
@@ -58,35 +63,49 @@ export function useGeolocation(unit) {
       return;
     }
 
-    // Verifica permissão atual antes de iniciar o watch
-    navigator.permissions?.query({ name: 'geolocation' }).then((result) => {
-      if (result.state === 'denied') {
-        setStatus('denied');
-        return;
-      }
+    let cancelled = false;
 
-      // Inicia monitoramento contínuo
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        handleSuccess,
-        handleError,
-        {
-          enableHighAccuracy: true,
-          maximumAge:         0,         // nunca usa cache
-          timeout:            15000,     // 15s para obter posição
-        }
+    function startWatch() {
+      if (cancelled) return;
+      // Posição imediata com cache tolerante (até 10s de idade) para resposta rápida
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { if (!cancelled) handleSuccess(pos); },
+        () => {}, // silencia erro — o watch vai tentar novamente
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
       );
-    }).catch(() => {
-      // Fallback: tenta watchPosition diretamente (navegadores sem permissions API)
+      // Watch contínuo para atualizações
       watchIdRef.current = navigator.geolocation.watchPosition(
         handleSuccess,
         handleError,
         { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
       );
+    }
+
+    navigator.permissions?.query({ name: 'geolocation' }).then((result) => {
+      if (result.state === 'denied') {
+        setStatus('denied');
+        return;
+      }
+      startWatch();
+      // Reage a mudanças de permissão (ex: usuário concede após carregamento)
+      result.onchange = () => {
+        if (result.state === 'denied') {
+          setStatus('denied');
+          setCoords(null);
+        } else if (result.state === 'granted') {
+          startWatch();
+        }
+      };
+    }).catch(() => {
+      // Navegadores sem Permissions API (Safari)
+      startWatch();
     });
 
     return () => {
+      cancelled = true;
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     };
   }, [handleSuccess, handleError]);
