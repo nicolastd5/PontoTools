@@ -82,7 +82,11 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
       .catch(() => {});
   }
 
-  useEffect(() => { loadToday(); }, []);
+  useEffect(() => {
+    loadToday();
+    const id = setInterval(loadToday, 15 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleClockPress = useCallback((clockType: ClockType) => {
     if (requireLocation) {
@@ -132,17 +136,18 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
   }, [handleTakePhoto]);
 
   async function submitClock() {
-    if (!confirmModal || !coords) return;
+    if (!confirmModal) return;
     const clockType = confirmModal;
     setConfirmModal(null);
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('clock_type', clockType);
-      formData.append('latitude',   String(coords.latitude));
-      formData.append('longitude',  String(coords.longitude));
-      formData.append('accuracy',   String(coords.accuracy ?? ''));
       formData.append('timezone',   tz);
+      // Envia coordenadas se disponíveis; senão usa 0,0 (backend trata hasValidCoords)
+      formData.append('latitude',   coords ? String(coords.latitude)  : '0');
+      formData.append('longitude',  coords ? String(coords.longitude) : '0');
+      formData.append('accuracy',   coords ? String(coords.accuracy ?? '') : '');
       if (observation.trim()) formData.append('observation', observation.trim());
 
       if (photoUris.length > 0) {
@@ -203,7 +208,7 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
             {formatInTimeZone(now, tz, 'HH:mm:ss')}
           </Text>
           <Text style={styles.clockDate}>
-            {formatInTimeZone(now, tz, "EEEE, dd 'de' MMMM 'de' yyyy")}
+            {now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </Text>
         </View>
 
