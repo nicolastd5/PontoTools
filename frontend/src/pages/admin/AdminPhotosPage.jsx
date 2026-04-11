@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone } from 'date-fns-tz';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -22,12 +22,18 @@ function useUnits() {
 
 export default function AdminPhotosPage() {
   const { success, error } = useToast();
+  const queryClient = useQueryClient();
 
-  const [filters, setFilters] = useState({ unitId: '', clockType: '', startDate: '', endDate: '' });
-  const [page, setPage]       = useState(1);
+  const [filters, setFilters]   = useState({ unitId: '', clockType: '', startDate: '', endDate: '' });
+  const [page, setPage]         = useState(1);
   const [lightbox, setLightbox] = useState(null); // { record, photoList, idx }
-  const [thumbs, setThumbs]   = useState({}); // recordId → { primary: url|null|'placeholder', extras: [{id, url}] }
+  const [thumbs, setThumbs]     = useState({});   // recordId → { primary, extras[] } | 'loading'
   const [deleting, setDeleting] = useState(null);
+
+  // Seleção múltipla
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected]     = useState(new Set()); // Set de record IDs
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const { data, isLoading } = useClocks(
     Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '')),
@@ -36,41 +42,34 @@ export default function AdminPhotosPage() {
   const { data: units = [] } = useUnits();
   const records = data?.records || [];
 
+  // Limpa seleção ao trocar página/filtro
+  useEffect(() => { setSelected(new Set()); }, [filters, page]);
+
   function updateFilter(key, val) {
     setFilters((p) => ({ ...p, [key]: val }));
     setPage(1);
   }
 
-  // Load thumbnail for a record
   const loadThumb = useCallback(async (record) => {
     if (thumbs[record.id] !== undefined) return;
     setThumbs((p) => ({ ...p, [record.id]: 'loading' }));
-
     try {
       const res = await api.get(`/admin/clocks/${record.id}/photo`, { responseType: 'blob' });
       const isPlaceholder = res.headers['x-photo-placeholder'] === 'true';
       const url = isPlaceholder ? 'placeholder' : URL.createObjectURL(res.data);
-
-      // Load extras count
       const extRes = await api.get(`/admin/clocks/${record.id}/photos`);
       const extras = extRes.data.photos || [];
-
       setThumbs((p) => ({ ...p, [record.id]: { primary: url, extras } }));
     } catch {
       setThumbs((p) => ({ ...p, [record.id]: { primary: 'error', extras: [] } }));
     }
   }, [thumbs]);
 
-  // Load thumbs for visible records
-  useEffect(() => {
-    records.forEach((r) => loadThumb(r));
-  }, [records]); // eslint-disable-line
+  useEffect(() => { records.forEach((r) => loadThumb(r)); }, [records]); // eslint-disable-line
 
-  // Open lightbox — loads all photos for a record
   async function openLightbox(record) {
+    if (selectMode) return; // em modo seleção, clique = toggle
     const list = [];
-
-    // Primary
     try {
       const res = await api.get(`/admin/clocks/${record.id}/photo`, { responseType: 'blob' });
       const isPlaceholder = res.headers['x-photo-placeholder'] === 'true';
@@ -78,8 +77,6 @@ export default function AdminPhotosPage() {
     } catch {
       list.push({ key: 'primary', url: null, isPlaceholder: false, error: true });
     }
-
-    // Extras
     try {
       const extRes = await api.get(`/admin/clocks/${record.id}/photos`);
       for (const p of extRes.data.photos || []) {
@@ -91,16 +88,64 @@ export default function AdminPhotosPage() {
         }
       }
     } catch {}
-
     setLightbox({ record, photoList: list, idx: 0 });
   }
 
+  function toggleSelect(id, e) {
+    e.stopPropagation();
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (selected.size === records.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(records.map((r) => r.id)));
+    }
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
+  // Apaga múltiplos registros de ponto
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!window.confirm(
+      `Apagar ${selected.size} registro(s) de ponto permanentemente?\n\nTodas as fotos associadas também serão removidas. Esta ação não pode ser desfeita.`
+    )) return;
+
+    setBulkDeleting(true);
+    let ok = 0;
+    let fail = 0;
+    for (const id of selected) {
+      try {
+        await api.delete(`/admin/clocks/${id}`);
+        setThumbs((p) => { const n = { ...p }; delete n[id]; return n; });
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    setBulkDeleting(false);
+    setSelected(new Set());
+    setSelectMode(false);
+    queryClient.invalidateQueries(['photos-clocks']);
+    if (fail === 0) success(`${ok} registro(s) apagado(s).`);
+    else error(`${ok} apagado(s), ${fail} com erro.`);
+  }
+
+  // Deleção individual (lightbox)
   async function handleDelete() {
     if (!lightbox) return;
     const { record, photoList, idx } = lightbox;
     const current = photoList[idx];
     if (!window.confirm('Apagar esta foto permanentemente?')) return;
-
     setDeleting(current.key);
     try {
       if (current.key === 'primary') {
@@ -108,60 +153,64 @@ export default function AdminPhotosPage() {
         const newList = [...photoList];
         newList[0] = { ...newList[0], url: null, isPlaceholder: true };
         setLightbox((p) => ({ ...p, photoList: newList }));
-        // Update thumb
-        setThumbs((p) => ({
-          ...p,
-          [record.id]: { ...(p[record.id] || {}), primary: 'placeholder' },
-        }));
+        setThumbs((p) => ({ ...p, [record.id]: { ...(p[record.id] || {}), primary: 'placeholder' } }));
       } else {
         await api.delete(`/admin/clocks/${record.id}/photos/${current.extraId}`);
         const newList = photoList.filter((p) => p.key !== current.key);
-        const newIdx  = Math.min(idx, newList.length - 1);
-        setLightbox((p) => ({ ...p, photoList: newList, idx: newIdx }));
+        setLightbox((p) => ({ ...p, photoList: newList, idx: Math.min(idx, newList.length - 1) }));
         setThumbs((prev) => {
           const t = prev[record.id];
           if (!t || t === 'loading') return prev;
-          return {
-            ...prev,
-            [record.id]: { ...t, extras: t.extras.filter((e) => e.id !== current.extraId) },
-          };
+          return { ...prev, [record.id]: { ...t, extras: t.extras.filter((e) => e.id !== current.extraId) } };
         });
       }
       success('Foto apagada.');
-    } catch {
-      error('Erro ao apagar foto.');
-    } finally {
-      setDeleting(null);
-    }
+    } catch { error('Erro ao apagar foto.'); }
+    finally { setDeleting(null); }
   }
 
   async function handleDeleteRecord() {
     if (!lightbox) return;
     const { record } = lightbox;
     if (!window.confirm(
-      `Apagar o registro de ponto de ${record.employee_name} (${CLOCK_LABELS[record.clock_type]}) permanentemente?\n\nEsta ação não pode ser desfeita.`
+      `Apagar o registro de ${record.employee_name} (${CLOCK_LABELS[record.clock_type]}) permanentemente?`
     )) return;
     setDeleting('record');
     try {
       await api.delete(`/admin/clocks/${record.id}`);
       setLightbox(null);
       setThumbs((p) => { const n = { ...p }; delete n[record.id]; return n; });
-      // Remove do cache local para sumir da grade sem refetch
+      queryClient.invalidateQueries(['photos-clocks']);
       success('Registro apagado.');
-    } catch {
-      error('Erro ao apagar registro.');
-    } finally {
-      setDeleting(null);
-    }
+    } catch { error('Erro ao apagar registro.'); }
+    finally { setDeleting(null); }
   }
 
-  const lb = lightbox;
+  const lb      = lightbox;
   const current = lb ? lb.photoList[lb.idx] : null;
   const total   = lb ? lb.photoList.length : 0;
+  const allSelected = records.length > 0 && selected.size === records.length;
 
   return (
     <div>
-      <h1 style={s.title}>Galeria de Fotos</h1>
+      {/* Cabeçalho */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <h1 style={s.title}>Galeria de Fotos</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {!selectMode ? (
+            <button onClick={() => setSelectMode(true)} style={s.outlineBtn}>
+              Selecionar registros
+            </button>
+          ) : (
+            <>
+              <button onClick={toggleAll} style={s.outlineBtn}>
+                {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+              </button>
+              <button onClick={exitSelectMode} style={s.clearBtn}>Cancelar</button>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Filtros */}
       <div style={s.filters}>
@@ -181,7 +230,7 @@ export default function AdminPhotosPage() {
         <button onClick={() => { setFilters({ unitId: '', clockType: '', startDate: '', endDate: '' }); setPage(1); }} style={s.clearBtn}>Limpar</button>
       </div>
 
-      {/* Grade de fotos */}
+      {/* Grade */}
       {isLoading ? (
         <p style={{ color: '#64748b', padding: 24 }}>Carregando...</p>
       ) : records.length === 0 ? (
@@ -190,16 +239,29 @@ export default function AdminPhotosPage() {
         <>
           <div style={s.grid}>
             {records.map((record) => {
-              const thumb = thumbs[record.id];
-              const isLoading = !thumb || thumb === 'loading';
-              const isPh = thumb?.primary === 'placeholder' || thumb?.primary === 'error';
+              const thumb      = thumbs[record.id];
+              const loading    = !thumb || thumb === 'loading';
+              const isPh       = thumb?.primary === 'placeholder' || thumb?.primary === 'error';
               const extraCount = thumb?.extras?.length || 0;
+              const isSelected = selected.has(record.id);
 
               return (
-                <div key={record.id} style={s.card} onClick={() => openLightbox(record)}>
+                <div key={record.id}
+                  onClick={selectMode ? (e) => toggleSelect(record.id, e) : () => openLightbox(record)}
+                  style={{ ...s.card, outline: isSelected ? '2.5px solid #1d4ed8' : '2.5px solid transparent', background: isSelected ? '#eff6ff' : '#fff' }}>
+
+                  {/* Checkbox em modo seleção */}
+                  {selectMode && (
+                    <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}
+                      onClick={(e) => toggleSelect(record.id, e)}>
+                      <input type="checkbox" checked={isSelected} readOnly
+                        style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1d4ed8' }} />
+                    </div>
+                  )}
+
                   {/* Thumbnail */}
                   <div style={s.imgBox}>
-                    {isLoading ? (
+                    {loading ? (
                       <div style={s.imgPlaceholder}>⏳</div>
                     ) : isPh ? (
                       <div style={s.imgPlaceholder}>📷</div>
@@ -210,6 +272,7 @@ export default function AdminPhotosPage() {
                       <span style={s.extraBadge}>+{extraCount}</span>
                     )}
                   </div>
+
                   {/* Info */}
                   <div style={s.info}>
                     <div style={s.empName}>{record.employee_name}</div>
@@ -234,11 +297,23 @@ export default function AdminPhotosPage() {
         </>
       )}
 
+      {/* Barra de ação em massa (fixa em baixo) */}
+      {selectMode && selected.size > 0 && (
+        <div style={bulkBar}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>
+            {selected.size} registro(s) selecionado(s)
+          </span>
+          <button onClick={handleBulkDelete} disabled={bulkDeleting}
+            style={{ padding: '9px 22px', background: '#dc2626', border: 'none', borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: bulkDeleting ? 0.7 : 1 }}>
+            {bulkDeleting ? 'Apagando...' : `🗑 Apagar ${selected.size} registro(s)`}
+          </button>
+        </div>
+      )}
+
       {/* Lightbox */}
       {lb && current && (
         <div style={overlay} onClick={() => setLightbox(null)}>
           <div style={lbBox} onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
             <div style={lbHeader}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0f172a' }}>{lb.record.employee_name}</div>
@@ -250,7 +325,6 @@ export default function AdminPhotosPage() {
               <button onClick={() => setLightbox(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>✕</button>
             </div>
 
-            {/* Foto */}
             <div style={{ textAlign: 'center', padding: '0 20px', minHeight: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {current.isPlaceholder || !current.url ? (
                 <div style={{ color: '#94a3b8' }}>
@@ -267,7 +341,6 @@ export default function AdminPhotosPage() {
               )}
             </div>
 
-            {/* Controles */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '12px 20px', flexWrap: 'wrap' }}>
               {total > 1 && (
                 <button onClick={() => setLightbox((p) => ({ ...p, idx: Math.max(0, p.idx - 1) }))}
@@ -299,22 +372,24 @@ const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', di
 const lbBox   = { background: '#fff', borderRadius: 12, width: '100%', maxWidth: 620, overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.3)' };
 const lbHeader = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 20px', borderBottom: '1px solid #e2e8f0' };
 const pageBtn  = { padding: '7px 16px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 16, cursor: 'pointer', color: '#374151' };
+const bulkBar  = { position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 20, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', zIndex: 500, whiteSpace: 'nowrap' };
 
 const s = {
-  title:   { fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 20 },
-  filters: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 },
-  select:  { padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#374151', background: '#fff', outline: 'none' },
-  input:   { padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#374151', outline: 'none' },
-  clearBtn:{ padding: '8px 16px', background: '#f1f5f9', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#374151' },
-  grid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 },
-  card:    { background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow 0.15s' },
-  imgBox:  { position: 'relative', width: '100%', paddingBottom: '75%', background: '#f8fafc' },
-  img:     { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
+  title:    { fontSize: 22, fontWeight: 800, color: '#0f172a' },
+  filters:  { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 },
+  select:   { padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#374151', background: '#fff', outline: 'none' },
+  input:    { padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#374151', outline: 'none' },
+  clearBtn: { padding: '8px 16px', background: '#f1f5f9', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#374151' },
+  outlineBtn: { padding: '8px 16px', border: '1.5px solid #1d4ed8', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#1d4ed8', background: '#fff', fontWeight: 600 },
+  grid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 },
+  card:     { position: 'relative', background: '#fff', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', transition: 'outline 0.1s' },
+  imgBox:   { position: 'relative', width: '100%', paddingBottom: '75%', background: '#f8fafc' },
+  img:      { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' },
   imgPlaceholder: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, color: '#cbd5e1' },
   extraBadge: { position: 'absolute', top: 6, right: 6, background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: 10, fontSize: 11, fontWeight: 700, padding: '2px 7px' },
-  info:    { padding: '8px 10px' },
-  empName: { fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  meta:    { fontSize: 11, color: '#64748b' },
+  info:     { padding: '8px 10px' },
+  empName:  { fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  meta:     { fontSize: 11, color: '#64748b' },
   pagination: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, padding: '16px 0' },
-  pageBtn: { padding: '7px 16px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#374151' },
+  pageBtn:  { padding: '7px 16px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#374151' },
 };
