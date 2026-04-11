@@ -144,24 +144,17 @@
   </div>
 
   <script>
-    function buildServiceUrl(port, path = '/') {
-      const base = new URL(`${window.location.protocol}//${window.location.hostname}`);
-      base.port = String(port);
-      base.pathname = path;
-      return base.toString();
-    }
-
     const SERVICES = [
       {
         name: 'Backend API',
-        url: buildServiceUrl(3001, '/health'),
+        url: 'https://pontotools.shop/api/health',
         description: 'Servidor Express.js + PostgreSQL',
         check: 'http'
       },
       {
         name: 'Frontend Web',
-        url: buildServiceUrl(5173, '/'),
-        description: 'React + Vite (Dashboard)',
+        url: 'https://pontotools.shop/',
+        description: 'React PWA (Dashboard)',
         check: 'reachability'
       }
     ];
