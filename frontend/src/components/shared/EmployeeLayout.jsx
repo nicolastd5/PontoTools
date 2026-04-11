@@ -1,11 +1,20 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useQuery }  from '@tanstack/react-query';
 import { useAuth }  from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import api from '../../services/api';
 
 export default function EmployeeLayout() {
   const { user, logout } = useAuth();
   const { success }      = useToast();
   const navigate         = useNavigate();
+
+  const { data: notifData } = useQuery({
+    queryKey: ['my-notifications-badge'],
+    queryFn:  () => api.get('/notifications').then((r) => r.data),
+    refetchInterval: 30000,
+  });
+  const unreadCount = notifData?.unread ?? 0;
 
   async function handleLogout() {
     await logout();
@@ -31,19 +40,26 @@ export default function EmployeeLayout() {
 
       {/* Barra de navegação inferior (mobile) */}
       <nav style={styles.bottomNav}>
-        <NavLink to="/dashboard" style={({ isActive }) => ({
-          ...styles.navItem,
-          ...(isActive ? styles.navItemActive : {}),
-        })}>
+        <NavLink to="/dashboard" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
           <span>🕐</span>
-          <span style={styles.navLabel}>Bater Ponto</span>
+          <span style={styles.navLabel}>Ponto</span>
         </NavLink>
-        <NavLink to="/history" style={({ isActive }) => ({
-          ...styles.navItem,
-          ...(isActive ? styles.navItemActive : {}),
-        })}>
+        <NavLink to="/history" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
           <span>📋</span>
           <span style={styles.navLabel}>Histórico</span>
+        </NavLink>
+        <NavLink to="/services" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
+          <span>🔧</span>
+          <span style={styles.navLabel}>Serviços</span>
+        </NavLink>
+        <NavLink to="/notifications" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            🔔
+            {unreadCount > 0 && (
+              <span style={styles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+            )}
+          </span>
+          <span style={styles.navLabel}>Avisos</span>
         </NavLink>
       </nav>
     </div>
@@ -105,4 +121,10 @@ const styles = {
   },
   navItemActive: { color: '#1d4ed8' },
   navLabel: { fontSize: 11, fontWeight: 600 },
+  badge: {
+    position: 'absolute', top: -4, right: -6,
+    background: '#ef4444', color: '#fff',
+    borderRadius: 10, fontSize: 9, fontWeight: 700,
+    padding: '1px 4px', lineHeight: 1.4,
+  },
 };

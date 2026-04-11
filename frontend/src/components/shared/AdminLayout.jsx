@@ -5,19 +5,23 @@ import { useToast }        from '../../contexts/ToastContext';
 import './AdminLayout.css';
 
 const ADMIN_NAV = [
-  { to: '/admin/dashboard', label: 'Dashboard',     icon: '▦' },
-  { to: '/admin/employees', label: 'Funcionários',  icon: '👤' },
-  { to: '/admin/clocks',    label: 'Registros',     icon: '🕐' },
-  { to: '/admin/blocked',   label: 'Bloqueios',     icon: '⛔' },
-  { to: '/admin/contracts', label: 'Contratos',     icon: '📋' },
-  { to: '/admin/job-roles', label: 'Cargos',        icon: '🏷️' },
-  { to: '/admin/export',    label: 'Exportar',      icon: '📄' },
+  { to: '/admin/dashboard',     label: 'Dashboard',       icon: '▦' },
+  { to: '/admin/employees',     label: 'Funcionários',    icon: '👤' },
+  { to: '/admin/clocks',        label: 'Registros',       icon: '🕐' },
+  { to: '/admin/blocked',       label: 'Bloqueios',       icon: '⛔' },
+  { to: '/admin/services',      label: 'Serviços',        icon: '🔧' },
+  { to: '/admin/notifications', label: 'Notificações',    icon: '🔔' },
+  { to: '/admin/contracts',     label: 'Contratos',       icon: '📋' },
+  { to: '/admin/job-roles',     label: 'Cargos',          icon: '🏷️' },
+  { to: '/admin/export',        label: 'Exportar',        icon: '📄' },
 ];
 
 const GESTOR_NAV = [
-  { to: '/admin/employees', label: 'Funcionários',  icon: '👤' },
-  { to: '/admin/clocks',    label: 'Registros',     icon: '🕐' },
-  { to: '/admin/contracts', label: 'Contratos',     icon: '📋' },
+  { to: '/admin/employees',     label: 'Funcionários',    icon: '👤' },
+  { to: '/admin/clocks',        label: 'Registros',       icon: '🕐' },
+  { to: '/admin/services',      label: 'Serviços',        icon: '🔧' },
+  { to: '/admin/notifications', label: 'Notificações',    icon: '🔔' },
+  { to: '/admin/contracts',     label: 'Contratos',       icon: '📋' },
 ];
 
 export default function AdminLayout() {

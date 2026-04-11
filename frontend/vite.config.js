@@ -29,6 +29,8 @@ export default defineConfig({
             handler: 'NetworkOnly', // nunca usa cache para chamadas de API
           },
         ],
+        // Injeta handler de Web Push no service worker
+        importScripts: ['/sw-push.js'],
       },
     }),
   ],

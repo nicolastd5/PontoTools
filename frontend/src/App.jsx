@@ -15,8 +15,12 @@ import AdminContractsPage     from './pages/admin/AdminContractsPage';
 import AdminJobRolesPage      from './pages/admin/AdminJobRolesPage';
 import AdminProfilePage       from './pages/admin/AdminProfilePage';
 import AdminExportPage         from './pages/admin/AdminExportPage';
+import AdminServicesPage       from './pages/admin/AdminServicesPage';
+import AdminNotificationsPage  from './pages/admin/AdminNotificationsPage';
 import EmployeeDashboardPage   from './pages/employee/EmployeeDashboardPage';
 import EmployeeHistoryPage     from './pages/employee/EmployeeHistoryPage';
+import EmployeeServicesPage    from './pages/employee/EmployeeServicesPage';
+import EmployeeNotificationsPage from './pages/employee/EmployeeNotificationsPage';
 
 // Componentes de layout
 import AdminLayout    from './components/shared/AdminLayout';
@@ -82,8 +86,10 @@ function AppRoutes() {
         <Route path="units"      element={<AdminUnitsPage />} />
         <Route path="contracts"  element={<AdminContractsPage />} />
         <Route path="job-roles"  element={<AdminJobRolesPage />} />
-        <Route path="profile"    element={<AdminProfilePage />} />
-        <Route path="export"     element={<AdminExportPage />} />
+        <Route path="profile"        element={<AdminProfilePage />} />
+        <Route path="export"         element={<AdminExportPage />} />
+        <Route path="services"       element={<AdminServicesPage />} />
+        <Route path="notifications"  element={<AdminNotificationsPage />} />
       </Route>
 
       {/* Rotas do App do Funcionário */}
@@ -91,8 +97,10 @@ function AppRoutes() {
         <PrivateRoute role="employee"><EmployeeLayout /></PrivateRoute>
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<EmployeeDashboardPage />} />
-        <Route path="history"   element={<EmployeeHistoryPage />} />
+        <Route path="dashboard"      element={<EmployeeDashboardPage />} />
+        <Route path="history"        element={<EmployeeHistoryPage />} />
+        <Route path="services"       element={<EmployeeServicesPage />} />
+        <Route path="notifications"  element={<EmployeeNotificationsPage />} />
       </Route>
 
       {/* Redirect raiz */}

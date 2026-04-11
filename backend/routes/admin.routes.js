@@ -14,7 +14,9 @@ router.get('/dashboard/absences',  requireAdmin, controller.getAbsences);
 
 // Registros de ponto — admin e gestor (gestor filtrado por contrato)
 router.get('/clocks',              requireAdminOrGestor, controller.getClocks);
-router.get('/clocks/:id/photo',    requireAdminOrGestor, controller.getClockPhoto);
+router.get('/clocks/:id/photo',         requireAdminOrGestor, controller.getClockPhoto);
+router.get('/clocks/:id/photos',        requireAdminOrGestor, controller.getClockPhotos);
+router.get('/clocks/:id/photos/:photoId', requireAdminOrGestor, controller.getClockExtraPhoto);
 
 // Tentativas bloqueadas — apenas admin
 router.get('/blocked',             requireAdmin, controller.getBlocked);

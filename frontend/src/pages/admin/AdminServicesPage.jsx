@@ -1,0 +1,300 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatInTimeZone } from 'date-fns-tz';
+import api from '../../services/api';
+import { useToast } from '../../contexts/ToastContext';
+
+const STATUS_LABEL = {
+  pending:     'Pendente',
+  in_progress: 'Em andamento',
+  done:        'Concluído',
+  problem:     'Problema',
+};
+const STATUS_COLOR = {
+  pending:     { bg: '#fef9c3', color: '#854d0e' },
+  in_progress: { bg: '#dbeafe', color: '#1e40af' },
+  done:        { bg: '#dcfce7', color: '#166534' },
+  problem:     { bg: '#fee2e2', color: '#991b1b' },
+};
+
+function useServices(filters) {
+  return useQuery({
+    queryKey: ['admin-services', filters],
+    queryFn:  () => api.get('/services', { params: filters }).then((r) => r.data.services),
+    keepPreviousData: true,
+  });
+}
+function useEmployees() {
+  return useQuery({
+    queryKey: ['employees-active'],
+    queryFn:  () => api.get('/employees').then((r) => r.data.employees || r.data),
+  });
+}
+
+const EMPTY_FORM = { title: '', description: '', assigned_employee_id: '', scheduled_date: '', due_time: '' };
+
+export default function AdminServicesPage() {
+  const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
+  const [filters, setFilters]     = useState({ status: '' });
+  const [modal, setModal]         = useState(false);
+  const [detailModal, setDetail]  = useState(null);
+  const [form, setForm]           = useState(EMPTY_FORM);
+  const [photoIdx, setPhotoIdx]   = useState(0);
+  const [photoSrc, setPhotoSrc]   = useState({});
+
+  const { data: services = [], isLoading } = useServices(
+    Object.fromEntries(Object.entries(filters).filter(([, v]) => v))
+  );
+  const { data: employees = [] } = useEmployees();
+
+  const createMutation = useMutation({
+    mutationFn: (body) => api.post('/services', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Serviço criado com sucesso.');
+      setModal(false);
+      setForm(EMPTY_FORM);
+    },
+    onError: (err) => error(err.response?.data?.error || 'Erro ao criar serviço.'),
+  });
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    createMutation.mutate({
+      ...form,
+      assigned_employee_id: parseInt(form.assigned_employee_id, 10),
+    });
+  }
+
+  async function openDetail(service) {
+    const res = await api.get(`/services/${service.id}`);
+    setDetail(res.data);
+    setPhotoIdx(0);
+    setPhotoSrc({});
+  }
+
+  async function loadPhoto(photo) {
+    if (photoSrc[photo.id]) return;
+    try {
+      const res = await api.get(`/services/${photo.service_order_id}/photos/${photo.id}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      setPhotoSrc((prev) => ({ ...prev, [photo.id]: url }));
+    } catch {}
+  }
+
+  const allPhotos = detailModal ? [...(detailModal.photos || [])] : [];
+  const beforePhotos = allPhotos.filter((p) => p.phase === 'before');
+  const afterPhotos  = allPhotos.filter((p) => p.phase === 'after');
+
+  return (
+    <div>
+      <div style={s.header}>
+        <h1 style={s.title}>Serviços</h1>
+        <button onClick={() => setModal(true)} style={s.primaryBtn}>+ Novo Serviço</button>
+      </div>
+
+      {/* Filtros */}
+      <div style={s.filters}>
+        <select value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} style={s.select}>
+          <option value="">Todos os status</option>
+          {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        {filters.status && (
+          <button onClick={() => setFilters({ status: '' })} style={s.clearBtn}>Limpar</button>
+        )}
+      </div>
+
+      {/* Tabela */}
+      <div style={s.card}>
+        {isLoading ? (
+          <p style={s.empty}>Carregando...</p>
+        ) : services.length === 0 ? (
+          <p style={s.empty}>Nenhum serviço encontrado.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                {['Título', 'Funcionário', 'Data', 'Prazo', 'Status', 'Ações'].map((h) => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {services.map((sv) => {
+                const sc = STATUS_COLOR[sv.status] || STATUS_COLOR.pending;
+                return (
+                  <tr key={sv.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                    <td style={s.td}>
+                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{sv.title}</div>
+                      {sv.description && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sv.description.slice(0, 60)}{sv.description.length > 60 ? '…' : ''}</div>}
+                    </td>
+                    <td style={s.td}>{sv.employee_name}</td>
+                    <td style={s.td}>{new Date(sv.scheduled_date).toLocaleDateString('pt-BR')}</td>
+                    <td style={s.td}>{sv.due_time ? sv.due_time.slice(0, 5) : '—'}</td>
+                    <td style={s.td}>
+                      <span style={{ ...badge, background: sc.bg, color: sc.color }}>
+                        {STATUS_LABEL[sv.status]}
+                      </span>
+                    </td>
+                    <td style={s.td}>
+                      <button onClick={() => openDetail(sv)} style={actionBtn}>Ver detalhes</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Modal criação */}
+      {modal && (
+        <div style={overlay} onClick={() => setModal(false)}>
+          <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modalTitle}>Novo Serviço</h2>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Field label="Título *">
+                <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  required placeholder="Ex: Limpeza do depósito" style={inputStyle} />
+              </Field>
+              <Field label="Descrição">
+                <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  rows={3} placeholder="Detalhes do serviço..." style={{ ...inputStyle, resize: 'vertical' }} />
+              </Field>
+              <Field label="Funcionário *">
+                <select value={form.assigned_employee_id} onChange={(e) => setForm((p) => ({ ...p, assigned_employee_id: e.target.value }))}
+                  required style={inputStyle}>
+                  <option value="">Selecione o funcionário</option>
+                  {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Field label="Data agendada *">
+                  <input type="date" value={form.scheduled_date} onChange={(e) => setForm((p) => ({ ...p, scheduled_date: e.target.value }))}
+                    required style={inputStyle} />
+                </Field>
+                <Field label="Horário limite">
+                  <input type="time" value={form.due_time} onChange={(e) => setForm((p) => ({ ...p, due_time: e.target.value }))}
+                    style={inputStyle} />
+                </Field>
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+                <button type="button" onClick={() => setModal(false)} style={s.outlineBtn}>Cancelar</button>
+                <button type="submit" disabled={createMutation.isLoading}
+                  style={{ ...s.primaryBtn, opacity: createMutation.isLoading ? 0.7 : 1 }}>
+                  {createMutation.isLoading ? 'Criando...' : 'Criar Serviço'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal detalhe */}
+      {detailModal && (
+        <div style={overlay} onClick={() => setDetail(null)}>
+          <div style={{ ...modalCard, maxWidth: 600 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <h2 style={modalTitle}>{detailModal.title}</h2>
+                <span style={{ ...badge, ...STATUS_COLOR[detailModal.status] }}>{STATUS_LABEL[detailModal.status]}</span>
+              </div>
+              <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16, fontSize: 13 }}>
+              <InfoRow label="Funcionário" value={detailModal.employee_name} />
+              <InfoRow label="Unidade" value={detailModal.unit_name} />
+              <InfoRow label="Data" value={new Date(detailModal.scheduled_date).toLocaleDateString('pt-BR')} />
+              <InfoRow label="Prazo" value={detailModal.due_time?.slice(0, 5) || '—'} />
+            </div>
+
+            {detailModal.description && (
+              <div style={{ marginBottom: 16, padding: '12px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#374151' }}>
+                {detailModal.description}
+              </div>
+            )}
+
+            {detailModal.problem_description && (
+              <div style={{ marginBottom: 16, padding: '12px 14px', background: '#fee2e2', borderRadius: 8, border: '1px solid #fca5a5', fontSize: 13, color: '#991b1b' }}>
+                <strong>Problema reportado:</strong> {detailModal.problem_description}
+              </div>
+            )}
+
+            {/* Fotos antes */}
+            <PhotoSection title="Fotos — Antes" photos={beforePhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detailModal.id} />
+            {/* Fotos depois */}
+            <PhotoSection title="Fotos — Depois" photos={afterPhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detailModal.id} />
+
+            {allPhotos.length === 0 && (
+              <p style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>Nenhuma foto registrada.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PhotoSection({ title, photos, photoSrc, onLoad, serviceId }) {
+  if (photos.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <p style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>{title}</p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {photos.map((photo) => {
+          onLoad({ ...photo, service_order_id: serviceId });
+          return (
+            <div key={photo.id} style={{ width: 100, height: 100, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              {photoSrc[photo.id]
+                ? <img src={photoSrc[photo.id]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#cbd5e1', fontSize: 12 }}>…</div>
+              }
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <label style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, value }) {
+  return (
+    <div>
+      <span style={{ color: '#94a3b8', fontWeight: 600 }}>{label}: </span>
+      <span style={{ color: '#0f172a' }}>{value}</span>
+    </div>
+  );
+}
+
+const badge    = { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, display: 'inline-block' };
+const actionBtn = { padding: '4px 12px', fontSize: 12, cursor: 'pointer', border: '1px solid #e2e8f0', borderRadius: 6, background: '#f8fafc', color: '#374151' };
+const overlay   = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 };
+const modalCard = { background: '#fff', borderRadius: 12, padding: '28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' };
+const modalTitle = { fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 16 };
+const inputStyle = { padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#1e293b', outline: 'none', width: '100%', boxSizing: 'border-box' };
+
+const s = {
+  header:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  title:      { fontSize: 22, fontWeight: 800, color: '#0f172a' },
+  filters:    { display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' },
+  select:     { padding: '8px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#374151', background: '#fff', outline: 'none' },
+  clearBtn:   { padding: '8px 16px', background: '#f1f5f9', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#374151' },
+  card:       { background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' },
+  th:         { padding: '12px 16px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  td:         { padding: '14px 16px', fontSize: 14, color: '#374151', verticalAlign: 'middle' },
+  empty:      { padding: 24, color: '#64748b' },
+  primaryBtn: { padding: '8px 16px', border: 'none', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#fff', background: '#1d4ed8', fontWeight: 600 },
+  outlineBtn: { padding: '8px 16px', border: '1.5px solid #1d4ed8', borderRadius: 8, fontSize: 14, cursor: 'pointer', color: '#1d4ed8', background: '#fff', fontWeight: 600 },
+};

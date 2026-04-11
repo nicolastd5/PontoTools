@@ -281,4 +281,79 @@ async function getAuditLogs(req, res, next) {
   }
 }
 
-module.exports = { getDashboard, getAbsences, getClocks, getClockPhoto, getBlocked, getAuditLogs };
+// ----------------------------------------------------------------
+// GET /api/admin/clocks/:id/photos
+// Lista fotos extras (clock_photos) de um registro
+// ----------------------------------------------------------------
+async function getClockPhotos(req, res, next) {
+  try {
+    const recordId = parseInt(req.params.id, 10);
+    const params   = [recordId];
+    let scopeFilter = '';
+
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      scopeFilter = `AND u.contract_id = $${params.length}`;
+    }
+
+    // Verify access
+    const check = await db.query(
+      `SELECT cr.id FROM clock_records cr
+       JOIN units u ON u.id = cr.unit_id
+       WHERE cr.id = $1 ${scopeFilter}`,
+      params
+    );
+    if (!check.rows[0]) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const result = await db.query(
+      `SELECT id, photo_path, created_at FROM clock_photos WHERE clock_record_id = $1 ORDER BY id`,
+      [recordId]
+    );
+
+    res.json({ photos: result.rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
+// GET /api/admin/clocks/:id/photos/:photoId
+// Serve uma foto extra autenticada
+// ----------------------------------------------------------------
+async function getClockExtraPhoto(req, res, next) {
+  try {
+    const recordId = parseInt(req.params.id, 10);
+    const photoId  = parseInt(req.params.photoId, 10);
+    const params   = [recordId];
+    let scopeFilter = '';
+
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      params.push(req.user.contractId);
+      scopeFilter = `AND u.contract_id = $${params.length}`;
+    }
+
+    // Verify access to record
+    const check = await db.query(
+      `SELECT cr.id FROM clock_records cr
+       JOIN units u ON u.id = cr.unit_id
+       WHERE cr.id = $1 ${scopeFilter}`,
+      params
+    );
+    if (!check.rows[0]) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const result = await db.query(
+      `SELECT photo_path FROM clock_photos WHERE id = $1 AND clock_record_id = $2`,
+      [photoId, recordId]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Foto não encontrada.' });
+
+    const buffer = await storage.getBuffer(result.rows[0].photo_path);
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getDashboard, getAbsences, getClocks, getClockPhoto, getClockPhotos, getClockExtraPhoto, getBlocked, getAuditLogs };

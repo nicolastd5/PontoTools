@@ -138,56 +138,114 @@ export default function AdminClocksPage() {
   );
 }
 
+// Builds a combined list: first the primary photo (id=null), then extras from clock_photos
 function PhotoModal({ recordId, observation, onClose }) {
-  const [src, setSrc]       = useState(null);
-  const [status, setStatus] = useState('loading'); // loading | ok | placeholder | error
+  // photoList: array of { key, url, status }
+  // index 0 = primary photo, 1+ = extra photos
+  const [photoList, setPhotoList] = useState([{ key: 'primary', url: null, status: 'loading' }]);
+  const [idx, setIdx]             = useState(0);
 
+  // Load primary photo
   useEffect(() => {
     let objectUrl = null;
-    setStatus('loading');
-    setSrc(null);
+    setIdx(0);
+    setPhotoList([{ key: 'primary', url: null, status: 'loading' }]);
 
     api.get(`/admin/clocks/${recordId}/photo`, { responseType: 'blob' })
       .then((res) => {
-        if (res.headers['x-photo-placeholder'] === 'true') {
-          setStatus('placeholder');
-          return;
-        }
-        objectUrl = URL.createObjectURL(res.data);
-        setSrc(objectUrl);
-        setStatus('ok');
+        const isPlaceholder = res.headers['x-photo-placeholder'] === 'true';
+        if (!isPlaceholder) objectUrl = URL.createObjectURL(res.data);
+        setPhotoList((prev) => {
+          const next = [...prev];
+          next[0] = { key: 'primary', url: objectUrl, status: isPlaceholder ? 'placeholder' : 'ok' };
+          return next;
+        });
       })
-      .catch(() => setStatus('error'));
+      .catch(() => {
+        setPhotoList((prev) => { const n = [...prev]; n[0] = { key: 'primary', url: null, status: 'error' }; return n; });
+      });
+
+    // Load extra photos list
+    api.get(`/admin/clocks/${recordId}/photos`)
+      .then((res) => {
+        const extras = res.data.photos || [];
+        if (extras.length === 0) return;
+        setPhotoList((prev) => [
+          ...prev,
+          ...extras.map((p) => ({ key: `extra-${p.id}`, extraId: p.id, url: null, status: 'loading' })),
+        ]);
+        // Load each extra lazily
+        extras.forEach((p, i) => {
+          let eUrl = null;
+          api.get(`/admin/clocks/${recordId}/photos/${p.id}`, { responseType: 'blob' })
+            .then((r) => {
+              eUrl = URL.createObjectURL(r.data);
+              setPhotoList((prev) => {
+                const n = [...prev];
+                const pos = n.findIndex((x) => x.key === `extra-${p.id}`);
+                if (pos !== -1) n[pos] = { ...n[pos], url: eUrl, status: 'ok' };
+                return n;
+              });
+            })
+            .catch(() => {
+              setPhotoList((prev) => {
+                const n = [...prev];
+                const pos = n.findIndex((x) => x.key === `extra-${p.id}`);
+                if (pos !== -1) n[pos] = { ...n[pos], status: 'error' };
+                return n;
+              });
+            });
+        });
+      })
+      .catch(() => {}); // no extras is fine
 
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [recordId]);
+
+  const current = photoList[idx] || photoList[0];
+  const total   = photoList.length;
 
   return (
     <div style={modal.overlay} onClick={onClose}>
       <div style={modal.box} onClick={(e) => e.stopPropagation()}>
         <div style={modal.header}>
-          <span style={modal.title}>Foto do Registro #{recordId}</span>
+          <span style={modal.title}>
+            Fotos do Registro #{recordId}
+            {total > 1 && <span style={{ fontWeight: 400, fontSize: 13, color: '#64748b', marginLeft: 8 }}>{idx + 1}/{total}</span>}
+          </span>
           <button onClick={onClose} style={modal.closeBtn}>✕</button>
         </div>
         <div style={modal.body}>
-          {status === 'loading' && (
+          {current.status === 'loading' && (
             <p style={{ color: '#64748b', padding: 24 }}>Carregando foto...</p>
           )}
-          {status === 'ok' && (
-            <img src={src} alt="Foto do ponto" style={modal.img} />
+          {current.status === 'ok' && (
+            <img src={current.url} alt="Foto do ponto" style={modal.img} />
           )}
-          {status === 'placeholder' && (
+          {current.status === 'placeholder' && (
             <div style={{ padding: 32, color: '#94a3b8', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>📷</div>
-              <p>Foto placeholder — câmera não implementada no app ainda.</p>
+              <p>Foto placeholder — câmera não disponível.</p>
             </div>
           )}
-          {status === 'error' && (
+          {current.status === 'error' && (
             <div style={{ padding: 32, color: '#dc2626', textAlign: 'center' }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
               <p>Erro ao carregar foto.</p>
             </div>
           )}
+
+          {/* Navigation arrows */}
+          {total > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 12, marginTop: 14 }}>
+              <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}
+                style={{ ...navBtn, opacity: idx === 0 ? 0.3 : 1 }}>◀</button>
+              <span style={{ fontSize: 13, color: '#64748b', alignSelf: 'center' }}>{idx + 1} / {total}</span>
+              <button onClick={() => setIdx((i) => Math.min(total - 1, i + 1))} disabled={idx === total - 1}
+                style={{ ...navBtn, opacity: idx === total - 1 ? 0.3 : 1 }}>▶</button>
+            </div>
+          )}
+
           {observation && (
             <div style={{ marginTop: 16, padding: '12px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'left' }}>
               <p style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>Observação</p>
@@ -208,6 +266,11 @@ const photoBtn = {
   padding: '4px 10px', background: '#f1f5f9',
   border: '1px solid #e2e8f0', borderRadius: 6,
   fontSize: 12, cursor: 'pointer', color: '#374151',
+};
+const navBtn = {
+  padding: '6px 16px', background: '#f1f5f9',
+  border: '1px solid #e2e8f0', borderRadius: 6,
+  fontSize: 16, cursor: 'pointer', color: '#374151',
 };
 const modal = {
   overlay: {
