@@ -32,4 +32,8 @@ router.post('/subscribe', auth, controller.subscribe);
 // Remover subscription
 router.delete('/subscribe', auth, controller.unsubscribe);
 
+// FCM token (app nativo Android)
+router.post('/subscribe-fcm', auth, controller.subscribeFcm);
+router.delete('/subscribe-fcm', auth, controller.unsubscribeFcm);
+
 module.exports = router;
