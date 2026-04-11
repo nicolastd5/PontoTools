@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, ScrollView, SafeAreaView,
-  TextInput, Modal,
+  TextInput, Modal, Image,
 } from 'react-native';
 import { formatInTimeZone } from 'date-fns-tz';
+import { launchCamera, type CameraOptions } from 'react-native-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
@@ -62,9 +63,12 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
     entry: true, break_start: false, break_end: false, exit: false,
   });
 
-  // Modal de confirmação com observação
+  // Modal de confirmação com observação e foto
   const [confirmModal, setConfirmModal]   = useState<ClockType | null>(null);
   const [observation, setObservation]     = useState('');
+  const [photoUri, setPhotoUri]           = useState<string | null>(null);
+  const [cameraFacing, setCameraFacing]   = useState<'front' | 'back'>('front');
+  const [takingPhoto, setTakingPhoto]     = useState(false);
 
   function loadToday() {
     api.get('/clock/today', { params: { timezone: tz } })
@@ -88,8 +92,30 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
     }
     if (!coords) return;
     setObservation('');
+    setPhotoUri(null);
     setConfirmModal(clockType);
   }, [gpsStatus, isInsideZone, coords, distanceMeters, user]);
+
+  const handleTakePhoto = useCallback(async () => {
+    setTakingPhoto(true);
+    try {
+      const options: CameraOptions = {
+        mediaType: 'photo',
+        cameraType: cameraFacing,
+        quality: 0.7,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        includeBase64: false,
+        saveToPhotos: false,
+      };
+      const result = await launchCamera(options);
+      if (result.didCancel || result.errorCode) return;
+      const asset = result.assets?.[0];
+      if (asset?.uri) setPhotoUri(asset.uri);
+    } finally {
+      setTakingPhoto(false);
+    }
+  }, [cameraFacing]);
 
   async function submitClock() {
     if (!confirmModal || !coords) return;
@@ -105,9 +131,15 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
       formData.append('timezone',   tz);
       if (observation.trim()) formData.append('observation', observation.trim());
 
-      const dataUri = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=';
-      const photoBlob = await (await fetch(dataUri)).blob();
-      formData.append('photo', photoBlob, 'photo.jpg');
+      if (photoUri) {
+        // Foto real da câmera
+        formData.append('photo', { uri: photoUri, type: 'image/jpeg', name: 'photo.jpg' } as any);
+      } else {
+        // Placeholder 1px se não tirou foto
+        const dataUri = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AJQAB/9k=';
+        const photoBlob = await (await fetch(dataUri)).blob();
+        formData.append('photo', photoBlob, 'photo.jpg');
+      }
 
       const res = await api.post('/clock', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -220,13 +252,57 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
       </ScrollView>
 
       {/* Modal de confirmação com observação */}
-      <Modal visible={confirmModal !== null} transparent animationType="fade">
+      <Modal visible={confirmModal !== null} transparent animationType="slide">
         <View style={modal.overlay}>
           <View style={modal.box}>
             <Text style={modal.title}>Confirmar {confirmModal ? LABELS[confirmModal] : ''}</Text>
             <Text style={modal.subtitle}>
               {formatInTimeZone(now, tz, 'HH:mm:ss')} · {formatInTimeZone(now, tz, 'dd/MM/yyyy')}
             </Text>
+
+            {/* Seção de foto */}
+            <View style={modal.photoSection}>
+              {photoUri ? (
+                <View style={modal.photoPreview}>
+                  <Image source={{ uri: photoUri }} style={modal.photoImg} />
+                  <View style={modal.photoActions}>
+                    <TouchableOpacity
+                      style={modal.photoBtn}
+                      onPress={() => setCameraFacing(f => f === 'front' ? 'back' : 'front')}
+                    >
+                      <Text style={modal.photoBtnText}>🔄 {cameraFacing === 'front' ? 'Traseira' : 'Frontal'}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={modal.photoBtn} onPress={handleTakePhoto} disabled={takingPhoto}>
+                      <Text style={modal.photoBtnText}>📷 Refazer</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <View style={modal.photoEmpty}>
+                  <Text style={modal.photoEmptyIcon}>📷</Text>
+                  <Text style={modal.photoEmptyText}>Nenhuma foto tirada</Text>
+                  <View style={modal.photoActions}>
+                    <TouchableOpacity
+                      style={modal.photoBtn}
+                      onPress={() => setCameraFacing(f => f === 'front' ? 'back' : 'front')}
+                    >
+                      <Text style={modal.photoBtnText}>
+                        {cameraFacing === 'front' ? '🤳 Frontal' : '📸 Traseira'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[modal.photoBtn, modal.photoBtnPrimary]}
+                      onPress={handleTakePhoto}
+                      disabled={takingPhoto}
+                    >
+                      <Text style={[modal.photoBtnText, { color: '#fff' }]}>
+                        {takingPhoto ? 'Abrindo...' : '📷 Tirar Foto'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
 
             <Text style={modal.label}>Observação (opcional)</Text>
             <TextInput
@@ -236,22 +312,16 @@ export default function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen
               value={observation}
               onChangeText={setObservation}
               multiline
-              numberOfLines={3}
+              numberOfLines={2}
               maxLength={300}
             />
             <Text style={modal.charCount}>{observation.length}/300</Text>
 
             <View style={modal.actions}>
-              <TouchableOpacity
-                style={modal.cancelBtn}
-                onPress={() => setConfirmModal(null)}
-              >
+              <TouchableOpacity style={modal.cancelBtn} onPress={() => setConfirmModal(null)}>
                 <Text style={modal.cancelText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={modal.confirmBtn}
-                onPress={submitClock}
-              >
+              <TouchableOpacity style={modal.confirmBtn} onPress={submitClock}>
                 <Text style={modal.confirmText}>Confirmar</Text>
               </TouchableOpacity>
             </View>
@@ -288,16 +358,26 @@ const styles = StyleSheet.create({
 });
 
 const modal = StyleSheet.create({
-  overlay:     { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
-  box:         { backgroundColor: '#fff', borderRadius: 16, padding: 24 },
-  title:       { fontSize: 18, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
-  subtitle:    { fontSize: 13, color: '#64748b', marginBottom: 20, fontVariant: ['tabular-nums'] },
-  label:       { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input:       { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', minHeight: 80, textAlignVertical: 'top' },
-  charCount:   { fontSize: 11, color: '#94a3b8', textAlign: 'right', marginTop: 4, marginBottom: 20 },
-  actions:     { flexDirection: 'row', gap: 12 },
-  cancelBtn:   { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center' },
-  cancelText:  { color: '#64748b', fontWeight: '600' },
-  confirmBtn:  { flex: 1, padding: 14, borderRadius: 10, backgroundColor: '#1d4ed8', alignItems: 'center' },
-  confirmText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  overlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  box:              { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
+  title:            { fontSize: 18, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
+  subtitle:         { fontSize: 13, color: '#64748b', marginBottom: 16, fontVariant: ['tabular-nums'] },
+  photoSection:     { marginBottom: 16 },
+  photoEmpty:       { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 12, borderStyle: 'dashed', padding: 16, alignItems: 'center' },
+  photoEmptyIcon:   { fontSize: 32, marginBottom: 6 },
+  photoEmptyText:   { fontSize: 13, color: '#94a3b8', marginBottom: 12 },
+  photoPreview:     { borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#e2e8f0' },
+  photoImg:         { width: '100%', height: 180, resizeMode: 'cover' },
+  photoActions:     { flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'center' },
+  photoBtn:         { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1.5, borderColor: '#e2e8f0', backgroundColor: '#f8fafc' },
+  photoBtnPrimary:  { backgroundColor: '#1d4ed8', borderColor: '#1d4ed8' },
+  photoBtnText:     { fontSize: 13, fontWeight: '600', color: '#374151' },
+  label:            { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  input:            { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', minHeight: 64, textAlignVertical: 'top' },
+  charCount:        { fontSize: 11, color: '#94a3b8', textAlign: 'right', marginTop: 4, marginBottom: 16 },
+  actions:          { flexDirection: 'row', gap: 12 },
+  cancelBtn:        { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center' },
+  cancelText:       { color: '#64748b', fontWeight: '600' },
+  confirmBtn:       { flex: 1, padding: 14, borderRadius: 10, backgroundColor: '#1d4ed8', alignItems: 'center' },
+  confirmText:      { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
