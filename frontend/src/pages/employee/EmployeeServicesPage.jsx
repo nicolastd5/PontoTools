@@ -35,11 +35,12 @@ export default function EmployeeServicesPage() {
 
   const [detail, setDetail]       = useState(null);
   const [photoSrc, setPhotoSrc]   = useState({});
-  const [cameraPhase, setCameraPhase] = useState(null); // null | 'before' | 'after'
+  const [cameraPhase, setCameraPhase] = useState(null); // null | 'before' | 'after' | 'issues'
   const [problemModal, setProblemModal]   = useState(false);
   const [problemText, setProblemText]     = useState('');
   const [issuesModal, setIssuesModal]     = useState(false);
   const [issuesText, setIssuesText]       = useState('');
+  const [lightbox, setLightbox]           = useState(null); // src da foto ampliada
 
   // Status update mutation
   const statusMutation = useMutation({
@@ -73,6 +74,10 @@ export default function EmployeeServicesPage() {
         if (phase === 'before') success('Foto enviada. Serviço iniciado automaticamente.');
         else if (phase === 'after') success('Foto enviada. Serviço marcado como concluído.');
         else success('Foto enviada.');
+        // Após foto de ressalvas, finaliza o status
+        if (phase === 'issues') {
+          await statusMutation.mutateAsync({ id: vars.id, status: 'done_with_issues', issue_description: issuesText });
+        }
       }
       queryClient.invalidateQueries(['my-services']);
     },
@@ -96,10 +101,18 @@ export default function EmployeeServicesPage() {
   }
 
   function handlePhotoCapture(blobs) {
-    if (!detail || !cameraPhase || blobs.length === 0) return;
-    // Upload all blobs sequentially
+    if (!detail || !cameraPhase) return;
+    // Fase 'issues': foto é opcional — se não tirou, só muda status
+    const phase = cameraPhase === 'issues' ? 'after' : cameraPhase;
+    if (blobs.length === 0) {
+      if (cameraPhase === 'issues') {
+        setCameraPhase(null);
+        statusMutation.mutate({ id: detail.id, status: 'done_with_issues', issue_description: issuesText });
+      }
+      return;
+    }
     blobs.reduce((promise, blob) =>
-      promise.then(() => photoMutation.mutateAsync({ id: detail.id, phase: cameraPhase, blob })),
+      promise.then(() => photoMutation.mutateAsync({ id: detail.id, phase, blob })),
       Promise.resolve()
     ).catch(() => {});
   }
@@ -180,8 +193,8 @@ export default function EmployeeServicesPage() {
             )}
 
             {/* Photo sections */}
-            <PhotoSection title="Fotos — Antes" photos={beforePhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detail.id} />
-            <PhotoSection title="Fotos — Depois" photos={afterPhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detail.id} />
+            <PhotoSection title="Fotos — Antes" photos={beforePhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detail.id} onOpen={setLightbox} />
+            <PhotoSection title="Fotos — Depois" photos={afterPhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detail.id} onOpen={setLightbox} />
 
             {/* Action buttons */}
             {isActive && (
@@ -237,24 +250,39 @@ export default function EmployeeServicesPage() {
         <div style={overlay} onClick={() => setIssuesModal(false)}>
           <div style={{ ...modalCard, maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
             <h2 style={modalTitle}>Concluir com Ressalvas</h2>
-            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>O serviço será marcado como concluído, mas com observações registradas.</p>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>Descreva as ressalvas. Você pode tirar uma foto (opcional).</p>
             <textarea
               value={issuesText}
               onChange={(e) => setIssuesText(e.target.value)}
-              rows={4}
+              rows={3}
               placeholder="Descreva as ressalvas ou observações..."
               style={{ ...inputStyle, resize: 'vertical', marginBottom: 14 }}
             />
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setIssuesModal(false)} style={outlineBtn}>Cancelar</button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
-                onClick={() => statusMutation.mutate({ id: detail.id, status: 'done_with_issues', issue_description: issuesText })}
-                disabled={!issuesText.trim() || statusMutation.isLoading}
-                style={{ ...primaryBtn, background: '#ea580c', opacity: !issuesText.trim() || statusMutation.isLoading ? 0.6 : 1 }}>
-                Confirmar
+                onClick={() => { setIssuesModal(false); setCameraPhase('issues'); }}
+                disabled={!issuesText.trim()}
+                style={{ ...primaryBtn, background: '#ea580c', opacity: !issuesText.trim() ? 0.6 : 1 }}>
+                📷 Tirar Foto e Concluir
               </button>
+              <button
+                onClick={() => { setIssuesModal(false); statusMutation.mutate({ id: detail.id, status: 'done_with_issues', issue_description: issuesText }); }}
+                disabled={!issuesText.trim() || statusMutation.isLoading}
+                style={{ ...outlineBtn, borderColor: '#ea580c', color: '#ea580c', width: '100%', opacity: !issuesText.trim() ? 0.6 : 1 }}>
+                Concluir Sem Foto
+              </button>
+              <button onClick={() => setIssuesModal(false)} style={{ ...outlineBtn, width: '100%' }}>Cancelar</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="" style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
+          <button onClick={() => setLightbox(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 40, height: 40, color: '#fff', fontSize: 20, cursor: 'pointer' }}>✕</button>
         </div>
       )}
 
@@ -286,7 +314,7 @@ export default function EmployeeServicesPage() {
   );
 }
 
-function PhotoSection({ title, photos, photoSrc, onLoad, serviceId }) {
+function PhotoSection({ title, photos, photoSrc, onLoad, serviceId, onOpen }) {
   if (photos.length === 0) return null;
   return (
     <div style={{ marginBottom: 14 }}>
@@ -294,10 +322,13 @@ function PhotoSection({ title, photos, photoSrc, onLoad, serviceId }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {photos.map((photo) => {
           onLoad({ ...photo, service_order_id: serviceId });
+          const src = photoSrc[photo.id];
           return (
-            <div key={photo.id} style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-              {photoSrc[photo.id]
-                ? <img src={photoSrc[photo.id]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div key={photo.id}
+              onClick={() => src && onOpen && onOpen(src)}
+              style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc', cursor: src ? 'zoom-in' : 'default' }}>
+              {src
+                ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#cbd5e1', fontSize: 12 }}>…</div>
               }
             </div>

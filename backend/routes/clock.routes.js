@@ -44,4 +44,7 @@ router.get('/history', auth, controller.getHistory);
 // GET /api/clock/today
 router.get('/today', auth, controller.getToday);
 
+// GET /api/clock/:id/photo — funcionário vê sua própria foto
+router.get('/:id/photo', auth, controller.getMyClockPhoto);
+
 module.exports = router;

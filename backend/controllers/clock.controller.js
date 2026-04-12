@@ -243,4 +243,30 @@ async function getToday(req, res, next) {
   }
 }
 
-module.exports = { registerClock, getHistory, getToday };
+// ----------------------------------------------------------------
+// GET /api/clock/:id/photo
+// Funcionário vê a foto do próprio registro de ponto
+// ----------------------------------------------------------------
+async function getMyClockPhoto(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+
+    const result = await db.query(
+      `SELECT photo_path FROM clock_records WHERE id = $1 AND employee_id = $2`,
+      [id, req.user.id]
+    );
+
+    if (!result.rows[0]) return res.status(404).json({ error: 'Registro não encontrado.' });
+
+    const { photo_path } = result.rows[0];
+    const buffer = await storage.getBuffer(photo_path);
+
+    res.set('Content-Type', 'image/jpeg');
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { registerClock, getHistory, getToday, getMyClockPhoto };

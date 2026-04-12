@@ -22,6 +22,7 @@ import EmployeeDashboardPage   from './pages/employee/EmployeeDashboardPage';
 import EmployeeHistoryPage     from './pages/employee/EmployeeHistoryPage';
 import EmployeeServicesPage    from './pages/employee/EmployeeServicesPage';
 import EmployeeNotificationsPage from './pages/employee/EmployeeNotificationsPage';
+import EmployeeGalleryPage       from './pages/employee/EmployeeGalleryPage';
 
 // Componentes de layout
 import AdminLayout    from './components/shared/AdminLayout';
@@ -102,6 +103,7 @@ function AppRoutes() {
         <Route path="dashboard"      element={<EmployeeDashboardPage />} />
         <Route path="history"        element={<EmployeeHistoryPage />} />
         <Route path="services"       element={<EmployeeServicesPage />} />
+        <Route path="gallery"        element={<EmployeeGalleryPage />} />
         <Route path="notifications"  element={<EmployeeNotificationsPage />} />
       </Route>
 
