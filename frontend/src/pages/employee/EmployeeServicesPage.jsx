@@ -61,9 +61,7 @@ export default function EmployeeServicesPage() {
       const fd = new FormData();
       fd.append('photo', blob, 'photo.jpg');
       fd.append('phase', phase);
-      return api.post(`/services/${id}/photos`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      return api.post(`/services/${id}/photos`, fd);
     },
     onSuccess: async (_, vars) => {
       const phase = vars.phase;
