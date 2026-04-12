@@ -46,6 +46,7 @@ export default function AdminPhotosPage() {
   const [svcPhotoSrc, setSvcPhotoSrc]       = useState({});
   const [svcDetails, setSvcDetails]         = useState({});
   const [svcLightbox, setSvcLightbox]       = useState(null);
+  const [svcDeleting, setSvcDeleting]       = useState(null); // photoId sendo deletado
   const { data: svcData, isLoading: svcLoading } = useQuery({
     queryKey: ['admin-services-gallery'],
     queryFn:  () => api.get('/services').then((r) => r.data.services),
@@ -56,6 +57,23 @@ export default function AdminPhotosPage() {
     if (svcDetails[id]) return;
     const res = await api.get(`/services/${id}`);
     setSvcDetails((p) => ({ ...p, [id]: res.data }));
+  }
+
+  async function deleteSvcPhoto(photoId, serviceId) {
+    if (!window.confirm('Apagar esta foto permanentemente?')) return;
+    setSvcDeleting(photoId);
+    try {
+      await api.delete(`/services/${serviceId}/photos/${photoId}`);
+      setSvcDetails((p) => {
+        const svc = p[serviceId];
+        if (!svc) return p;
+        return { ...p, [serviceId]: { ...svc, photos: svc.photos.filter((ph) => ph.id !== photoId) } };
+      });
+      const key = `${serviceId}_${photoId}`;
+      setSvcPhotoSrc((p) => { const n = { ...p }; delete n[key]; return n; });
+      success('Foto apagada.');
+    } catch { error('Erro ao apagar foto.'); }
+    finally { setSvcDeleting(null); }
   }
 
   async function loadSvcPhoto(photoId, serviceId) {
@@ -282,6 +300,14 @@ export default function AdminPhotosPage() {
                               : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#cbd5e1' }}>…</div>
                             }
                           </div>
+                          {src && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteSvcPhoto(photo.id, sv.id); }}
+                              disabled={svcDeleting === photo.id}
+                              style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(220,38,38,0.85)', border: 'none', borderRadius: '50%', width: 22, height: 22, color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {svcDeleting === photo.id ? '…' : '✕'}
+                            </button>
+                          )}
                           <span style={{ display: 'block', textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#64748b', marginTop: 3 }}>
                             {photo.phase === 'before' ? 'Antes' : 'Depois'}
                           </span>
