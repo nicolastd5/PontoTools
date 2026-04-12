@@ -121,11 +121,28 @@ async function getOne(req, res, next) {
 async function destroy(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
+
+    // Check for linked employees before attempting deletion
+    const empCheck = await db.query(
+      `SELECT COUNT(*) FROM employees WHERE unit_id = $1`, [id]
+    );
+    const empCount = parseInt(empCheck.rows[0].count, 10);
+    if (empCount > 0) {
+      return res.status(409).json({
+        error: `Este posto possui ${empCount} funcionário(s) vinculado(s) e não pode ser excluído. Reatribua ou remova os funcionários primeiro.`
+      });
+    }
+
     const result = await db.query(`DELETE FROM units WHERE id = $1 RETURNING id`, [id]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Unidade não encontrada.' });
     logger.info('Posto deletado permanentemente', { unitId: id, by: req.user.id });
     res.json({ ok: true });
   } catch (err) {
+    if (err.code === '23503') {
+      return res.status(409).json({
+        error: 'Este posto possui registros vinculados (pontos ou serviços) e não pode ser excluído.'
+      });
+    }
     next(err);
   }
 }
