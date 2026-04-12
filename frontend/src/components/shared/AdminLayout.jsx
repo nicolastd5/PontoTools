@@ -348,7 +348,7 @@ const s = {
 
   /* Painel dropdown */
   panel: {
-    position: 'absolute', top: 'calc(100% + 10px)', right: 0,
+    position: 'fixed', top: 52, right: 12,
     width: 320, background: '#fff', borderRadius: 12,
     border: '1px solid #e2e8f0', boxShadow: '0 8px 32px rgba(0,0,0,0.14)',
     zIndex: 200, overflow: 'hidden',
