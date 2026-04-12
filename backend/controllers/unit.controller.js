@@ -118,4 +118,16 @@ async function getOne(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { list, create, update, deactivate, getOne };
+async function destroy(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const result = await db.query(`DELETE FROM units WHERE id = $1 RETURNING id`, [id]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Unidade não encontrada.' });
+    logger.info('Posto deletado permanentemente', { unitId: id, by: req.user.id });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, update, deactivate, getOne, destroy };

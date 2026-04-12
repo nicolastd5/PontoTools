@@ -33,11 +33,18 @@ router.put('/:id',
   controller.update
 );
 
-// DELETE — apenas admin
+// DELETE — apenas admin (desativa)
 router.delete('/:id',
   auth, requireAdmin,
   auditLog('UNIT_DEACTIVATED', 'unit'),
   controller.deactivate
+);
+
+// DELETE permanente — apenas admin
+router.delete('/:id/destroy',
+  auth, requireAdmin,
+  auditLog('UNIT_DELETED', 'unit'),
+  controller.destroy
 );
 
 module.exports = router;

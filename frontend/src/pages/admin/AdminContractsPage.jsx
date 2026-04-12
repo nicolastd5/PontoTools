@@ -50,6 +50,12 @@ export default function AdminContractsPage() {
     onError: (e) => error(e.response?.data?.error || 'Erro ao excluir contrato.'),
   });
 
+  const destroyUnit = useMutation({
+    mutationFn: (id) => api.delete(`/units/${id}/destroy`),
+    onSuccess: () => { queryClient.invalidateQueries(['contracts']); queryClient.invalidateQueries(['units']); success('Posto excluído permanentemente.'); },
+    onError: (e) => error(e.response?.data?.error || 'Erro ao excluir posto.'),
+  });
+
   const createUnit = useMutation({
     mutationFn: (body) => api.post('/units', body),
     onSuccess: () => { queryClient.invalidateQueries(['contracts']); queryClient.invalidateQueries(['units']); success('Posto criado.'); closeUnitModal(); },
@@ -213,6 +219,12 @@ export default function AdminContractsPage() {
                           Mapa ↗
                         </a>
                         <button onClick={() => openEditUnit(u)} style={styles.outlineBtn}>Editar</button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Excluir o posto "${u.name}" permanentemente?`))
+                              destroyUnit.mutate(u.id);
+                          }}
+                          style={styles.dangerBtn}>Excluir</button>
                       </div>
                     ))
                   )}
@@ -244,6 +256,12 @@ export default function AdminContractsPage() {
                       </div>
                       <span style={styles.unitRadius}>{u.radius_meters}m</span>
                       <button onClick={() => openEditUnit(u)} style={styles.outlineBtn}>Editar</button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Excluir o posto "${u.name}" permanentemente?`))
+                            destroyUnit.mutate(u.id);
+                        }}
+                        style={styles.dangerBtn}>Excluir</button>
                     </div>
                   ))}
                 </div>
