@@ -125,6 +125,19 @@ export default function AdminServicesPage() {
     onError: () => error('Erro ao reagendar serviço.'),
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }) => api.patch(`/services/${id}/status`, { status }),
+    onSuccess: async () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Status atualizado.');
+      if (detailModal) {
+        const res = await api.get(`/services/${detailModal.id}`);
+        setDetail(res.data);
+      }
+    },
+    onError: () => error('Erro ao atualizar status.'),
+  });
+
   function openReschedule(service) {
     setRescheduleForm({
       scheduled_date: service.scheduled_date?.slice(0, 10) || '',
@@ -294,21 +307,63 @@ export default function AdminServicesPage() {
               <p style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>Nenhuma foto registrada.</p>
             )}
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
-              <button
-                onClick={() => openReschedule(detailModal)}
-                style={{ ...s.outlineBtn, borderColor: '#0891b2', color: '#0891b2' }}>
-                Reagendar
-              </button>
-              <button
-                onClick={() => {
-                  if (window.confirm(`Excluir o serviço "${detailModal.title}" permanentemente?`))
-                    deleteServiceMutation.mutate(detailModal.id);
-                }}
-                disabled={deleteServiceMutation.isLoading}
-                style={{ ...s.primaryBtn, background: '#dc2626' }}>
-                {deleteServiceMutation.isLoading ? 'Excluindo...' : 'Excluir'}
-              </button>
+            {/* Ações de status */}
+            <div style={{ marginTop: 20, borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+              {!['done', 'done_with_issues'].includes(detailModal.status) && (
+                <div style={{ marginBottom: 12 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>Alterar status</p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {detailModal.status !== 'in_progress' && (
+                      <button
+                        onClick={() => updateStatusMutation.mutate({ id: detailModal.id, status: 'in_progress' })}
+                        disabled={updateStatusMutation.isLoading}
+                        style={{ ...statusBtn, background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+                        🔄 Em andamento
+                      </button>
+                    )}
+                    <button
+                      onClick={() => updateStatusMutation.mutate({ id: detailModal.id, status: 'done' })}
+                      disabled={updateStatusMutation.isLoading}
+                      style={{ ...statusBtn, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
+                      ✅ Marcar como concluído
+                    </button>
+                    {detailModal.status !== 'problem' && (
+                      <button
+                        onClick={() => updateStatusMutation.mutate({ id: detailModal.id, status: 'problem' })}
+                        disabled={updateStatusMutation.isLoading}
+                        style={{ ...statusBtn, background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>
+                        ⚠️ Problema
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {['done', 'done_with_issues'].includes(detailModal.status) && (
+                <div style={{ marginBottom: 12 }}>
+                  <button
+                    onClick={() => updateStatusMutation.mutate({ id: detailModal.id, status: 'in_progress' })}
+                    disabled={updateStatusMutation.isLoading}
+                    style={{ ...statusBtn, background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe' }}>
+                    🔄 Reabrir serviço
+                  </button>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => openReschedule(detailModal)}
+                  style={{ ...s.outlineBtn, borderColor: '#0891b2', color: '#0891b2' }}>
+                  Reagendar
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Excluir o serviço "${detailModal.title}" permanentemente?`))
+                      deleteServiceMutation.mutate(detailModal.id);
+                  }}
+                  disabled={deleteServiceMutation.isLoading}
+                  style={{ ...s.primaryBtn, background: '#dc2626' }}>
+                  {deleteServiceMutation.isLoading ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -395,8 +450,9 @@ function InfoRow({ label, value }) {
   );
 }
 
-const badge    = { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, display: 'inline-block' };
+const badge     = { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, display: 'inline-block' };
 const actionBtn = { padding: '4px 12px', fontSize: 12, cursor: 'pointer', border: '1px solid #e2e8f0', borderRadius: 6, background: '#f8fafc', color: '#374151' };
+const statusBtn = { padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderRadius: 8 };
 const overlay   = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 };
 const modalCard = { background: '#fff', borderRadius: 12, padding: '28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' };
 const modalTitle = { fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 16 };
