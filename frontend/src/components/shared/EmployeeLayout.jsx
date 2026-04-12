@@ -52,11 +52,7 @@ export default function EmployeeLayout() {
           <span>🔧</span>
           <span style={styles.navLabel}>Serviços</span>
         </NavLink>
-        <NavLink to="/gallery" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
-          <span>🖼</span>
-          <span style={styles.navLabel}>Galeria</span>
-        </NavLink>
-        <NavLink to="/notifications" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
+<NavLink to="/notifications" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
           <span style={{ position: 'relative', display: 'inline-block' }}>
             🔔
             {unreadCount > 0 && (

@@ -20,9 +20,16 @@ function useUnits() {
   return useQuery({ queryKey: ['units'], queryFn: () => api.get('/units').then((r) => r.data.units) });
 }
 
+const STATUS_LABEL = {
+  pending: 'Pendente', in_progress: 'Em andamento',
+  done: 'Concluído', done_with_issues: 'C/ ressalvas', problem: 'Problema',
+};
+
 export default function AdminPhotosPage() {
   const { success, error } = useToast();
   const queryClient = useQueryClient();
+
+  const [tab, setTab] = useState('clock'); // 'clock' | 'services'
 
   const [filters, setFilters]   = useState({ unitId: '', clockType: '', startDate: '', endDate: '' });
   const [page, setPage]         = useState(1);
@@ -34,6 +41,31 @@ export default function AdminPhotosPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected]     = useState(new Set()); // Set de record IDs
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Aba serviços
+  const [svcPhotoSrc, setSvcPhotoSrc]       = useState({});
+  const [svcDetails, setSvcDetails]         = useState({});
+  const [svcLightbox, setSvcLightbox]       = useState(null);
+  const { data: svcData, isLoading: svcLoading } = useQuery({
+    queryKey: ['admin-services-gallery'],
+    queryFn:  () => api.get('/services').then((r) => r.data.services),
+    enabled:  tab === 'services',
+  });
+
+  async function loadSvcDetail(id) {
+    if (svcDetails[id]) return;
+    const res = await api.get(`/services/${id}`);
+    setSvcDetails((p) => ({ ...p, [id]: res.data }));
+  }
+
+  async function loadSvcPhoto(photoId, serviceId) {
+    const key = `${serviceId}_${photoId}`;
+    if (svcPhotoSrc[key]) return;
+    try {
+      const res = await api.get(`/services/${serviceId}/photos/${photoId}`, { responseType: 'blob' });
+      setSvcPhotoSrc((p) => ({ ...p, [key]: URL.createObjectURL(res.data) }));
+    } catch {}
+  }
 
   const { data, isLoading } = useClocks(
     Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '')),
@@ -194,7 +226,7 @@ export default function AdminPhotosPage() {
   return (
     <div>
       {/* Cabeçalho */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <h1 style={s.title}>Galeria de Fotos</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           {!selectMode ? (
@@ -211,6 +243,70 @@ export default function AdminPhotosPage() {
           )}
         </div>
       </div>
+
+      {/* Submenu tabs */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 20, background: '#f1f5f9', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+        <button onClick={() => setTab('clock')}    style={{ padding: '7px 20px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: tab === 'clock'    ? '#fff' : 'transparent', color: tab === 'clock'    ? '#1d4ed8' : '#64748b', boxShadow: tab === 'clock'    ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>Ponto</button>
+        <button onClick={() => setTab('services')} style={{ padding: '7px 20px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', background: tab === 'services' ? '#fff' : 'transparent', color: tab === 'services' ? '#1d4ed8' : '#64748b', boxShadow: tab === 'services' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>Serviços</button>
+      </div>
+
+      {/* ---- ABA SERVIÇOS ---- */}
+      {tab === 'services' && (
+        <div>
+          {svcLoading ? <p style={{ color: '#64748b', padding: 24 }}>Carregando...</p> :
+          !svcData?.length ? <p style={{ color: '#64748b', padding: 24 }}>Nenhum serviço encontrado.</p> :
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {svcData.map((sv) => {
+              loadSvcDetail(sv.id);
+              const full   = svcDetails[sv.id];
+              const photos = full?.photos || [];
+              return (
+                <div key={sv.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '14px 16px' }}>
+                  <div style={{ marginBottom: photos.length ? 10 : 0 }}>
+                    <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>{sv.title}</span>
+                    <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b' }}>{sv.employee_name} · {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')} · {STATUS_LABEL[sv.status]}</span>
+                  </div>
+                  {photos.length === 0 && <span style={{ fontSize: 12, color: '#cbd5e1', fontStyle: 'italic' }}>Sem fotos</span>}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {photos.map((photo) => {
+                      const key = `${sv.id}_${photo.id}`;
+                      loadSvcPhoto(photo.id, sv.id);
+                      const src = svcPhotoSrc[key];
+                      return (
+                        <div key={photo.id} style={{ position: 'relative' }}>
+                          <div
+                            onClick={() => src && setSvcLightbox(src)}
+                            style={{ width: 90, height: 90, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc', cursor: src ? 'zoom-in' : 'default' }}>
+                            {src
+                              ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#cbd5e1' }}>…</div>
+                            }
+                          </div>
+                          <span style={{ display: 'block', textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#64748b', marginTop: 3 }}>
+                            {photo.phase === 'before' ? 'Antes' : 'Depois'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>}
+
+          {/* Lightbox serviços */}
+          {svcLightbox && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              onClick={() => setSvcLightbox(null)}>
+              <img src={svcLightbox} alt="" style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: 8, objectFit: 'contain' }} />
+              <button onClick={() => setSvcLightbox(null)} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 40, height: 40, color: '#fff', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ---- ABA PONTO ---- */}
+      {tab === 'clock' && <>
 
       {/* Filtros */}
       <div style={s.filters}>
@@ -364,6 +460,7 @@ export default function AdminPhotosPage() {
           </div>
         </div>
       )}
+      </>}
     </div>
   );
 }
