@@ -44,6 +44,12 @@ export default function AdminContractsPage() {
     onError: () => error('Erro ao desativar contrato.'),
   });
 
+  const destroyContract = useMutation({
+    mutationFn: (id) => api.delete(`/contracts/${id}/destroy`),
+    onSuccess: () => { queryClient.invalidateQueries(['contracts']); success('Contrato excluído permanentemente.'); },
+    onError: (e) => error(e.response?.data?.error || 'Erro ao excluir contrato.'),
+  });
+
   const createUnit = useMutation({
     mutationFn: (body) => api.post('/units', body),
     onSuccess: () => { queryClient.invalidateQueries(['contracts']); queryClient.invalidateQueries(['units']); success('Posto criado.'); closeUnitModal(); },
@@ -174,6 +180,14 @@ export default function AdminContractsPage() {
                   {c.active && (
                     <button onClick={() => deactivateContract.mutate(c.id)} style={styles.dangerBtn}>Desativar</button>
                   )}
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Excluir o contrato "${c.name}" permanentemente?\n\nIsso irá remover o contrato do banco de dados. Os postos vinculados perderão o vínculo.`))
+                        destroyContract.mutate(c.id);
+                    }}
+                    style={{ ...styles.dangerBtn, background: '#fee2e2' }}>
+                    Excluir
+                  </button>
                 </div>
               </div>
 

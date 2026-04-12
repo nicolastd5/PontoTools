@@ -96,4 +96,17 @@ async function deactivate(req, res, next) {
   }
 }
 
-module.exports = { list, create, update, deactivate };
+// DELETE /api/contracts/:id/destroy — exclusão permanente
+async function destroy(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const result = await db.query(`DELETE FROM contracts WHERE id = $1 RETURNING id`, [id]);
+    if (!result.rows[0]) return res.status(404).json({ error: 'Contrato não encontrado.' });
+    logger.info('Contrato deletado permanentemente', { contractId: id, by: req.user.id });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, update, deactivate, destroy };

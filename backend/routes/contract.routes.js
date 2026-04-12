@@ -30,11 +30,18 @@ router.put('/:id',
   controller.update
 );
 
-// DELETE /api/contracts/:id — apenas admin
+// DELETE /api/contracts/:id — apenas admin (desativa)
 router.delete('/:id',
   requireAdmin,
   auditLog('CONTRACT_DEACTIVATED', 'contract'),
   controller.deactivate
+);
+
+// DELETE /api/contracts/:id/destroy — apenas admin (exclusão permanente)
+router.delete('/:id/destroy',
+  requireAdmin,
+  auditLog('CONTRACT_DELETED', 'contract'),
+  controller.destroy
 );
 
 module.exports = router;
