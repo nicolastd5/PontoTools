@@ -105,6 +105,87 @@ async function markAllRead(req, res, next) {
 }
 
 // ----------------------------------------------------------------
+// DELETE /api/notifications/:id
+// ----------------------------------------------------------------
+async function remove(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    let result;
+
+    if (req.user.role === 'employee') {
+      result = await db.query(
+        `DELETE FROM notifications
+         WHERE id = $1 AND employee_id = $2
+         RETURNING id`,
+        [id, req.user.id]
+      );
+    } else if (req.user.role === 'gestor') {
+      result = await db.query(
+        `DELETE FROM notifications n
+         USING employees e, units u
+         WHERE n.id = $1
+           AND n.employee_id = e.id
+           AND e.unit_id = u.id
+           AND u.contract_id = $2
+         RETURNING n.id`,
+        [id, req.user.contractId]
+      );
+    } else {
+      result = await db.query(
+        `DELETE FROM notifications
+         WHERE id = $1
+         RETURNING id`,
+        [id]
+      );
+    }
+
+    if (!result.rows[0]) return res.status(404).json({ error: 'Notificação não encontrada.' });
+    res.json({ ok: true, id });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
+// DELETE /api/notifications/read
+// ----------------------------------------------------------------
+async function removeRead(req, res, next) {
+  try {
+    let result;
+
+    if (req.user.role === 'employee') {
+      result = await db.query(
+        `DELETE FROM notifications
+         WHERE employee_id = $1 AND read = TRUE
+         RETURNING id`,
+        [req.user.id]
+      );
+    } else if (req.user.role === 'gestor') {
+      result = await db.query(
+        `DELETE FROM notifications n
+         USING employees e, units u
+         WHERE n.employee_id = e.id
+           AND e.unit_id = u.id
+           AND u.contract_id = $1
+           AND n.read = TRUE
+         RETURNING n.id`,
+        [req.user.contractId]
+      );
+    } else {
+      result = await db.query(
+        `DELETE FROM notifications
+         WHERE read = TRUE
+         RETURNING id`
+      );
+    }
+
+    res.json({ ok: true, deleted: result.rowCount });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
 // POST /api/notifications/send
 // Admin/gestor envia notificação manual
 // ----------------------------------------------------------------
@@ -112,12 +193,10 @@ async function send(req, res, next) {
   try {
     const { employee_id, unit_id, title, body } = req.body;
 
-    // Destinatários
     let employeeIds = [];
 
     if (employee_id) {
       const eid = parseInt(employee_id, 10);
-      // Gestor só pode enviar para employees do próprio contrato
       if (req.user.role === 'gestor') {
         const check = await db.query(
           `SELECT e.id FROM employees e JOIN units u ON u.id = e.unit_id
@@ -129,7 +208,6 @@ async function send(req, res, next) {
       employeeIds = [eid];
     } else if (unit_id) {
       const uid = parseInt(unit_id, 10);
-      // Gestor só pode enviar para unidades do próprio contrato
       if (req.user.role === 'gestor') {
         const check = await db.query(
           `SELECT id FROM units WHERE id = $1 AND contract_id = $2`,
@@ -138,7 +216,8 @@ async function send(req, res, next) {
         if (!check.rows[0]) return res.status(403).json({ error: 'Acesso negado.' });
       }
       const result = await db.query(
-        `SELECT id FROM employees WHERE unit_id = $1 AND active = TRUE`, [uid]
+        `SELECT id FROM employees WHERE unit_id = $1 AND active = TRUE`,
+        [uid]
       );
       employeeIds = result.rows.map((r) => r.id);
     } else {
@@ -202,21 +281,18 @@ async function subscribeFcm(req, res, next) {
     const { fcm_token } = req.body;
     if (!fcm_token) return res.status(400).json({ error: 'fcm_token obrigatório.' });
 
-    // Upsert: se já existe linha para este employee sem endpoint (app nativo), atualiza.
-    // Caso contrário, insere nova linha.
-    // Upsert: um registro FCM por employee (endpoint NULL = nativo, endpoint real = Web Push)
     const existing = await db.query(
       `SELECT id FROM push_subscriptions
        WHERE employee_id = $1 AND (endpoint IS NULL OR endpoint = '')`,
       [req.user.id]
     );
+
     if (existing.rows.length > 0) {
       await db.query(
         `UPDATE push_subscriptions SET fcm_token = $1 WHERE id = $2`,
         [fcm_token, existing.rows[0].id]
       );
     } else {
-      // endpoint/p256dh/auth ficam NULL para registros nativos (migration 11 torna nullable)
       await db.query(
         `INSERT INTO push_subscriptions (employee_id, fcm_token, endpoint, p256dh, auth)
          VALUES ($1, $2, NULL, NULL, NULL)`,
@@ -247,4 +323,15 @@ async function unsubscribeFcm(req, res, next) {
   }
 }
 
-module.exports = { list, markRead, markAllRead, send, subscribe, unsubscribe, subscribeFcm, unsubscribeFcm };
+module.exports = {
+  list,
+  markRead,
+  markAllRead,
+  remove,
+  removeRead,
+  send,
+  subscribe,
+  unsubscribe,
+  subscribeFcm,
+  unsubscribeFcm,
+};
