@@ -228,6 +228,15 @@ async function addPhoto(req, res, next) {
     const phase = req.body.phase;
     const file  = req.file;
 
+    logger.info('addPhoto debug', {
+      hasFile: !!file,
+      fieldname: file?.fieldname,
+      mimetype: file?.mimetype,
+      size: file?.size,
+      bodyKeys: Object.keys(req.body),
+      contentType: req.headers['content-type'],
+    });
+
     if (!file) return res.status(400).json({ error: 'Foto obrigatória.' });
     if (!['before', 'after'].includes(phase)) {
       return res.status(400).json({ error: 'Fase inválida. Use before ou after.' });
