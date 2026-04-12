@@ -167,14 +167,19 @@ function StatCard({ label, value, icon, color, bg, loading, onClick }) {
 }
 
 function OpenServicesCard({ services }) {
-  function fmtDeadline(dt) {
-    if (!dt) return '—';
-    const d = new Date(dt);
-    const now = new Date();
-    const diffH = Math.round((d - now) / 3600000);
-    if (diffH < 0)   return `Atrasado ${Math.abs(diffH)}h`;
-    if (diffH < 24)  return `Hoje ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  function fmtPrazo(scheduled_date, due_time) {
+    if (!scheduled_date) return '—';
+    const dateStr = scheduled_date.slice(0, 10); // YYYY-MM-DD
+    const today   = new Date().toISOString().slice(0, 10);
+    const isPast  = dateStr < today;
+    const isToday = dateStr === today;
+
+    const dateFmt = new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    const timeFmt = due_time ? due_time.slice(0, 5) : null;
+
+    if (isPast)   return `Atrasado — ${dateFmt}${timeFmt ? ` ${timeFmt}` : ''}`;
+    if (isToday)  return `Hoje${timeFmt ? ` ${timeFmt}` : ''}`;
+    return `${dateFmt}${timeFmt ? ` ${timeFmt}` : ''}`;
   }
 
   return (
@@ -183,7 +188,7 @@ function OpenServicesCard({ services }) {
         <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Serviços abertos mais urgentes</span>
       </div>
       {services.map((s) => {
-        const isLate = s.deadline && new Date(s.deadline) < new Date();
+        const isLate = s.scheduled_date && s.scheduled_date.slice(0, 10) < new Date().toISOString().slice(0, 10);
         const sc = STATUS_COLOR[s.status] || STATUS_COLOR.pending;
         return (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: '1px solid #f8fafc', flexWrap: 'wrap' }}>
@@ -195,7 +200,7 @@ function OpenServicesCard({ services }) {
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{s.unit_name}{s.assigned_to ? ` · ${s.assigned_to}` : ''}</div>
             </div>
             <span style={{ fontSize: 12, fontWeight: 600, color: isLate ? '#dc2626' : '#64748b', whiteSpace: 'nowrap' }}>
-              {isLate ? '🚨 ' : '⏰ '}{fmtDeadline(s.deadline)}
+              {isLate ? '🚨 ' : '⏰ '}{fmtPrazo(s.scheduled_date, s.due_time)}
             </span>
           </div>
         );

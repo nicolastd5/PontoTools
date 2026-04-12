@@ -180,18 +180,22 @@ async function getServicesSummary() {
     db.query(
       `SELECT COUNT(*) AS total
        FROM service_orders
-       WHERE deadline < NOW()
-         AND status NOT IN ('done', 'done_with_issues')`
+       WHERE status NOT IN ('done', 'done_with_issues')
+         AND (
+           (due_time IS NOT NULL AND (scheduled_date + due_time) < NOW() AT TIME ZONE 'America/Sao_Paulo')
+           OR
+           (due_time IS NULL AND scheduled_date < CURRENT_DATE)
+         )`
     ),
     db.query(
-      `SELECT so.id, so.title, so.status, so.deadline,
+      `SELECT so.id, so.title, so.status, so.scheduled_date, so.due_time,
               e.full_name AS assigned_to,
               u.name AS unit_name
        FROM service_orders so
-       LEFT JOIN employees e ON e.id = so.assigned_to
+       LEFT JOIN employees e ON e.id = so.assigned_employee_id
        LEFT JOIN units u ON u.id = so.unit_id
        WHERE so.status NOT IN ('done', 'done_with_issues')
-       ORDER BY so.deadline ASC NULLS LAST
+       ORDER BY so.scheduled_date ASC, so.due_time ASC NULLS LAST
        LIMIT 5`
     ),
   ]);
