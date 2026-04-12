@@ -5,16 +5,18 @@ import { useToast } from '../../contexts/ToastContext';
 import CameraCapture from '../../components/employee/CameraCapture';
 
 const STATUS_LABEL = {
-  pending:     'Pendente',
-  in_progress: 'Em andamento',
-  done:        'Concluído',
-  problem:     'Problema',
+  pending:          'Pendente',
+  in_progress:      'Em andamento',
+  done:             'Concluído',
+  done_with_issues: 'Concluído c/ ressalvas',
+  problem:          'Problema',
 };
 const STATUS_COLOR = {
-  pending:     { bg: '#fef9c3', color: '#854d0e' },
-  in_progress: { bg: '#dbeafe', color: '#1e40af' },
-  done:        { bg: '#dcfce7', color: '#166534' },
-  problem:     { bg: '#fee2e2', color: '#991b1b' },
+  pending:          { bg: '#fef9c3', color: '#854d0e' },
+  in_progress:      { bg: '#dbeafe', color: '#1e40af' },
+  done:             { bg: '#dcfce7', color: '#166534' },
+  done_with_issues: { bg: '#fff7ed', color: '#c2410c' },
+  problem:          { bg: '#fee2e2', color: '#991b1b' },
 };
 
 function useMyServices() {
@@ -31,11 +33,13 @@ export default function EmployeeServicesPage() {
 
   const { data: services = [], isLoading } = useMyServices();
 
-  const [detail, setDetail]       = useState(null); // full service object
+  const [detail, setDetail]       = useState(null);
   const [photoSrc, setPhotoSrc]   = useState({});
   const [cameraPhase, setCameraPhase] = useState(null); // null | 'before' | 'after'
-  const [problemModal, setProblemModal] = useState(false);
-  const [problemText, setProblemText]   = useState('');
+  const [problemModal, setProblemModal]   = useState(false);
+  const [problemText, setProblemText]     = useState('');
+  const [issuesModal, setIssuesModal]     = useState(false);
+  const [issuesText, setIssuesText]       = useState('');
 
   // Status update mutation
   const statusMutation = useMutation({
@@ -61,15 +65,18 @@ export default function EmployeeServicesPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     },
-    onSuccess: async () => {
-      success('Foto enviada.');
+    onSuccess: async (_, vars) => {
+      const phase = vars.phase;
       setCameraPhase(null);
-      // Reload detail
       if (detail) {
         const res = await api.get(`/services/${detail.id}`);
         setDetail(res.data);
         setPhotoSrc({});
+        if (phase === 'before') success('Foto enviada. Serviço iniciado automaticamente.');
+        else if (phase === 'after') success('Foto enviada. Serviço marcado como concluído.');
+        else success('Foto enviada.');
       }
+      queryClient.invalidateQueries(['my-services']);
     },
     onError: (err) => error(err.response?.data?.error || 'Erro ao enviar foto.'),
   });
@@ -103,8 +110,8 @@ export default function EmployeeServicesPage() {
   const beforePhotos = allPhotos.filter((p) => p.phase === 'before');
   const afterPhotos  = allPhotos.filter((p) => p.phase === 'after');
 
-  const canStart  = detail && detail.status === 'pending';
-  const canFinish = detail && detail.status === 'in_progress';
+  const isActive   = detail && (detail.status === 'pending' || detail.status === 'in_progress');
+  const canIssues  = detail && detail.status === 'in_progress';
   const canProblem = detail && (detail.status === 'in_progress' || detail.status === 'pending');
 
   return (
@@ -162,6 +169,12 @@ export default function EmployeeServicesPage() {
               <div style={descBox}>{detail.description}</div>
             )}
 
+            {detail.issue_description && (
+              <div style={{ ...descBox, background: '#fff7ed', border: '1px solid #fed7aa', color: '#c2410c', marginBottom: 12 }}>
+                <strong>Ressalvas:</strong> {detail.issue_description}
+              </div>
+            )}
+
             {detail.problem_description && (
               <div style={{ ...descBox, background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', marginBottom: 12 }}>
                 <strong>Problema:</strong> {detail.problem_description}
@@ -173,39 +186,41 @@ export default function EmployeeServicesPage() {
             <PhotoSection title="Fotos — Depois" photos={afterPhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detail.id} />
 
             {/* Action buttons */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
-              {/* Photo capture buttons */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setCameraPhase('before')} style={photoActionBtn}>
-                  📷 Foto Antes
-                </button>
-                <button onClick={() => setCameraPhase('after')} style={photoActionBtn}>
-                  📷 Foto Depois
-                </button>
-              </div>
+            {isActive && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', margin: 0 }}>Ações</p>
 
-              {/* Status buttons */}
-              {canStart && (
-                <button onClick={() => statusMutation.mutate({ id: detail.id, status: 'in_progress' })}
-                  disabled={statusMutation.isLoading}
-                  style={{ ...primaryBtn, background: '#1d4ed8' }}>
-                  Iniciar Serviço
-                </button>
-              )}
-              {canFinish && (
-                <button onClick={() => statusMutation.mutate({ id: detail.id, status: 'done' })}
-                  disabled={statusMutation.isLoading}
-                  style={{ ...primaryBtn, background: '#16a34a' }}>
-                  Marcar como Concluído
-                </button>
-              )}
-              {canProblem && (
-                <button onClick={() => setProblemModal(true)}
-                  style={{ ...primaryBtn, background: '#dc2626' }}>
-                  Reportar Problema
-                </button>
-              )}
-            </div>
+                {/* Foto antes — inicia automaticamente */}
+                {detail.status === 'pending' && (
+                  <button onClick={() => setCameraPhase('before')} style={{ ...primaryBtn, background: '#1d4ed8' }}>
+                    📷 Enviar Foto de Início
+                  </button>
+                )}
+
+                {/* Foto depois — conclui automaticamente */}
+                {detail.status === 'in_progress' && (
+                  <button onClick={() => setCameraPhase('after')} style={{ ...primaryBtn, background: '#16a34a' }}>
+                    📷 Enviar Foto de Conclusão
+                  </button>
+                )}
+
+                {/* Concluído com ressalvas */}
+                {canIssues && (
+                  <button onClick={() => setIssuesModal(true)}
+                    style={{ ...primaryBtn, background: '#ea580c' }}>
+                    ⚠️ Concluir com Ressalvas
+                  </button>
+                )}
+
+                {/* Reportar problema */}
+                {canProblem && (
+                  <button onClick={() => setProblemModal(true)}
+                    style={{ ...primaryBtn, background: '#dc2626' }}>
+                    🚨 Reportar Problema
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -219,7 +234,33 @@ export default function EmployeeServicesPage() {
         />
       )}
 
-      {/* Problem report modal */}
+      {/* Modal: concluir com ressalvas */}
+      {issuesModal && detail && (
+        <div style={overlay} onClick={() => setIssuesModal(false)}>
+          <div style={{ ...modalCard, maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modalTitle}>Concluir com Ressalvas</h2>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>O serviço será marcado como concluído, mas com observações registradas.</p>
+            <textarea
+              value={issuesText}
+              onChange={(e) => setIssuesText(e.target.value)}
+              rows={4}
+              placeholder="Descreva as ressalvas ou observações..."
+              style={{ ...inputStyle, resize: 'vertical', marginBottom: 14 }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => setIssuesModal(false)} style={outlineBtn}>Cancelar</button>
+              <button
+                onClick={() => statusMutation.mutate({ id: detail.id, status: 'done_with_issues', issue_description: issuesText })}
+                disabled={!issuesText.trim() || statusMutation.isLoading}
+                style={{ ...primaryBtn, background: '#ea580c', opacity: !issuesText.trim() || statusMutation.isLoading ? 0.6 : 1 }}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: reportar problema */}
       {problemModal && detail && (
         <div style={overlay} onClick={() => setProblemModal(false)}>
           <div style={{ ...modalCard, maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>

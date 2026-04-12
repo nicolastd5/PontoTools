@@ -39,7 +39,7 @@ router.get('/:id', auth, controller.getOne);
 // Atualizar status (funcionário ou admin/gestor)
 router.patch('/:id/status',
   auth,
-  body('status').isIn(['in_progress','done','problem']).withMessage('Status inválido.'),
+  body('status').isIn(['in_progress','done','done_with_issues','problem']).withMessage('Status inválido.'),
   validate,
   controller.updateStatus
 );

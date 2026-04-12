@@ -166,7 +166,7 @@ async function getOne(req, res, next) {
 async function updateStatus(req, res, next) {
   try {
     const id     = parseInt(req.params.id, 10);
-    const { status, problem_description } = req.body;
+    const { status, problem_description, issue_description } = req.body;
 
     const current = await db.query(
       `SELECT so.assigned_employee_id, so.status, so.title, so.created_by_id, u.contract_id
@@ -186,18 +186,28 @@ async function updateStatus(req, res, next) {
 
     const result = await db.query(
       `UPDATE service_orders
-       SET status = $1, problem_description = COALESCE($2, problem_description), updated_at = NOW()
-       WHERE id = $3
+       SET status = $1,
+           problem_description = COALESCE($2, problem_description),
+           issue_description   = COALESCE($3, issue_description),
+           updated_at = NOW()
+       WHERE id = $4
        RETURNING *`,
-      [status, problem_description?.trim() || null, id]
+      [status, problem_description?.trim() || null, issue_description?.trim() || null, id]
     );
 
-    // Notifica admin/gestor se houve problema
+    // Notifica admin/gestor se houve problema ou ressalvas
     if (status === 'problem') {
       await push.notify(
         current.rows[0].created_by_id,
         'Problema reportado em serviço',
         `O funcionário reportou um problema no serviço "${current.rows[0].title}": ${problem_description || 'sem descrição'}.`,
+        'service_problem'
+      );
+    } else if (status === 'done_with_issues') {
+      await push.notify(
+        current.rows[0].created_by_id,
+        'Serviço concluído com ressalvas',
+        `O serviço "${current.rows[0].title}" foi concluído com ressalvas: ${issue_description || 'sem descrição'}.`,
         'service_problem'
       );
     }
@@ -224,7 +234,7 @@ async function addPhoto(req, res, next) {
     }
 
     const current = await db.query(
-      `SELECT so.assigned_employee_id, u.contract_id
+      `SELECT so.assigned_employee_id, so.status, u.contract_id
        FROM service_orders so
        JOIN units u ON u.id = so.unit_id
        WHERE so.id = $1`,
@@ -247,6 +257,21 @@ async function addPhoto(req, res, next) {
        VALUES ($1, $2, $3) RETURNING id, phase, photo_path, created_at`,
       [id, phase, filename]
     );
+
+    // Foto "antes" → muda para in_progress (se ainda pendente)
+    // Foto "depois" → muda para done (se in_progress)
+    const svc = current.rows[0];
+    if (phase === 'before' && svc.status === 'pending') {
+      await db.query(
+        `UPDATE service_orders SET status = 'in_progress', updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
+    } else if (phase === 'after' && svc.status === 'in_progress') {
+      await db.query(
+        `UPDATE service_orders SET status = 'done', updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
+    }
 
     res.status(201).json(photo.rows[0]);
   } catch (err) {

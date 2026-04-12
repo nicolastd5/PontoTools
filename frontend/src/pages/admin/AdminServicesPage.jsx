@@ -5,16 +5,18 @@ import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 
 const STATUS_LABEL = {
-  pending:     'Pendente',
-  in_progress: 'Em andamento',
-  done:        'Concluído',
-  problem:     'Problema',
+  pending:          'Pendente',
+  in_progress:      'Em andamento',
+  done:             'Concluído',
+  done_with_issues: 'Concluído c/ ressalvas',
+  problem:          'Problema',
 };
 const STATUS_COLOR = {
-  pending:     { bg: '#fef9c3', color: '#854d0e' },
-  in_progress: { bg: '#dbeafe', color: '#1e40af' },
-  done:        { bg: '#dcfce7', color: '#166534' },
-  problem:     { bg: '#fee2e2', color: '#991b1b' },
+  pending:          { bg: '#fef9c3', color: '#854d0e' },
+  in_progress:      { bg: '#dbeafe', color: '#1e40af' },
+  done:             { bg: '#dcfce7', color: '#166534' },
+  done_with_issues: { bg: '#fff7ed', color: '#c2410c' },
+  problem:          { bg: '#fee2e2', color: '#991b1b' },
 };
 
 function useServices(filters) {
@@ -266,6 +268,12 @@ export default function AdminServicesPage() {
             {detailModal.description && (
               <div style={{ marginBottom: 16, padding: '12px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, color: '#374151' }}>
                 {detailModal.description}
+              </div>
+            )}
+
+            {detailModal.issue_description && (
+              <div style={{ marginBottom: 16, padding: '12px 14px', background: '#fff7ed', borderRadius: 8, border: '1px solid #fed7aa', fontSize: 13, color: '#c2410c' }}>
+                <strong>Ressalvas:</strong> {detailModal.issue_description}
               </div>
             )}
 
