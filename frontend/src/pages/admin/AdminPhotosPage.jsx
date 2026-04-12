@@ -47,7 +47,8 @@ export default function AdminPhotosPage() {
   const [svcDetails, setSvcDetails]         = useState({});
   const [svcLightbox, setSvcLightbox]       = useState(null);
   const [svcDeleting, setSvcDeleting]       = useState(null); // photoId sendo deletado
-  const { data: svcData, isLoading: svcLoading } = useQuery({
+  const [svcDeletingId, setSvcDeletingId]   = useState(null); // serviceId sendo deletado
+  const { data: svcData, isLoading: svcLoading, refetch: refetchSvc } = useQuery({
     queryKey: ['admin-services-gallery'],
     queryFn:  () => api.get('/services').then((r) => r.data.services),
     enabled:  tab === 'services',
@@ -74,6 +75,19 @@ export default function AdminPhotosPage() {
       success('Foto apagada.');
     } catch { error('Erro ao apagar foto.'); }
     finally { setSvcDeleting(null); }
+  }
+
+  async function deleteSvcService(sv) {
+    if (!window.confirm(`Apagar o serviço "${sv.title}" e todas as suas fotos permanentemente?`)) return;
+    setSvcDeletingId(sv.id);
+    try {
+      await api.delete(`/services/${sv.id}`);
+      setSvcDetails((p) => { const n = { ...p }; delete n[sv.id]; return n; });
+      queryClient.invalidateQueries(['admin-services-gallery']);
+      queryClient.invalidateQueries(['admin-services']);
+      success('Serviço apagado.');
+    } catch { error('Erro ao apagar serviço.'); }
+    finally { setSvcDeletingId(null); }
   }
 
   async function loadSvcPhoto(photoId, serviceId) {
@@ -246,20 +260,23 @@ export default function AdminPhotosPage() {
       {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <h1 style={s.title}>Galeria de Fotos</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {!selectMode ? (
-            <button onClick={() => setSelectMode(true)} style={s.outlineBtn}>
-              Selecionar registros
-            </button>
-          ) : (
-            <>
-              <button onClick={toggleAll} style={s.outlineBtn}>
-                {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+        {/* Botão de seleção só aparece na aba Ponto */}
+        {tab === 'clock' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {!selectMode ? (
+              <button onClick={() => setSelectMode(true)} style={s.outlineBtn}>
+                Selecionar registros
               </button>
-              <button onClick={exitSelectMode} style={s.clearBtn}>Cancelar</button>
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <button onClick={toggleAll} style={s.outlineBtn}>
+                  {allSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+                </button>
+                <button onClick={exitSelectMode} style={s.clearBtn}>Cancelar</button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Submenu tabs */}
@@ -280,9 +297,17 @@ export default function AdminPhotosPage() {
               const photos = full?.photos || [];
               return (
                 <div key={sv.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '14px 16px' }}>
-                  <div style={{ marginBottom: photos.length ? 10 : 0 }}>
-                    <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>{sv.title}</span>
-                    <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b' }}>{sv.employee_name} · {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')} · {STATUS_LABEL[sv.status]}</span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: photos.length ? 10 : 6, gap: 8 }}>
+                    <div>
+                      <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>{sv.title}</span>
+                      <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b' }}>{sv.employee_name} · {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')} · {STATUS_LABEL[sv.status]}</span>
+                    </div>
+                    <button
+                      onClick={() => deleteSvcService(sv)}
+                      disabled={svcDeletingId === sv.id}
+                      style={{ flexShrink: 0, padding: '4px 12px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 7, fontSize: 12, color: '#dc2626', cursor: 'pointer', fontWeight: 600, opacity: svcDeletingId === sv.id ? 0.6 : 1 }}>
+                      {svcDeletingId === sv.id ? 'Apagando...' : '🗑 Apagar serviço'}
+                    </button>
                   </div>
                   {photos.length === 0 && <span style={{ fontSize: 12, color: '#cbd5e1', fontStyle: 'italic' }}>Sem fotos</span>}
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
