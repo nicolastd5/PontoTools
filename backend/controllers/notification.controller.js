@@ -54,12 +54,20 @@ async function markRead(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
 
-    const result = await db.query(
-      `UPDATE notifications SET read = TRUE
-       WHERE id = $1 AND employee_id = $2
-       RETURNING id, read`,
-      [id, req.user.id]
-    );
+    // Admin/gestor podem marcar qualquer notificação; employee só as suas
+    const result = req.user.role === 'employee'
+      ? await db.query(
+          `UPDATE notifications SET read = TRUE
+           WHERE id = $1 AND employee_id = $2
+           RETURNING id, read`,
+          [id, req.user.id]
+        )
+      : await db.query(
+          `UPDATE notifications SET read = TRUE
+           WHERE id = $1
+           RETURNING id, read`,
+          [id]
+        );
 
     if (!result.rows[0]) return res.status(404).json({ error: 'Notificação não encontrada.' });
     res.json(result.rows[0]);

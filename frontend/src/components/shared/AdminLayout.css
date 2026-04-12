@@ -37,17 +37,24 @@
   min-height: 100vh;
 }
 
-/* Header mobile (oculto em desktop) */
+/* Header — sempre visível (sino em desktop e mobile) */
 .admin-mobile-header {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 0 20px;
+  height: 52px;
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
   z-index: 30;
+}
+
+/* Em desktop, esconde botão hamburguer e título (sidebar já está visível) */
+.admin-header-menu-btn,
+.admin-header-title {
+  display: none;
 }
 
 .admin-content {
@@ -73,8 +80,9 @@
     margin-left: 0;
   }
 
-  .admin-mobile-header {
-    display: flex;
+  .admin-header-menu-btn,
+  .admin-header-title {
+    display: block;
   }
 
   .admin-content {
