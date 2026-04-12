@@ -81,10 +81,23 @@ async function markRead(req, res, next) {
 // ----------------------------------------------------------------
 async function markAllRead(req, res, next) {
   try {
-    await db.query(
-      `UPDATE notifications SET read = TRUE WHERE employee_id = $1 AND read = FALSE`,
-      [req.user.id]
-    );
+    if (req.user.role === 'employee') {
+      await db.query(
+        `UPDATE notifications SET read = TRUE WHERE employee_id = $1 AND read = FALSE`,
+        [req.user.id]
+      );
+    } else if (req.user.role === 'gestor') {
+      // Gestor marca todas do próprio contrato
+      await db.query(
+        `UPDATE notifications n SET read = TRUE
+         FROM employees e JOIN units u ON u.id = e.unit_id
+         WHERE n.employee_id = e.id AND u.contract_id = $1 AND n.read = FALSE`,
+        [req.user.contractId]
+      );
+    } else {
+      // Admin marca todas
+      await db.query(`UPDATE notifications SET read = TRUE WHERE read = FALSE`);
+    }
     res.json({ ok: true });
   } catch (err) {
     next(err);
