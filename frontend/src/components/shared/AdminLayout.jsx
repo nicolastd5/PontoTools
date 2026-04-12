@@ -66,9 +66,30 @@ export default function AdminLayout() {
   const notifications = notifData?.notifications || [];
   const unread        = notifData?.unread ?? 0;
 
+  const { error: toastError } = useToast();
+
   const markRead = useMutation({
     mutationFn: (id) => api.patch(`/notifications/${id}/read`),
     onSuccess: () => queryClient.invalidateQueries(['admin-notifications']),
+  });
+
+  const deleteNotif = useMutation({
+    mutationFn: (id) => api.delete(`/notifications/${id}`),
+    onSuccess: () => {
+      setSelected(null);
+      queryClient.invalidateQueries(['admin-notifications']);
+    },
+    onError: () => toastError('Erro ao excluir notificação.'),
+  });
+
+  const deleteRead = useMutation({
+    mutationFn: () => api.delete('/notifications/read'),
+    onSuccess: (res) => {
+      const deleted = res.data?.deleted ?? 0;
+      success(deleted > 0 ? `${deleted} notificação(ões) lida(s) excluída(s).` : 'Nenhuma notificação lida para excluir.');
+      queryClient.invalidateQueries(['admin-notifications']);
+    },
+    onError: () => toastError('Erro ao excluir notificações lidas.'),
   });
 
   // Fecha painel ao clicar fora
@@ -89,6 +110,20 @@ export default function AdminLayout() {
   function openNotif(n) {
     setSelected(n);
     if (!n.read) markRead.mutate(n.id);
+  }
+
+  const readCount = notifications.filter((n) => n.read).length;
+
+  function handleDeleteNotif(n, e) {
+    e?.stopPropagation();
+    if (!window.confirm(`Excluir a notificação "${n.title}"?`)) return;
+    deleteNotif.mutate(n.id);
+  }
+
+  function handleDeleteRead() {
+    if (readCount === 0) return;
+    if (!window.confirm(`Excluir todas as ${readCount} notificações lidas?`)) return;
+    deleteRead.mutate();
   }
 
   function fmtDate(dt) {
@@ -175,7 +210,13 @@ export default function AdminLayout() {
               <div ref={panelRef} style={s.panel}>
                 {selected ? (
                   /* Detalhe da notificação */
-                  <NotifDetail n={selected} onBack={() => setSelected(null)} fmtDate={fmtDate} />
+                  <NotifDetail
+                    n={selected}
+                    onBack={() => setSelected(null)}
+                    fmtDate={fmtDate}
+                    onDelete={handleDeleteNotif}
+                    deleting={deleteNotif.isLoading}
+                  />
                 ) : (
                   /* Lista */
                   <NotifList
@@ -183,6 +224,9 @@ export default function AdminLayout() {
                     onSelect={openNotif}
                     fmtDate={fmtDate}
                     onViewAll={() => { setBellOpen(false); navigate('/admin/notifications'); }}
+                    readCount={readCount}
+                    onDeleteRead={handleDeleteRead}
+                    deletingRead={deleteRead.isLoading}
                   />
                 )}
               </div>
@@ -200,13 +244,20 @@ export default function AdminLayout() {
 
 /* ── Sub-componentes do painel ── */
 
-function NotifList({ notifications, onSelect, fmtDate, onViewAll }) {
+function NotifList({ notifications, onSelect, fmtDate, onViewAll, readCount, onDeleteRead, deletingRead }) {
   const recent = notifications.slice(0, 8);
   return (
     <>
       <div style={s.panelHeader}>
         <span style={{ fontWeight: 700, fontSize: 14, color: '#0f172a' }}>Notificações</span>
-        <button onClick={onViewAll} style={s.panelViewAll}>Ver todas →</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {readCount > 0 && (
+            <button onClick={onDeleteRead} disabled={deletingRead} style={s.panelDeleteRead} title="Excluir todas as lidas">
+              {deletingRead ? '...' : '🗑 Lidas'}
+            </button>
+          )}
+          <button onClick={onViewAll} style={s.panelViewAll}>Ver todas →</button>
+        </div>
       </div>
       <div style={{ overflowY: 'auto', maxHeight: 360 }}>
         {recent.length === 0 ? (
@@ -250,15 +301,20 @@ function NotifList({ notifications, onSelect, fmtDate, onViewAll }) {
   );
 }
 
-function NotifDetail({ n, onBack, fmtDate }) {
+function NotifDetail({ n, onBack, fmtDate, onDelete, deleting }) {
   const dot = TYPE_COLOR[n.type] || '#94a3b8';
   return (
     <div style={{ padding: '0' }}>
       <div style={s.panelHeader}>
         <button onClick={onBack} style={s.backBtn}>← Voltar</button>
-        <span style={{ fontSize: 10, fontWeight: 700, color: dot, textTransform: 'uppercase' }}>
-          {TYPE_LABEL[n.type] || n.type}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: dot, textTransform: 'uppercase' }}>
+            {TYPE_LABEL[n.type] || n.type}
+          </span>
+          <button onClick={(e) => onDelete(n, e)} disabled={deleting} style={s.panelDeleteBtn} title="Excluir notificação">
+            🗑
+          </button>
+        </div>
       </div>
       <div style={{ padding: '16px 16px 20px' }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 8, lineHeight: 1.4 }}>
@@ -360,6 +416,14 @@ const s = {
   panelViewAll: {
     background: 'none', border: 'none', color: '#1d4ed8',
     fontSize: 12, fontWeight: 600, cursor: 'pointer',
+  },
+  panelDeleteRead: {
+    background: 'none', border: 'none', color: '#dc2626',
+    fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '2px 4px',
+  },
+  panelDeleteBtn: {
+    background: 'none', border: 'none', color: '#dc2626',
+    fontSize: 14, cursor: 'pointer', padding: '2px 4px', lineHeight: 1,
   },
   backBtn: {
     background: 'none', border: 'none', color: '#64748b',
