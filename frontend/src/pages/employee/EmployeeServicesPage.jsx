@@ -57,7 +57,9 @@ export default function EmployeeServicesPage() {
       const fd = new FormData();
       fd.append('photo', blob, 'photo.jpg');
       fd.append('phase', phase);
-      return api.post(`/services/${id}/photos`, fd);
+      return api.post(`/services/${id}/photos`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
     },
     onSuccess: async () => {
       success('Foto enviada.');
@@ -213,7 +215,7 @@ export default function EmployeeServicesPage() {
         <CameraCapture
           maxPhotos={3}
           onCapture={(blobs) => handlePhotoCapture(blobs)}
-          onClose={() => setCameraPhase(null)}
+          onCancel={() => setCameraPhase(null)}
         />
       )}
 
