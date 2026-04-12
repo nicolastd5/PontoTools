@@ -10,7 +10,7 @@ export default function EmployeeLayout() {
   const navigate         = useNavigate();
 
   const { data: notifData } = useQuery({
-    queryKey: ['my-notifications-badge'],
+    queryKey: ['my-notifications'],
     queryFn:  () => api.get('/notifications').then((r) => r.data),
     refetchInterval: 30000,
   });

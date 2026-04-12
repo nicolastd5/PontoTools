@@ -167,10 +167,54 @@ async function getBlockedByReason(days = 7) {
   return result.rows;
 }
 
+/**
+ * Retorna resumo de ordens de serviço: totais por status e ordens atrasadas.
+ */
+async function getServicesSummary() {
+  const [statusRes, lateRes, recentRes] = await Promise.all([
+    db.query(
+      `SELECT status, COUNT(*) AS total
+       FROM service_orders
+       GROUP BY status`
+    ),
+    db.query(
+      `SELECT COUNT(*) AS total
+       FROM service_orders
+       WHERE deadline < NOW()
+         AND status NOT IN ('done', 'done_with_issues')`
+    ),
+    db.query(
+      `SELECT so.id, so.title, so.status, so.deadline,
+              e.full_name AS assigned_to,
+              u.name AS unit_name
+       FROM service_orders so
+       LEFT JOIN employees e ON e.id = so.assigned_to
+       LEFT JOIN units u ON u.id = so.unit_id
+       WHERE so.status NOT IN ('done', 'done_with_issues')
+       ORDER BY so.deadline ASC NULLS LAST
+       LIMIT 5`
+    ),
+  ]);
+
+  const byStatus = {};
+  for (const row of statusRes.rows) byStatus[row.status] = parseInt(row.total, 10);
+
+  return {
+    pending:         byStatus.pending         || 0,
+    in_progress:     byStatus.in_progress     || 0,
+    done:            byStatus.done            || 0,
+    done_with_issues: byStatus.done_with_issues || 0,
+    problem:         byStatus.problem         || 0,
+    late:            parseInt(lateRes.rows[0].total, 10),
+    openServices:    recentRes.rows,
+  };
+}
+
 module.exports = {
   getDailySummary,
   getRecentClocks,
   getClocksByUnit,
   getAbsentEmployees,
   getBlockedByReason,
+  getServicesSummary,
 };

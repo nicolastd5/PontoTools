@@ -122,14 +122,20 @@ async function destroy(req, res, next) {
   try {
     const id = parseInt(req.params.id, 10);
 
-    // Check for linked employees before attempting deletion
-    const empCheck = await db.query(
-      `SELECT COUNT(*) FROM employees WHERE unit_id = $1`, [id]
-    );
-    const empCount = parseInt(empCheck.rows[0].count, 10);
-    if (empCount > 0) {
+    // Check for linked records that block deletion (RESTRICT FK)
+    const [empRes, clockRes] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS cnt FROM employees    WHERE unit_id = $1`, [id]),
+      db.query(`SELECT COUNT(*)::int AS cnt FROM clock_records WHERE unit_id = $1`, [id]),
+    ]);
+    const empCount   = empRes.rows[0].cnt;
+    const clockCount = clockRes.rows[0].cnt;
+
+    if (empCount > 0 || clockCount > 0) {
+      const parts = [];
+      if (empCount > 0)   parts.push(`${empCount} funcionário(s)`);
+      if (clockCount > 0) parts.push(`${clockCount} registro(s) de ponto`);
       return res.status(409).json({
-        error: `Este posto possui ${empCount} funcionário(s) vinculado(s) e não pode ser excluído. Reatribua ou remova os funcionários primeiro.`
+        error: `Este posto não pode ser excluído porque possui ${parts.join(' e ')} vinculados. Remova os registros antes de excluir.`
       });
     }
 
@@ -140,7 +146,7 @@ async function destroy(req, res, next) {
   } catch (err) {
     if (err.code === '23503') {
       return res.status(409).json({
-        error: 'Este posto possui registros vinculados (pontos ou serviços) e não pode ser excluído.'
+        error: 'Este posto possui registros vinculados e não pode ser excluído.'
       });
     }
     next(err);

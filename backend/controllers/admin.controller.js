@@ -12,14 +12,15 @@ async function getDashboard(req, res, next) {
   try {
     const unitId = req.query.unitId ? parseInt(req.query.unitId, 10) : null;
 
-    const [summary, recentClocks, clocksByUnit, blockedByReason] = await Promise.all([
+    const [summary, recentClocks, clocksByUnit, blockedByReason, services] = await Promise.all([
       dashboardSvc.getDailySummary(unitId),
       dashboardSvc.getRecentClocks(10, unitId),
       dashboardSvc.getClocksByUnit(),
       dashboardSvc.getBlockedByReason(7),
+      dashboardSvc.getServicesSummary(),
     ]);
 
-    res.json({ summary, recentClocks, clocksByUnit, blockedByReason });
+    res.json({ summary, recentClocks, clocksByUnit, blockedByReason, services });
   } catch (err) {
     next(err);
   }
