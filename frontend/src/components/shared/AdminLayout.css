@@ -1,57 +1,23 @@
-/* ── Variáveis de tema ── */
-:root {
-  --bg-page:       #f1f5f9;
-  --bg-sidebar:    #0f172a;
-  --bg-header:     #ffffff;
-  --border:        #e2e8f0;
-  --text-primary:  #0f172a;
-  --text-muted:    #64748b;
-  --nav-text:      #94a3b8;
-  --nav-active-bg: #1d4ed8;
-  --nav-active-fg: #ffffff;
-  --sidebar-sep:   rgba(255,255,255,0.08);
-  --content-pad:   24px;
-}
-
-[data-theme="dark"] {
-  --bg-page:       #0f172a;
-  --bg-sidebar:    #020617;
-  --bg-header:     #1e293b;
-  --border:        #334155;
-  --text-primary:  #f1f5f9;
-  --text-muted:    #94a3b8;
-  --nav-text:      #64748b;
-  --nav-active-bg: #1d4ed8;
-  --nav-active-fg: #ffffff;
-  --sidebar-sep:   rgba(255,255,255,0.06);
-  --content-pad:   24px;
-}
-
-/* ── Layout raiz ── */
 .admin-root {
   display: flex;
   min-height: 100vh;
-  background: var(--bg-page);
-  transition: background 0.2s;
+  background: #f1f5f9;
 }
 
-/* ── Overlay ── */
+/* Overlay mobile */
 .admin-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   z-index: 40;
 }
-.admin-overlay.open {
-  display: block;
-}
 
-/* ── Sidebar – sempre em drawer (abre ao clicar) ── */
+/* Sidebar */
 .admin-sidebar {
   width: 240px;
   min-height: 100vh;
-  background: var(--bg-sidebar);
+  background: #0f172a;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -59,49 +25,58 @@
   left: 0;
   bottom: 0;
   z-index: 50;
-  transform: translateX(-100%);
-  transition: transform 0.25s ease, background 0.2s;
-}
-.admin-sidebar.open {
-  transform: translateX(0);
+  transition: transform 0.25s;
 }
 
-/* ── Conteúdo principal – sem margem (sidebar é overlay) ── */
+/* Conteúdo principal */
 .admin-main {
-  margin-left: 0;
+  margin-left: 240px;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-/* ── Header sempre visível ── */
+/* Header mobile (oculto em desktop) */
 .admin-mobile-header {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  height: 56px;
-  background: var(--bg-header);
-  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
   z-index: 30;
-  transition: background 0.2s, border-color 0.2s;
 }
 
 .admin-content {
-  padding: var(--content-pad);
+  padding: 24px;
   flex: 1;
 }
 
-/* ── Dark mode: cards e tabelas herdam do tema ── */
-[data-theme="dark"] .admin-content {
-  color: var(--text-primary);
-}
-
-/* ── Mobile ── */
+/* ---- Mobile ---- */
 @media (max-width: 768px) {
+  .admin-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .admin-overlay.open {
+    display: block;
+  }
+
+  .admin-main {
+    margin-left: 0;
+  }
+
+  .admin-mobile-header {
+    display: flex;
+  }
+
   .admin-content {
     padding: 16px;
   }
