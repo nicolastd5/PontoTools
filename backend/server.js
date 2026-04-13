@@ -25,15 +25,23 @@ const push               = require('./services/push.service');
 const app  = express();
 const PORT = process.env.PORT || 3001;
 
+const defaultOrigins = [
+  'https://pontotools.shop',
+  'https://www.pontotools.shop',
+  'https://status.pontotools.shop',
+  'http://localhost:5173',
+];
+
 // ----------------------------------------------------------------
 // Segurança
 // ----------------------------------------------------------------
 app.use(helmet());
 
 // CORS — permite frontend web e app mobile
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+const allowedOrigins = (process.env.CORS_ORIGIN || defaultOrigins.join(','))
   .split(',')
-  .map((o) => o.trim());
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
