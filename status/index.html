@@ -6,26 +6,19 @@
   <title>PontoTools - Status</title>
   <style>
     :root {
-      --bg: #f3ecdd;
-      --bg-strong: #e7dcc6;
-      --surface: rgba(255, 251, 244, 0.8);
-      --surface-strong: #fffaf0;
-      --line: rgba(31, 42, 46, 0.1);
-      --text: #1f2a2e;
-      --muted: #6d7877;
-      --primary: #113f4a;
-      --primary-soft: #d9e7e8;
-      --accent: #bc8240;
-      --success: #1f7a45;
-      --success-soft: #dff2e6;
-      --danger: #b34332;
-      --danger-soft: #f9e0da;
-      --warning: #9d6a1a;
-      --warning-soft: #f8ecd2;
-      --shadow: 0 18px 45px rgba(18, 37, 42, 0.12);
-      --radius-lg: 28px;
-      --radius-md: 20px;
-      --radius-sm: 14px;
+      --bg: #ebe7dc;
+      --panel: #f7f3ea;
+      --panel-strong: #fdfaf3;
+      --ink: #1d2328;
+      --muted: #65707a;
+      --line: #cfc7b7;
+      --line-strong: #a89f8e;
+      --navy: #16212b;
+      --blue: #2957d1;
+      --green: #1d7a46;
+      --amber: #a66a10;
+      --red: #b2392a;
+      --shadow: 0 12px 32px rgba(22, 33, 43, 0.08);
     }
 
     * { box-sizing: border-box; }
@@ -33,608 +26,391 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Segoe UI", "Arial", sans-serif;
-      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
       background:
-        radial-gradient(circle at top left, rgba(188, 130, 64, 0.18), transparent 28%),
-        radial-gradient(circle at top right, rgba(17, 63, 74, 0.16), transparent 32%),
-        linear-gradient(180deg, #f8f3e8 0%, #efe5d2 100%);
-      padding: 28px;
+        linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0)) 0 0 / 100% 180px no-repeat,
+        var(--bg);
+      padding: 24px;
     }
 
     .shell {
-      max-width: 1120px;
+      max-width: 1100px;
       margin: 0 auto;
     }
 
-    .hero {
-      position: relative;
-      overflow: hidden;
-      background: linear-gradient(135deg, rgba(17, 63, 74, 0.96), rgba(12, 34, 39, 0.92));
-      color: #f8f5ef;
-      border-radius: 32px;
-      padding: 30px;
-      box-shadow: var(--shadow);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .hero::before,
-    .hero::after {
-      content: "";
-      position: absolute;
-      border-radius: 999px;
-      background: rgba(188, 130, 64, 0.12);
-      pointer-events: none;
-    }
-
-    .hero::before {
-      width: 260px;
-      height: 260px;
-      top: -120px;
-      right: -40px;
-    }
-
-    .hero::after {
-      width: 180px;
-      height: 180px;
-      bottom: -70px;
-      left: -50px;
-    }
-
-    .hero-top {
-      position: relative;
-      display: flex;
-      gap: 18px;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      margin-bottom: 28px;
-      z-index: 1;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 18px;
-    }
-
-    .brand-mark {
-      width: 68px;
-      height: 68px;
-      border-radius: 22px;
-      background:
-        linear-gradient(160deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02)),
-        linear-gradient(145deg, #174f5d, #102f36);
+    .topbar {
       display: grid;
-      place-items: center;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 16px 30px rgba(0,0,0,0.25);
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      margin-bottom: 18px;
     }
 
-    .brand-mark svg { width: 42px; height: 42px; }
+    .frame {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 22px 24px;
+      border-left: 8px solid var(--navy);
+    }
+
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+
+    .kpi {
+      background: var(--panel-strong);
+      padding: 18px;
+      min-height: 104px;
+    }
 
     .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
+      margin: 0 0 8px;
+      color: var(--muted);
       font-size: 12px;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: rgba(248, 245, 239, 0.7);
+      font-weight: 700;
     }
 
-    .eyebrow-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: var(--accent);
-      box-shadow: 0 0 18px rgba(188, 130, 64, 0.55);
-    }
-
-    .hero h1 {
+    h1 {
       margin: 0;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-      line-height: 0.98;
-      letter-spacing: -0.04em;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
     }
 
     .hero p {
-      max-width: 560px;
+      max-width: 580px;
       margin: 10px 0 0;
-      color: rgba(248, 245, 239, 0.74);
-      font-size: 15px;
-      line-height: 1.55;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    .hero-side {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .metric-chip {
-      min-width: 130px;
-      padding: 14px 16px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.09);
-      background: rgba(255,255,255,0.06);
-      backdrop-filter: blur(12px);
-    }
-
-    .metric-chip-label {
+    .kpi-label {
       display: block;
-      margin-bottom: 6px;
+      margin-bottom: 10px;
+      color: var(--muted);
       font-size: 11px;
+      font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: rgba(248, 245, 239, 0.6);
     }
 
-    .metric-chip-value {
-      font-size: 24px;
-      font-weight: 700;
-      letter-spacing: -0.04em;
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.06em;
     }
 
-    .hero-grid {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: 1.35fr 0.65fr;
-      gap: 18px;
-      align-items: stretch;
-    }
-
-    .panel {
-      border-radius: 24px;
-      border: 1px solid rgba(255,255,255,0.09);
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(12px);
-      padding: 22px;
-    }
-
-    .panel-label {
-      margin: 0 0 10px;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: rgba(248, 245, 239, 0.62);
+    .kpi-sub {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
     }
 
     .overall {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      min-height: 110px;
+      margin-bottom: 18px;
+      padding: 0;
+      overflow: hidden;
     }
 
-    .overall-icon {
-      width: 54px;
-      height: 54px;
-      border-radius: 18px;
+    .overall-grid {
       display: grid;
-      place-items: center;
-      flex-shrink: 0;
-      background: rgba(255,255,255,0.1);
+      grid-template-columns: 260px 1fr;
+      gap: 1px;
+      background: var(--line);
     }
 
-    .overall-icon svg {
-      width: 28px;
-      height: 28px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
+    .overall-side,
+    .overall-main {
+      background: var(--panel-strong);
+      padding: 22px 24px;
+      min-height: 150px;
     }
 
-    .overall-text strong {
-      display: block;
-      font-size: 1.45rem;
-      letter-spacing: -0.04em;
-    }
-
-    .overall-text span {
-      display: block;
-      margin-top: 6px;
-      font-size: 14px;
-      color: rgba(248, 245, 239, 0.72);
-    }
-
-    .overall.ok .overall-icon { color: #8ff0b4; background: rgba(143, 240, 180, 0.14); }
-    .overall.down .overall-icon { color: #ffb5a8; background: rgba(255, 181, 168, 0.12); }
-    .overall.partial .overall-icon { color: #f2d38b; background: rgba(242, 211, 139, 0.13); }
-    .overall.checking .overall-icon { color: #cfd6d2; background: rgba(255, 255, 255, 0.1); }
-
-    .pulse {
-      animation: pulse 1.6s infinite ease-in-out;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.42; transform: scale(0.94); }
-    }
-
-    .mini-stats {
-      display: grid;
-      gap: 12px;
-    }
-
-    .mini-stat {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 13px 14px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.06);
-    }
-
-    .mini-stat span {
+    .state-code {
+      display: inline-block;
+      padding: 7px 10px;
+      border: 1px solid currentColor;
       font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(248, 245, 239, 0.6);
     }
 
-    .mini-stat strong {
-      font-size: 1.05rem;
+    .state-code.ok { color: var(--green); }
+    .state-code.partial { color: var(--amber); }
+    .state-code.down { color: var(--red); }
+    .state-code.checking { color: var(--blue); }
+
+    .overall-title {
+      margin: 14px 0 0;
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: -0.07em;
     }
 
-    .content {
-      margin-top: 22px;
+    .overall-main-title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .overall-copy {
+      margin: 10px 0 0;
+      max-width: 640px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .layout {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 22px;
-    }
-
-    .surface-card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(14px);
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 18px;
     }
 
     .section-head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      padding: 24px 24px 0;
-      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      padding: 20px 22px 0;
     }
 
     .section-head h2 {
       margin: 0;
-      font-size: 1.25rem;
-      letter-spacing: -0.03em;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
     }
 
     .section-head p {
       margin: 6px 0 0;
       color: var(--muted);
-      font-size: 14px;
-    }
-
-    .section-meta {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--muted);
       font-size: 13px;
     }
 
-    .live-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: var(--surface-strong);
-      border: 1px solid var(--line);
-      font-weight: 600;
-    }
-
-    .live-pill::before {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: var(--success);
-      box-shadow: 0 0 0 5px rgba(31, 122, 69, 0.12);
+    .section-meta {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
     }
 
     .services {
       display: grid;
-      gap: 14px;
-      padding: 22px 24px 24px;
+      gap: 1px;
+      margin: 18px 0 0;
+      background: var(--line);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
     }
 
-    .service-card {
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-      padding: 18px;
-      border-radius: var(--radius-md);
-      background: rgba(255, 255, 255, 0.74);
-      border: 1px solid rgba(31, 42, 46, 0.08);
-      transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
-    }
-
-    .service-card:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 12px 24px rgba(18, 37, 42, 0.08);
-      border-color: rgba(17, 63, 74, 0.18);
-    }
-
-    .service-main {
-      display: flex;
-      gap: 16px;
-      min-width: 0;
-    }
-
-    .service-icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 18px;
+    .service {
       display: grid;
-      place-items: center;
-      flex-shrink: 0;
-      background: linear-gradient(145deg, #eff5f5, #dfe9e8);
-      color: var(--primary);
-      border: 1px solid rgba(17, 63, 74, 0.08);
-    }
-
-    .service-icon svg {
-      width: 24px;
-      height: 24px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .service-copy {
-      min-width: 0;
+      grid-template-columns: minmax(0, 1fr) 150px;
+      gap: 16px;
+      align-items: center;
+      background: var(--panel-strong);
+      padding: 18px 22px;
     }
 
     .service-name {
       margin: 0;
       font-size: 1rem;
-      font-weight: 700;
+      font-weight: 800;
       letter-spacing: -0.02em;
     }
 
-    .service-description {
+    .service-desc {
       margin: 6px 0 0;
       color: var(--muted);
       font-size: 14px;
-      line-height: 1.45;
     }
 
     .service-url {
       margin-top: 10px;
-      font-size: 12px;
       color: var(--muted);
+      font-size: 12px;
       word-break: break-word;
     }
 
     .service-side {
-      min-width: 132px;
       text-align: right;
     }
 
-    .status-pill {
+    .service-status {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-weight: 700;
       font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      border: 1px solid transparent;
     }
 
-    .status-pill::before {
+    .service-status::before {
       content: "";
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 999px;
       background: currentColor;
     }
 
-    .status-pill.online {
-      color: var(--success);
-      background: var(--success-soft);
-      border-color: rgba(31, 122, 69, 0.12);
-    }
+    .service-status.online { color: var(--green); }
+    .service-status.offline { color: var(--red); }
+    .service-status.checking { color: var(--blue); }
 
-    .status-pill.offline {
-      color: var(--danger);
-      background: var(--danger-soft);
-      border-color: rgba(179, 67, 50, 0.12);
-    }
-
-    .status-pill.checking {
-      color: var(--primary);
-      background: var(--primary-soft);
-      border-color: rgba(17, 63, 74, 0.12);
-    }
-
-    .response-time {
-      margin-top: 12px;
+    .service-time {
+      margin-top: 10px;
       color: var(--muted);
       font-size: 13px;
     }
 
-    .history-box {
+    .history-wrap {
       padding-bottom: 14px;
     }
 
     .history-list {
       display: grid;
-      gap: 10px;
-      padding: 22px 24px 24px;
+      gap: 1px;
+      margin-top: 18px;
+      background: var(--line);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
     }
 
     .history-row {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 14px;
+      background: var(--panel-strong);
+      padding: 14px 18px;
       align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(31, 42, 46, 0.07);
     }
 
     .history-time {
-      font-family: "Consolas", "Courier New", monospace;
-      font-size: 13px;
+      font-family: Consolas, monospace;
+      font-size: 12px;
       color: var(--muted);
     }
 
     .history-status {
-      text-align: right;
       font-size: 13px;
       font-weight: 700;
     }
 
-    .history-status.ok { color: var(--success); }
-    .history-status.fail { color: var(--danger); }
+    .history-status.ok { color: var(--green); }
+    .history-status.fail { color: var(--red); }
 
     .footer {
-      margin-top: 18px;
-      text-align: center;
+      margin-top: 16px;
+      padding: 12px 0 0;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
 
-    @media (max-width: 920px) {
-      body { padding: 18px; }
-      .hero-grid, .content {
+    @media (max-width: 900px) {
+      .topbar,
+      .layout,
+      .overall-grid {
         grid-template-columns: 1fr;
       }
-      .service-card {
-        flex-direction: column;
-      }
-      .service-side {
-        min-width: 0;
-        text-align: left;
+
+      .kpis {
+        grid-template-columns: 1fr;
       }
     }
 
     @media (max-width: 640px) {
-      .hero,
-      .surface-card {
-        border-radius: 24px;
+      body { padding: 12px; }
+
+      .service,
+      .history-row {
+        grid-template-columns: 1fr;
       }
-      .hero { padding: 22px; }
-      .section-head,
-      .services,
-      .history-list {
-        padding-left: 18px;
-        padding-right: 18px;
-      }
-      .overall {
-        align-items: flex-start;
-      }
-      .metric-chip {
-        min-width: calc(50% - 6px);
+
+      .service-side {
+        text-align: left;
       }
     }
   </style>
 </head>
 <body>
   <div class="shell">
-    <section class="hero">
-      <div class="hero-top">
-        <div class="brand">
-          <div class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 48 48">
-              <rect x="10" y="12" width="28" height="22" rx="8" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.45)"/>
-              <path d="M16 18h16" stroke="#F7F3EA"/>
-              <path d="M16 23h9" stroke="#F7F3EA" opacity="0.85"/>
-              <circle cx="31.5" cy="28.5" r="6.5" fill="#BC8240"/>
-              <path d="M31.5 24.5v4l2.6 1.6" stroke="#102F36"/>
-            </svg>
-          </div>
-          <div>
-            <div class="eyebrow"><span class="eyebrow-dot"></span> Centro de operação</div>
-            <h1>PontoTools Status</h1>
-            <p>Monitoramento ao vivo da disponibilidade dos serviços principais com leitura direta do ambiente público.</p>
-          </div>
-        </div>
-
-        <div class="hero-side">
-          <div class="metric-chip">
-            <span class="metric-chip-label">Checagem</span>
-            <span class="metric-chip-value">30s</span>
-          </div>
-          <div class="metric-chip">
-            <span class="metric-chip-label">Timeout</span>
-            <span class="metric-chip-value">8s</span>
-          </div>
-        </div>
+    <section class="topbar">
+      <div class="frame hero">
+        <div class="eyebrow">Painel de disponibilidade</div>
+        <h1>PontoTools Status</h1>
+        <p>Leitura pública dos serviços principais com atualização automática. Sem vitrine, sem enfeite gratuito, só o estado operacional do ambiente.</p>
       </div>
 
-      <div class="hero-grid">
-        <div class="panel">
-          <p class="panel-label">Panorama geral</p>
-          <div id="overall" class="overall checking">
-            <div class="overall-icon pulse" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M12 3v3"></path>
-                <path d="M12 18v3"></path>
-                <path d="M4.93 4.93l2.12 2.12"></path>
-                <path d="M16.95 16.95l2.12 2.12"></path>
-                <path d="M3 12h3"></path>
-                <path d="M18 12h3"></path>
-                <path d="M4.93 19.07l2.12-2.12"></path>
-                <path d="M16.95 7.05l2.12-2.12"></path>
-              </svg>
-            </div>
-            <div class="overall-text">
-              <strong>Verificando serviços</strong>
-              <span>Aguarde enquanto a página executa as sondas iniciais.</span>
-            </div>
-          </div>
+      <div class="kpis">
+        <div class="kpi">
+          <span class="kpi-label">Checagem</span>
+          <div class="kpi-value">30s</div>
+          <div class="kpi-sub">atualização contínua</div>
         </div>
-
-        <div class="panel">
-          <p class="panel-label">Resumo</p>
-          <div class="mini-stats">
-            <div class="mini-stat"><span>Serviços</span><strong id="totalServices">2</strong></div>
-            <div class="mini-stat"><span>Operacionais</span><strong id="onlineCount">--</strong></div>
-            <div class="mini-stat"><span>Última leitura</span><strong id="lastCheckInline">--</strong></div>
-          </div>
+        <div class="kpi">
+          <span class="kpi-label">Timeout</span>
+          <div class="kpi-value">8s</div>
+          <div class="kpi-sub">janela de resposta</div>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Serviços</span>
+          <div class="kpi-value" id="totalServices">2</div>
+          <div class="kpi-sub">alvos ativos</div>
         </div>
       </div>
     </section>
 
-    <section class="content">
-      <div class="surface-card">
+    <section class="frame overall">
+      <div class="overall-grid">
+        <div class="overall-side">
+          <div id="stateCode" class="state-code checking">Checking</div>
+          <div id="overallCount" class="overall-title">--</div>
+        </div>
+        <div class="overall-main">
+          <h2 id="overallTitle" class="overall-main-title">Verificando ambiente</h2>
+          <p id="overallCopy" class="overall-copy">Aguardando a primeira leitura dos serviços monitorados.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="frame">
         <div class="section-head">
           <div>
             <h2>Serviços monitorados</h2>
-            <p>Disponibilidade pública validada do navegador, sem dependência de painel interno.</p>
+            <p>Leitura do backend e da aplicação web pública.</p>
           </div>
-          <div class="section-meta">
-            <span class="live-pill">Atualização automática</span>
-          </div>
+          <div class="section-meta" id="lastCheckInline">--</div>
         </div>
         <div id="services" class="services"></div>
       </div>
 
-      <div class="surface-card history-box" id="historyBox" style="display:none">
+      <div class="frame history-wrap" id="historyBox" style="display:none">
         <div class="section-head">
           <div>
             <h2>Histórico recente</h2>
-            <p>As últimas verificações ficam visíveis apenas nesta sessão.</p>
+            <p>Últimas verificações desta sessão.</p>
           </div>
         </div>
         <div id="historyList" class="history-list"></div>
@@ -642,7 +418,7 @@
     </section>
 
     <div class="footer">
-      <span id="lastCheck">Aguardando primeira verificação...</span>
+      <span id="lastCheck">Aguardando primeira verificação</span>
     </div>
   </div>
 
@@ -651,148 +427,83 @@
       {
         name: 'Backend API',
         url: 'https://pontotools.shop/api/health',
-        description: 'Servidor Express.js, autenticação, banco e serviços centrais.',
-        check: 'http',
-        icon: 'server',
+        description: 'API principal, autenticação, banco e regras centrais.',
+        check: 'http'
       },
       {
         name: 'Frontend Web',
         url: 'https://pontotools.shop/',
-        description: 'Portal web e PWA principal usado por operação e colaboradores.',
-        check: 'reachability',
-        icon: 'monitor',
+        description: 'Aplicação web pública e PWA.',
+        check: 'reachability'
       }
     ];
 
     const history = [];
     const MAX_HISTORY = 10;
 
-    function statusLabel(status) {
+    function labelForStatus(status) {
       if (status === 'online') return 'Operacional';
-      if (status === 'offline') return 'Fora do ar';
+      if (status === 'offline') return 'Offline';
       return 'Verificando';
     }
 
-    function statusSubtext(status, responseTime) {
-      if (status === 'online') return `${responseTime} ms de resposta`;
-      if (status === 'offline') return 'Sem resposta dentro do tempo esperado';
-      return 'Sonda em andamento';
-    }
-
-    function getServiceIcon(type) {
-      if (type === 'server') {
-        return `
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="4" y="4" width="16" height="6" rx="2"></rect>
-            <rect x="4" y="14" width="16" height="6" rx="2"></rect>
-            <path d="M8 7h.01"></path>
-            <path d="M8 17h.01"></path>
-            <path d="M12 7h4"></path>
-            <path d="M12 17h4"></path>
-          </svg>
-        `;
-      }
-
-      return `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-          <path d="M8 20h8"></path>
-          <path d="M12 16v4"></path>
-        </svg>
-      `;
-    }
-
-    function getOverallIcon(status) {
-      if (status === 'ok') {
-        return `
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 6L9 17l-5-5"></path>
-          </svg>
-        `;
-      }
-
-      if (status === 'down') {
-        return `
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 9v4"></path>
-            <path d="M12 17h.01"></path>
-            <path d="M10.29 3.86l-7.1 12.3A2 2 0 0 0 4.92 19h14.16a2 2 0 0 0 1.73-3l-7.1-12.14a2 2 0 0 0-3.42 0Z"></path>
-          </svg>
-        `;
-      }
-
-      if (status === 'partial') {
-        return `
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 8v5"></path>
-            <path d="M12 16h.01"></path>
-            <circle cx="12" cy="12" r="9"></circle>
-          </svg>
-        `;
-      }
-
-      return `
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 3v3"></path>
-          <path d="M12 18v3"></path>
-          <path d="M4.93 4.93l2.12 2.12"></path>
-          <path d="M16.95 16.95l2.12 2.12"></path>
-          <path d="M3 12h3"></path>
-          <path d="M18 12h3"></path>
-          <path d="M4.93 19.07l2.12-2.12"></path>
-          <path d="M16.95 7.05l2.12-2.12"></path>
-        </svg>
-      `;
+    function subtextForStatus(status, responseTime) {
+      if (status === 'online') return `${responseTime} ms`;
+      if (status === 'offline') return 'sem resposta';
+      return 'checando';
     }
 
     function renderServices(results) {
       const container = document.getElementById('services');
       container.innerHTML = results.map((service) => `
-        <article class="service-card">
-          <div class="service-main">
-            <div class="service-icon">${getServiceIcon(service.icon)}</div>
-            <div class="service-copy">
-              <h3 class="service-name">${service.name}</h3>
-              <p class="service-description">${service.description}</p>
-              <div class="service-url">${service.url}</div>
-            </div>
+        <div class="service">
+          <div>
+            <h3 class="service-name">${service.name}</h3>
+            <div class="service-desc">${service.description}</div>
+            <div class="service-url">${service.url}</div>
           </div>
           <div class="service-side">
-            <span class="status-pill ${service.status}">${statusLabel(service.status)}</span>
-            <div class="response-time">${statusSubtext(service.status, service.responseTime)}</div>
+            <div class="service-status ${service.status}">${labelForStatus(service.status)}</div>
+            <div class="service-time">${subtextForStatus(service.status, service.responseTime)}</div>
           </div>
-        </article>
+        </div>
       `).join('');
     }
 
     function renderOverall(results) {
-      const el = document.getElementById('overall');
       const online = results.filter((service) => service.status === 'online').length;
       const total = results.length;
-      let status = 'partial';
-      let title = `${online}/${total} serviços operacionais`;
-      let subtitle = 'Há degradação parcial e vale acompanhar as próximas leituras.';
+
+      let code = 'partial';
+      let count = `${online}/${total}`;
+      let title = `${online} de ${total} serviços operacionais`;
+      let copy = 'Há degradação parcial. O ambiente ainda responde, mas não está completamente íntegro.';
 
       if (online === total) {
-        status = 'ok';
+        code = 'ok';
+        count = '100%';
         title = 'Todos os serviços operacionais';
-        subtitle = 'Ambiente público íntegro e respondendo dentro da janela esperada.';
+        copy = 'Os serviços públicos monitorados responderam dentro da janela esperada.';
       } else if (online === 0) {
-        status = 'down';
+        code = 'down';
+        count = '0%';
         title = 'Todos os serviços fora do ar';
-        subtitle = 'Nenhum endpoint respondeu com sucesso na verificação atual.';
+        copy = 'Nenhum dos endpoints monitorados respondeu com sucesso nesta leitura.';
       }
 
-      el.className = `overall ${status}`;
-      el.innerHTML = `
-        <div class="overall-icon ${status === 'checking' ? 'pulse' : ''}">${getOverallIcon(status)}</div>
-        <div class="overall-text">
-          <strong>${title}</strong>
-          <span>${subtitle}</span>
-        </div>
-      `;
+      const codeMap = {
+        ok: 'OK',
+        partial: 'Partial',
+        down: 'Down',
+        checking: 'Checking'
+      };
 
-      document.getElementById('onlineCount').textContent = `${online}/${total}`;
+      const stateCode = document.getElementById('stateCode');
+      stateCode.className = `state-code ${code}`;
+      stateCode.textContent = codeMap[code];
+      document.getElementById('overallCount').textContent = count;
+      document.getElementById('overallTitle').textContent = title;
+      document.getElementById('overallCopy').textContent = copy;
     }
 
     function renderHistory() {
@@ -807,8 +518,8 @@
       box.style.display = 'block';
       list.innerHTML = history.map((item) => `
         <div class="history-row">
-          <span class="history-time">${item.time}</span>
-          <span class="history-status ${item.allOk ? 'ok' : 'fail'}">${item.allOk ? 'Tudo estável' : item.summary}</span>
+          <div class="history-time">${item.time}</div>
+          <div class="history-status ${item.allOk ? 'ok' : 'fail'}">${item.allOk ? 'ambiente estável' : item.summary}</div>
         </div>
       `).join('');
     }
@@ -822,7 +533,7 @@
         if (service.check === 'http') {
           const response = await fetch(service.url, {
             cache: 'no-store',
-            signal: controller.signal,
+            signal: controller.signal
           });
 
           if (!response.ok) {
@@ -832,7 +543,7 @@
           await fetch(service.url, {
             mode: 'no-cors',
             cache: 'no-store',
-            signal: controller.signal,
+            signal: controller.signal
           });
         }
 
@@ -854,15 +565,16 @@
 
       const now = new Date();
       const time = now.toLocaleTimeString('pt-BR');
+
       document.getElementById('lastCheck').textContent = `Última verificação: ${time}`;
-      document.getElementById('lastCheckInline').textContent = time;
+      document.getElementById('lastCheckInline').textContent = `Última leitura ${time}`;
       document.getElementById('totalServices').textContent = String(results.length);
 
       const offline = results.filter((service) => service.status === 'offline');
       history.unshift({
         time,
         allOk: offline.length === 0,
-        summary: offline.map((service) => `${service.name} indisponível`).join(' · '),
+        summary: offline.map((service) => `${service.name} offline`).join(' · ')
       });
 
       if (history.length > MAX_HISTORY) {
