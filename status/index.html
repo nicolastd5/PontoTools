@@ -5,420 +5,141 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PontoTools - Status</title>
   <style>
-    :root {
-      --bg: #ebe7dc;
-      --panel: #f7f3ea;
-      --panel-strong: #fdfaf3;
-      --ink: #1d2328;
-      --muted: #65707a;
-      --line: #cfc7b7;
-      --line-strong: #a89f8e;
-      --navy: #16212b;
-      --blue: #2957d1;
-      --green: #1d7a46;
-      --amber: #a66a10;
-      --red: #b2392a;
-      --shadow: 0 12px 32px rgba(22, 33, 43, 0.08);
-    }
-
-    * { box-sizing: border-box; }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
       min-height: 100vh;
-      font-family: "Segoe UI", Arial, sans-serif;
-      color: var(--ink);
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0)) 0 0 / 100% 180px no-repeat,
-        var(--bg);
       padding: 24px;
     }
-
-    .shell {
-      max-width: 1100px;
-      margin: 0 auto;
+    .container { max-width: 640px; margin: 0 auto; }
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding: 24px 0;
     }
-
-    .topbar {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 18px;
-      margin-bottom: 18px;
-    }
-
-    .frame {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-    }
-
-    .hero {
-      padding: 22px 24px;
-      border-left: 8px solid var(--navy);
-    }
-
-    .kpis {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px;
-      background: var(--line);
-      border: 1px solid var(--line);
-    }
-
-    .kpi {
-      background: var(--panel-strong);
-      padding: 18px;
-      min-height: 104px;
-    }
-
-    .eyebrow {
-      margin: 0 0 8px;
-      color: var(--muted);
-      font-size: 12px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+    .header h1 {
+      font-size: 24px;
       font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 4px;
     }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(2rem, 4vw, 3.1rem);
-      line-height: 0.95;
-      letter-spacing: -0.05em;
-    }
-
-    .hero p {
-      max-width: 580px;
-      margin: 10px 0 0;
-      color: var(--muted);
+    .header p {
       font-size: 14px;
-      line-height: 1.5;
+      color: #64748b;
     }
-
-    .kpi-label {
-      display: block;
-      margin-bottom: 10px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .kpi-value {
-      font-size: 2rem;
-      font-weight: 800;
-      letter-spacing: -0.06em;
-    }
-
-    .kpi-sub {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
     .overall {
-      margin-bottom: 18px;
-      padding: 0;
-      overflow: hidden;
+      text-align: center;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      font-weight: 700;
+      font-size: 18px;
     }
-
-    .overall-grid {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      gap: 1px;
-      background: var(--line);
-    }
-
-    .overall-side,
-    .overall-main {
-      background: var(--panel-strong);
-      padding: 22px 24px;
-      min-height: 150px;
-    }
-
-    .state-code {
-      display: inline-block;
-      padding: 7px 10px;
-      border: 1px solid currentColor;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-
-    .state-code.ok { color: var(--green); }
-    .state-code.partial { color: var(--amber); }
-    .state-code.down { color: var(--red); }
-    .state-code.checking { color: var(--blue); }
-
-    .overall-title {
-      margin: 14px 0 0;
-      font-size: 2.2rem;
-      font-weight: 800;
-      line-height: 0.95;
-      letter-spacing: -0.07em;
-    }
-
-    .overall-main-title {
-      margin: 0;
-      font-size: 1.15rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-    }
-
-    .overall-copy {
-      margin: 10px 0 0;
-      max-width: 640px;
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: 14px;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 18px;
-    }
-
-    .section-head {
+    .overall.ok { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+    .overall.down { background: #450a0a; color: #f87171; border: 1px solid #991b1b; }
+    .overall.partial { background: #451a03; color: #fbbf24; border: 1px solid #92400e; }
+    .overall.checking { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      padding: 18px 20px;
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      align-items: flex-end;
-      padding: 20px 22px 0;
     }
-
-    .section-head h2 {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      text-transform: uppercase;
+    .card-left { display: flex; align-items: center; gap: 14px; }
+    .dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
     }
-
-    .section-head p {
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .section-meta {
-      color: var(--muted);
+    .dot.online { background: #4ade80; box-shadow: 0 0 8px #4ade8060; }
+    .dot.offline { background: #f87171; box-shadow: 0 0 8px #f8717160; }
+    .dot.checking { background: #94a3b8; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .service-name { font-weight: 600; font-size: 15px; color: #f1f5f9; }
+    .service-url { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .badge {
       font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      white-space: nowrap;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 20px;
     }
-
-    .services {
-      display: grid;
-      gap: 1px;
-      margin: 18px 0 0;
-      background: var(--line);
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .service {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 150px;
-      gap: 16px;
-      align-items: center;
-      background: var(--panel-strong);
-      padding: 18px 22px;
-    }
-
-    .service-name {
-      margin: 0;
-      font-size: 1rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
-
-    .service-desc {
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .service-url {
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 12px;
-      word-break: break-word;
-    }
-
-    .service-side {
+    .badge.online { background: #052e16; color: #4ade80; }
+    .badge.offline { background: #450a0a; color: #f87171; }
+    .badge.checking { background: #1e293b; color: #94a3b8; }
+    .response-time {
+      font-size: 11px;
+      color: #64748b;
       text-align: right;
+      margin-top: 4px;
     }
-
-    .service-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .service-status::before {
-      content: "";
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: currentColor;
-    }
-
-    .service-status.online { color: var(--green); }
-    .service-status.offline { color: var(--red); }
-    .service-status.checking { color: var(--blue); }
-
-    .service-time {
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .history-wrap {
-      padding-bottom: 14px;
-    }
-
-    .history-list {
-      display: grid;
-      gap: 1px;
-      margin-top: 18px;
-      background: var(--line);
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .history-row {
-      display: grid;
-      grid-template-columns: 90px 1fr;
-      gap: 14px;
-      background: var(--panel-strong);
-      padding: 14px 18px;
-      align-items: center;
-    }
-
-    .history-time {
-      font-family: Consolas, monospace;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .history-status {
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .history-status.ok { color: var(--green); }
-    .history-status.fail { color: var(--red); }
-
+    .card-right { text-align: right; }
     .footer {
-      margin-top: 16px;
-      padding: 12px 0 0;
-      color: var(--muted);
+      text-align: center;
+      margin-top: 32px;
       font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      color: #475569;
     }
-
-    @media (max-width: 900px) {
-      .topbar,
-      .layout,
-      .overall-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .kpis {
-        grid-template-columns: 1fr;
-      }
+    .footer span { color: #64748b; }
+    .refresh-info {
+      text-align: center;
+      font-size: 12px;
+      color: #475569;
+      margin-top: 16px;
     }
-
-    @media (max-width: 640px) {
-      body { padding: 12px; }
-
-      .service,
-      .history-row {
-        grid-template-columns: 1fr;
-      }
-
-      .service-side {
-        text-align: left;
-      }
+    .history {
+      margin-top: 24px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 18px 20px;
     }
+    .history h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+    .history-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #334155;
+    }
+    .history-row:last-child { border-bottom: none; }
+    .history-time { color: #64748b; font-family: monospace; }
+    .history-status { font-weight: 600; }
+    .history-status.ok { color: #4ade80; }
+    .history-status.fail { color: #f87171; }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <section class="topbar">
-      <div class="frame hero">
-        <div class="eyebrow">Painel de disponibilidade</div>
-        <h1>PontoTools Status</h1>
-        <p>Leitura pública dos serviços principais com atualização automática. Sem vitrine, sem enfeite gratuito, só o estado operacional do ambiente.</p>
-      </div>
+  <div class="container">
+    <div class="header">
+      <h1>PontoTools Status</h1>
+      <p>Monitoramento dos servicos em tempo real</p>
+    </div>
 
-      <div class="kpis">
-        <div class="kpi">
-          <span class="kpi-label">Checagem</span>
-          <div class="kpi-value">30s</div>
-          <div class="kpi-sub">atualização contínua</div>
-        </div>
-        <div class="kpi">
-          <span class="kpi-label">Timeout</span>
-          <div class="kpi-value">8s</div>
-          <div class="kpi-sub">janela de resposta</div>
-        </div>
-        <div class="kpi">
-          <span class="kpi-label">Serviços</span>
-          <div class="kpi-value" id="totalServices">2</div>
-          <div class="kpi-sub">alvos ativos</div>
-        </div>
-      </div>
-    </section>
+    <div id="overall" class="overall checking">Verificando...</div>
 
-    <section class="frame overall">
-      <div class="overall-grid">
-        <div class="overall-side">
-          <div id="stateCode" class="state-code checking">Checking</div>
-          <div id="overallCount" class="overall-title">--</div>
-        </div>
-        <div class="overall-main">
-          <h2 id="overallTitle" class="overall-main-title">Verificando ambiente</h2>
-          <p id="overallCopy" class="overall-copy">Aguardando a primeira leitura dos serviços monitorados.</p>
-        </div>
-      </div>
-    </section>
+    <div id="services"></div>
 
-    <section class="layout">
-      <div class="frame">
-        <div class="section-head">
-          <div>
-            <h2>Serviços monitorados</h2>
-            <p>Leitura do backend e da aplicação web pública.</p>
-          </div>
-          <div class="section-meta" id="lastCheckInline">--</div>
-        </div>
-        <div id="services" class="services"></div>
-      </div>
+    <div class="history" id="historyBox" style="display:none">
+      <h3>Ultimas verificacoes</h3>
+      <div id="historyList"></div>
+    </div>
 
-      <div class="frame history-wrap" id="historyBox" style="display:none">
-        <div class="section-head">
-          <div>
-            <h2>Histórico recente</h2>
-            <p>Últimas verificações desta sessão.</p>
-          </div>
-        </div>
-        <div id="historyList" class="history-list"></div>
-      </div>
-    </section>
+    <div class="refresh-info">Atualiza automaticamente a cada 30 segundos</div>
 
     <div class="footer">
-      <span id="lastCheck">Aguardando primeira verificação</span>
+      <span id="lastCheck">--</span>
     </div>
   </div>
 
@@ -427,13 +148,13 @@
       {
         name: 'Backend API',
         url: 'https://pontotools.shop/api/health',
-        description: 'API principal, autenticação, banco e regras centrais.',
+        description: 'Servidor Express.js + PostgreSQL',
         check: 'http'
       },
       {
         name: 'Frontend Web',
         url: 'https://pontotools.shop/',
-        description: 'Aplicação web pública e PWA.',
+        description: 'React PWA (Dashboard)',
         check: 'reachability'
       }
     ];
@@ -441,85 +162,55 @@
     const history = [];
     const MAX_HISTORY = 10;
 
-    function labelForStatus(status) {
-      if (status === 'online') return 'Operacional';
-      if (status === 'offline') return 'Offline';
-      return 'Verificando';
-    }
-
-    function subtextForStatus(status, responseTime) {
-      if (status === 'online') return `${responseTime} ms`;
-      if (status === 'offline') return 'sem resposta';
-      return 'checando';
-    }
-
     function renderServices(results) {
       const container = document.getElementById('services');
-      container.innerHTML = results.map((service) => `
-        <div class="service">
-          <div>
-            <h3 class="service-name">${service.name}</h3>
-            <div class="service-desc">${service.description}</div>
-            <div class="service-url">${service.url}</div>
+      container.innerHTML = results.map(r => `
+        <div class="card">
+          <div class="card-left">
+            <div class="dot ${r.status}"></div>
+            <div>
+              <div class="service-name">${r.name}</div>
+              <div class="service-url">${r.description}</div>
+            </div>
           </div>
-          <div class="service-side">
-            <div class="service-status ${service.status}">${labelForStatus(service.status)}</div>
-            <div class="service-time">${subtextForStatus(service.status, service.responseTime)}</div>
+          <div class="card-right">
+            <div class="badge ${r.status}">
+              ${r.status === 'online' ? 'Operacional' : r.status === 'offline' ? 'Fora do ar' : 'Verificando...'}
+            </div>
+            ${r.responseTime ? `<div class="response-time">${r.responseTime}ms</div>` : ''}
           </div>
         </div>
       `).join('');
     }
 
     function renderOverall(results) {
-      const online = results.filter((service) => service.status === 'online').length;
+      const el = document.getElementById('overall');
+      const online = results.filter(r => r.status === 'online').length;
       const total = results.length;
 
-      let code = 'partial';
-      let count = `${online}/${total}`;
-      let title = `${online} de ${total} serviços operacionais`;
-      let copy = 'Há degradação parcial. O ambiente ainda responde, mas não está completamente íntegro.';
-
       if (online === total) {
-        code = 'ok';
-        count = '100%';
-        title = 'Todos os serviços operacionais';
-        copy = 'Os serviços públicos monitorados responderam dentro da janela esperada.';
+        el.className = 'overall ok';
+        el.textContent = 'Todos os servicos operacionais';
       } else if (online === 0) {
-        code = 'down';
-        count = '0%';
-        title = 'Todos os serviços fora do ar';
-        copy = 'Nenhum dos endpoints monitorados respondeu com sucesso nesta leitura.';
+        el.className = 'overall down';
+        el.textContent = 'Todos os servicos fora do ar';
+      } else {
+        el.className = 'overall partial';
+        el.textContent = `${online}/${total} servicos operacionais`;
       }
-
-      const codeMap = {
-        ok: 'OK',
-        partial: 'Partial',
-        down: 'Down',
-        checking: 'Checking'
-      };
-
-      const stateCode = document.getElementById('stateCode');
-      stateCode.className = `state-code ${code}`;
-      stateCode.textContent = codeMap[code];
-      document.getElementById('overallCount').textContent = count;
-      document.getElementById('overallTitle').textContent = title;
-      document.getElementById('overallCopy').textContent = copy;
     }
 
     function renderHistory() {
       const box = document.getElementById('historyBox');
       const list = document.getElementById('historyList');
-
-      if (history.length === 0) {
-        box.style.display = 'none';
-        return;
-      }
-
+      if (history.length === 0) { box.style.display = 'none'; return; }
       box.style.display = 'block';
-      list.innerHTML = history.map((item) => `
+      list.innerHTML = history.map(h => `
         <div class="history-row">
-          <div class="history-time">${item.time}</div>
-          <div class="history-status ${item.allOk ? 'ok' : 'fail'}">${item.allOk ? 'ambiente estável' : item.summary}</div>
+          <span class="history-time">${h.time}</span>
+          <span class="history-status ${h.allOk ? 'ok' : 'fail'}">
+            ${h.allOk ? 'Tudo OK' : h.summary}
+          </span>
         </div>
       `).join('');
     }
@@ -556,7 +247,7 @@
     }
 
     async function checkAll() {
-      const loading = SERVICES.map((service) => ({ ...service, status: 'checking', responseTime: null }));
+      const loading = SERVICES.map(s => ({ ...s, status: 'checking', responseTime: null }));
       renderServices(loading);
 
       const results = await Promise.all(SERVICES.map(checkService));
@@ -564,23 +255,17 @@
       renderOverall(results);
 
       const now = new Date();
-      const time = now.toLocaleTimeString('pt-BR');
+      document.getElementById('lastCheck').textContent =
+        `Ultima verificacao: ${now.toLocaleTimeString('pt-BR')}`;
 
-      document.getElementById('lastCheck').textContent = `Última verificação: ${time}`;
-      document.getElementById('lastCheckInline').textContent = `Última leitura ${time}`;
-      document.getElementById('totalServices').textContent = String(results.length);
-
-      const offline = results.filter((service) => service.status === 'offline');
+      const online = results.filter(r => r.status === 'online');
+      const offline = results.filter(r => r.status === 'offline');
       history.unshift({
-        time,
+        time: now.toLocaleTimeString('pt-BR'),
         allOk: offline.length === 0,
-        summary: offline.map((service) => `${service.name} offline`).join(' · ')
+        summary: offline.map(r => r.name + ' OFF').join(', ')
       });
-
-      if (history.length > MAX_HISTORY) {
-        history.pop();
-      }
-
+      if (history.length > MAX_HISTORY) history.pop();
       renderHistory();
     }
 
