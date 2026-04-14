@@ -153,9 +153,76 @@ async function exportExcel(req, res, next) {
       params
     );
 
-    const workbook  = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Registros de Ponto');
+    const workbook = new ExcelJS.Workbook();
 
+    // ---- Aba 1: Serviços (turnos agrupados) ----
+    const svcSheet = workbook.addWorksheet('Serviços');
+    svcSheet.columns = [
+      { header: 'Funcionário',    key: 'full_name',      width: 28 },
+      { header: 'Matrícula',      key: 'badge_number',   width: 14 },
+      { header: 'Unidade',        key: 'unit_name',      width: 22 },
+      { header: 'Data',           key: 'date',           width: 12 },
+      { header: 'Hora Entrada',   key: 'entry_time',     width: 14 },
+      { header: 'Hora Saída',     key: 'exit_time',      width: 14 },
+      { header: 'Total Horas',    key: 'total_hours',    width: 14 },
+      { header: 'Dentro da Zona', key: 'inside_zone',    width: 14 },
+    ];
+    svcSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    svcSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A34A' } };
+
+    // Agrupa batidas em serviços (entry/exit por funcionário por dia)
+    const svcMap = {};
+    result.rows.forEach((r) => {
+      const localDate = formatLocalTime(r.clocked_at_utc, r.timezone, 'yyyy-MM-dd');
+      const key       = `${r.employee_id}_${localDate}`;
+      if (!svcMap[key]) {
+        svcMap[key] = {
+          full_name:    r.full_name,
+          badge_number: r.badge_number,
+          unit_name:    r.unit_name,
+          date:         formatLocalTime(r.clocked_at_utc, r.timezone, 'dd/MM/yyyy'),
+          entry:        null,
+          exit:         null,
+        };
+      }
+      if (r.clock_type === 'entry' && !svcMap[key].entry) svcMap[key].entry = r;
+      if (r.clock_type === 'exit'  && !svcMap[key].exit)  svcMap[key].exit  = r;
+    });
+
+    Object.values(svcMap).forEach((svc) => {
+      const entryTime = svc.entry
+        ? formatLocalTime(svc.entry.clocked_at_utc, svc.entry.timezone, 'HH:mm')
+        : '—';
+      const exitTime  = svc.exit
+        ? formatLocalTime(svc.exit.clocked_at_utc,  svc.exit.timezone,  'HH:mm')
+        : '—';
+
+      let totalHours = '—';
+      if (svc.entry && svc.exit) {
+        const diffSec = Math.floor(
+          (new Date(svc.exit.clocked_at_utc) - new Date(svc.entry.clocked_at_utc)) / 1000
+        );
+        const h = Math.floor(diffSec / 3600);
+        const m = Math.floor((diffSec % 3600) / 60);
+        totalHours = `${h}h${String(m).padStart(2, '0')}m`;
+      }
+
+      const inside = svc.entry?.is_inside_zone !== false && svc.exit?.is_inside_zone !== false;
+
+      svcSheet.addRow({
+        full_name:    svc.full_name,
+        badge_number: svc.badge_number,
+        unit_name:    svc.unit_name,
+        date:         svc.date,
+        entry_time:   entryTime,
+        exit_time:    exitTime,
+        total_hours:  totalHours,
+        inside_zone:  inside ? 'Sim' : 'Não',
+      });
+    });
+
+    // ---- Aba 2: Auditoria (batidas individuais) ----
+    const worksheet = workbook.addWorksheet('Auditoria');
     worksheet.columns = [
       { header: 'ID',             key: 'id',               width: 8  },
       { header: 'Funcionário',    key: 'full_name',        width: 28 },
@@ -170,21 +237,16 @@ async function exportExcel(req, res, next) {
       { header: 'Longitude',      key: 'longitude',        width: 14 },
       { header: 'Precisão GPS (m)', key: 'accuracy_meters', width: 16 },
       { header: 'Distância (m)',  key: 'distance_meters',  width: 14 },
-      { header: 'Dentro da Zona',key: 'is_inside_zone',   width: 14 },
+      { header: 'Dentro da Zona', key: 'is_inside_zone',  width: 14 },
       { header: 'IP',             key: 'ip_address',       width: 16 },
     ];
-
-    // Cabeçalho em negrito
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
-      type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' },
-    };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' } };
     worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
 
     result.rows.forEach((r) => {
       worksheet.addRow({
         ...r,
-        local_time:    formatLocalTime(r.clocked_at_utc, r.timezone),
+        local_time:     formatLocalTime(r.clocked_at_utc, r.timezone),
         is_inside_zone: r.is_inside_zone ? 'Sim' : 'Não',
         latitude:       parseFloat(r.latitude),
         longitude:      parseFloat(r.longitude),
