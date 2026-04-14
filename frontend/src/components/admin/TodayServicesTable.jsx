@@ -23,68 +23,74 @@ export default function TodayServicesTable({ services = [], loading }) {
     <div style={styles.container}>
       <h3 style={styles.title}>Serviços de Hoje</h3>
 
-      {active.length > 0 && (
-        <>
-          <div style={styles.sectionLabel}>Em andamento ({active.length})</div>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                {['Funcionário', 'Unidade', 'Início', 'Decorrido', 'Zona'].map((h) => (
-                  <th key={h} style={styles.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {active.map((s) => (
-                <tr key={s.employee_id}>
-                  <td style={styles.td}>{s.full_name}</td>
-                  <td style={styles.td}>{s.unit_name}</td>
-                  <td style={styles.td}>{localTime(s.entry_time, s.entry_timezone)}</td>
-                  <td style={styles.td}>{elapsed(s.entry_time)}</td>
-                  <td style={styles.td}>
-                    <span style={{ color: s.all_inside_zone ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
-                      {s.all_inside_zone ? '✓' : '✗'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
+      <div style={{ padding: '16px 20px' }}>
+        {active.length > 0 && (
+          <>
+            <div style={styles.sectionLabel}>Em andamento ({active.length})</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    {['Funcionário', 'Unidade', 'Início', 'Decorrido', 'Zona'].map((h) => (
+                      <th key={h} style={styles.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {active.map((s) => (
+                    <tr key={s.employee_id}>
+                      <td style={styles.td}>{s.full_name}</td>
+                      <td style={styles.td}>{s.unit_name}</td>
+                      <td style={styles.td}>{localTime(s.entry_time, s.entry_timezone)}</td>
+                      <td style={styles.td}>{elapsed(s.entry_time)}</td>
+                      <td style={styles.td}>
+                        <span style={{ color: s.all_inside_zone ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                          {s.all_inside_zone ? '✓' : '✗'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
-      {completed.length > 0 && (
-        <>
-          <div style={{ ...styles.sectionLabel, marginTop: active.length ? 16 : 0 }}>
-            Concluídos ({completed.length})
-          </div>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                {['Funcionário', 'Unidade', 'Início', 'Fim', 'Total', 'Zona'].map((h) => (
-                  <th key={h} style={styles.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {completed.map((s) => (
-                <tr key={s.employee_id}>
-                  <td style={styles.td}>{s.full_name}</td>
-                  <td style={styles.td}>{s.unit_name}</td>
-                  <td style={styles.td}>{localTime(s.entry_time, s.entry_timezone)}</td>
-                  <td style={styles.td}>{localTime(s.exit_time, s.exit_timezone)}</td>
-                  <td style={styles.td}>{elapsed(s.entry_time, s.exit_time)}</td>
-                  <td style={styles.td}>
-                    <span style={{ color: s.all_inside_zone ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
-                      {s.all_inside_zone ? '✓' : '✗'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
+        {completed.length > 0 && (
+          <>
+            <div style={{ ...styles.sectionLabel, marginTop: active.length ? 16 : 0 }}>
+              Concluídos ({completed.length})
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    {['Funcionário', 'Unidade', 'Início', 'Fim', 'Total', 'Zona'].map((h) => (
+                      <th key={h} style={styles.th}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {completed.map((s) => (
+                    <tr key={s.employee_id}>
+                      <td style={styles.td}>{s.full_name}</td>
+                      <td style={styles.td}>{s.unit_name}</td>
+                      <td style={styles.td}>{localTime(s.entry_time, s.entry_timezone)}</td>
+                      <td style={styles.td}>{localTime(s.exit_time, s.exit_timezone)}</td>
+                      <td style={styles.td}>{elapsed(s.entry_time, s.exit_time)}</td>
+                      <td style={styles.td}>
+                        <span style={{ color: s.all_inside_zone ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                          {s.all_inside_zone ? '✓' : '✗'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -92,11 +98,20 @@ export default function TodayServicesTable({ services = [], loading }) {
 const styles = {
   container: {
     background: '#fff', borderRadius: 12,
-    border: '1px solid #e2e8f0', padding: '20px 24px', marginTop: 24,
+    border: '1px solid #e2e8f0', marginTop: 24,
   },
-  title: { fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 16 },
+  title: {
+    fontSize: 15, fontWeight: 700, color: '#0f172a',
+    padding: '18px 20px', borderBottom: '1px solid #f1f5f9',
+    margin: 0,
+  },
   sectionLabel: { fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: { textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600, borderBottom: '2px solid #f1f5f9' },
+  th: {
+    padding: '10px 14px', textAlign: 'left',
+    fontSize: 11, fontWeight: 700, color: '#64748b',
+    background: '#f8fafc', borderBottom: '1px solid #e2e8f0',
+    textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap',
+  },
   td: { padding: '8px 10px', borderBottom: '1px solid #f8fafc', color: '#374151' },
 };
