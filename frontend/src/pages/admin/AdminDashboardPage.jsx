@@ -5,6 +5,7 @@ import api                   from '../../services/api';
 import ClocksByUnitChart     from '../../components/admin/ClocksByUnitChart';
 import RecentClocksTable     from '../../components/admin/RecentClocksTable';
 import AbsentEmployeesList   from '../../components/admin/AbsentEmployeesList';
+import TodayServicesTable    from '../../components/admin/TodayServicesTable';
 
 function useDashboard(unitId) {
   return useQuery({
@@ -26,6 +27,14 @@ function useUnits() {
   return useQuery({
     queryKey: ['units'],
     queryFn:  () => api.get('/units').then((r) => r.data.units),
+  });
+}
+
+function useTodayServices() {
+  return useQuery({
+    queryKey:        ['services-today'],
+    queryFn:         () => api.get('/admin/services/today').then((r) => r.data.services),
+    refetchInterval: 60 * 1000,
   });
 }
 
@@ -52,6 +61,7 @@ export default function AdminDashboardPage() {
   const { data: dashData,  isLoading: loadingDash }    = useDashboard(unitId);
   const { data: absentData, isLoading: loadingAbsent } = useAbsences(unitId);
   const { data: units = [] } = useUnits();
+  const { data: todayServices = [], isLoading: loadingServices } = useTodayServices();
 
   const now = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -122,6 +132,8 @@ export default function AdminDashboardPage() {
       {/* ── Últimos registros ── */}
       <SectionTitle label="Últimos Registros de Ponto" icon="📋" />
       <RecentClocksTable records={dashData?.recentClocks || []} loading={loadingDash} />
+
+      <TodayServicesTable services={todayServices} loading={loadingServices} />
     </div>
   );
 }
