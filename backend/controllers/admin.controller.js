@@ -47,7 +47,8 @@ async function getAbsences(req, res, next) {
 async function getTodayServices(req, res, next) {
   try {
     const contractId = req.user.role === 'gestor' ? req.user.contractId : null;
-    const services   = await dashboardSvc.getTodayServices(contractId);
+    const unitId = req.query.unitId ? parseInt(req.query.unitId, 10) : null;
+    const services   = await dashboardSvc.getTodayServices(contractId, unitId);
     res.json({ services });
   } catch (err) {
     next(err);

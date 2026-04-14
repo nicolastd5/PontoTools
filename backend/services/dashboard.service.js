@@ -167,15 +167,66 @@ async function getBlockedByReason(days = 7) {
   return result.rows;
 }
 
+async function getServicesSummary() {
+  const [statusRes, lateRes, recentRes] = await Promise.all([
+    db.query(
+      `SELECT status, COUNT(*) AS total
+       FROM service_orders
+       GROUP BY status`
+    ),
+    db.query(
+      `SELECT COUNT(*) AS total
+       FROM service_orders
+       WHERE status NOT IN ('done', 'done_with_issues')
+         AND (
+           (due_time IS NOT NULL AND (scheduled_date + due_time) < NOW() AT TIME ZONE 'America/Sao_Paulo')
+           OR
+           (due_time IS NULL AND scheduled_date < CURRENT_DATE)
+         )`
+    ),
+    db.query(
+      `SELECT so.id, so.title, so.status, so.scheduled_date, so.due_time,
+              e.full_name AS assigned_to,
+              u.name AS unit_name
+       FROM service_orders so
+       LEFT JOIN employees e ON e.id = so.assigned_employee_id
+       LEFT JOIN units u ON u.id = so.unit_id
+       WHERE so.status NOT IN ('done', 'done_with_issues')
+       ORDER BY so.scheduled_date ASC, so.due_time ASC NULLS LAST
+       LIMIT 5`
+    ),
+  ]);
+
+  const byStatus = {};
+  for (const row of statusRes.rows) byStatus[row.status] = parseInt(row.total, 10);
+
+  return {
+    pending:          byStatus.pending || 0,
+    in_progress:      byStatus.in_progress || 0,
+    done:             byStatus.done || 0,
+    done_with_issues: byStatus.done_with_issues || 0,
+    problem:          byStatus.problem || 0,
+    late:             parseInt(lateRes.rows[0].total, 10),
+    openServices:     recentRes.rows,
+  };
+}
+
 /**
  * Retorna serviços do dia (entrada/saída) agrupados por funcionário.
  * @param {number|null} contractId - null = admin vê todos; número = gestor vê só o contrato
  */
-async function getTodayServices(contractId = null) {
-  const contractFilter = contractId
-    ? 'AND c.id = $1'
-    : '';
-  const params = contractId ? [contractId] : [];
+async function getTodayServices(contractId = null, unitId = null) {
+  const params = [];
+  const filters = [];
+
+  if (contractId) {
+    params.push(contractId);
+    filters.push(`u.contract_id = $${params.length}`);
+  }
+  if (unitId) {
+    params.push(unitId);
+    filters.push(`u.id = $${params.length}`);
+  }
 
   const result = await db.query(
     `SELECT
@@ -192,11 +243,10 @@ async function getTodayServices(contractId = null) {
      FROM clock_records cr
      JOIN employees e ON e.id = cr.employee_id
      JOIN units     u ON u.id = cr.unit_id
-     JOIN contracts c ON c.id = u.contract_id
      WHERE cr.clocked_at_utc::date = CURRENT_DATE
        AND cr.clock_type IN ('entry', 'exit') -- Filtra apenas entry/exit: serviço = par entrada/saída.
        -- Funcionários com apenas break_start/break_end hoje aparecem como "sem serviço" — comportamento intencional.
-       ${contractFilter}
+       ${filters.length ? `AND ${filters.join(' AND ')}` : ''}
      GROUP BY e.id, e.full_name, e.badge_number, u.name, u.code
      ORDER BY entry_time ASC NULLS LAST`,
     params
@@ -211,5 +261,6 @@ module.exports = {
   getClocksByUnit,
   getAbsentEmployees,
   getBlockedByReason,
+  getServicesSummary,
   getTodayServices,
 };

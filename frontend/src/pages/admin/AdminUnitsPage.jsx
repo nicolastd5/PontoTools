@@ -14,6 +14,11 @@ export default function AdminUnitsPage() {
   const { success, error } = useToast();
   const { user }     = useAuth();
 
+  function refreshUnits() {
+    queryClient.invalidateQueries({ queryKey: ['units-admin'] });
+    queryClient.invalidateQueries({ queryKey: ['units'] });
+  }
+
   const { data: units = [], isLoading } = useQuery({
     queryKey: ['units-admin'],
     queryFn:  () => api.get('/units').then((r) => r.data.units),
@@ -25,19 +30,19 @@ export default function AdminUnitsPage() {
 
   const createMutation = useMutation({
     mutationFn: (data) => api.post('/units', data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['units-admin'] }); success('Posto criado.'); setModal(null); },
+    onSuccess: () => { refreshUnits(); success('Posto criado.'); setModal(null); },
     onError:   () => error('Erro ao criar posto.'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => api.put(`/units/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['units-admin'] }); success('Posto atualizado.'); setModal(null); },
+    onSuccess: () => { refreshUnits(); success('Posto atualizado.'); setModal(null); },
     onError:   () => error('Erro ao atualizar posto.'),
   });
 
   const deactivateMutation = useMutation({
     mutationFn: (id) => api.delete(`/units/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['units-admin'] }); success('Posto desativado.'); },
+    onSuccess: () => { refreshUnits(); success('Posto desativado.'); },
     onError:   () => error('Erro ao desativar posto.'),
   });
 

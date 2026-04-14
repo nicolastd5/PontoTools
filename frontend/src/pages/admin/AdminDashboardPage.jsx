@@ -30,10 +30,10 @@ function useUnits() {
   });
 }
 
-function useTodayServices() {
+function useTodayServices(unitId) {
   return useQuery({
-    queryKey:        ['services-today'],
-    queryFn:         () => api.get('/admin/services/today').then((r) => r.data.services),
+    queryKey:        ['services-today', unitId],
+    queryFn:         () => api.get('/admin/services/today', { params: unitId ? { unitId } : {} }).then((r) => r.data.services),
     refetchInterval: 60 * 1000,
   });
 }
@@ -61,7 +61,7 @@ export default function AdminDashboardPage() {
   const { data: dashData,  isLoading: loadingDash }    = useDashboard(unitId);
   const { data: absentData, isLoading: loadingAbsent } = useAbsences(unitId);
   const { data: units = [] } = useUnits();
-  const { data: todayServices = [], isLoading: loadingServices } = useTodayServices();
+  const { data: todayServices = [], isLoading: loadingServices } = useTodayServices(unitId);
 
   const now = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
