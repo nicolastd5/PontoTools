@@ -33,5 +33,6 @@ router.get('/audit-logs',          requireAdmin, controller.getAuditLogs);
 // Exportações — apenas admin
 router.get('/export/pdf',          requireAdmin, exportController.exportPdf);
 router.get('/export/excel',        requireAdmin, exportController.exportExcel);
+router.get('/export/services/pdf', requireAdminOrGestor, exportController.exportServicesPdf);
 
 module.exports = router;
