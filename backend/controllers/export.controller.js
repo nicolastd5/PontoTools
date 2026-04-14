@@ -219,6 +219,12 @@ async function exportServicesPdf(req, res, next) {
 
     const params  = [startDate, endDate];
     const filters = [];
+
+    // Gestor só vê registros do seu contrato
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      filters.push(`u.contract_id = $${params.push(req.user.contractId)}`);
+    }
+
     if (employeeId) filters.push(`cr.employee_id = $${params.push(parseInt(employeeId, 10))}`);
     if (unitId)     filters.push(`cr.unit_id     = $${params.push(parseInt(unitId,     10))}`);
 
@@ -258,8 +264,8 @@ async function exportServicesPdf(req, res, next) {
           exit:         null,
         };
       }
-      if (r.clock_type === 'entry') servicesMap[key].entry = r;
-      if (r.clock_type === 'exit')  servicesMap[key].exit  = r;
+      if (r.clock_type === 'entry' && !servicesMap[key].entry) servicesMap[key].entry = r;
+      if (r.clock_type === 'exit'  && !servicesMap[key].exit)  servicesMap[key].exit  = r;
     });
 
     const services = Object.values(servicesMap);
@@ -273,77 +279,84 @@ async function exportServicesPdf(req, res, next) {
     res.set('Content-Disposition', `attachment; filename="servicos_${startDate}_${endDate}.pdf"`);
     doc.pipe(res);
 
-    // Cabeçalho
-    doc.fontSize(16).font('Helvetica-Bold').text('RELATÓRIO DE SERVIÇOS', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(11).font('Helvetica').text(`Período: ${startDate} a ${endDate}`, { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(10).fillColor('#64748b').text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' });
-    doc.fillColor('#000');
-    doc.moveDown(1);
-    doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-    doc.moveDown(0.8);
-
-    for (const svc of services) {
-      if (doc.y > 600) doc.addPage();
-
-      doc.fontSize(12).font('Helvetica-Bold')
-         .text(`${svc.full_name}  ·  ${svc.unit_name}  ·  ${svc.date}`);
+    try {
+      // Cabeçalho
+      doc.fontSize(16).font('Helvetica-Bold').text('RELATÓRIO DE SERVIÇOS', { align: 'center' });
       doc.moveDown(0.3);
-
-      const entryTime = svc.entry
-        ? formatLocalTime(svc.entry.clocked_at_utc, svc.entry.timezone, 'HH:mm')
-        : '—';
-      const exitTime  = svc.exit
-        ? formatLocalTime(svc.exit.clocked_at_utc,  svc.exit.timezone,  'HH:mm')
-        : '—';
-
-      let totalStr = '—';
-      if (svc.entry && svc.exit) {
-        const diffSec = Math.floor(
-          (new Date(svc.exit.clocked_at_utc) - new Date(svc.entry.clocked_at_utc)) / 1000
-        );
-        const h = Math.floor(diffSec / 3600);
-        const m = Math.floor((diffSec % 3600) / 60);
-        totalStr = `${h}h${String(m).padStart(2, '0')}m`;
-      }
-
-      const inside = svc.entry?.is_inside_zone !== false && svc.exit?.is_inside_zone !== false;
-
-      doc.fontSize(10).font('Helvetica')
-         .text(`Entrada: ${entryTime}   →   Saída: ${exitTime}   |   Total: ${totalStr}   |   Zona: ${inside ? '✓ Dentro' : '✗ Fora'}`);
-      doc.moveDown(0.5);
-
-      // Fotos
-      const photoY  = doc.y;
-      const imgSize = 150;
-
-      const [entryBuf, exitBuf] = await Promise.all([
-        svc.entry?.photo_path ? storage.getBuffer(svc.entry.photo_path).catch(() => null) : Promise.resolve(null),
-        svc.exit?.photo_path  ? storage.getBuffer(svc.exit.photo_path).catch(() => null)  : Promise.resolve(null),
-      ]);
-
-      if (entryBuf) {
-        doc.image(entryBuf, 40, photoY, { width: imgSize, height: imgSize });
-        doc.fontSize(9).fillColor('#64748b')
-           .text(`Entrada ${entryTime}`, 40, photoY + imgSize + 2, { width: imgSize, align: 'center' });
-        doc.fillColor('#000');
-      }
-      if (exitBuf) {
-        doc.image(exitBuf, 210, photoY, { width: imgSize, height: imgSize });
-        doc.fontSize(9).fillColor('#64748b')
-           .text(`Saída ${exitTime}`, 210, photoY + imgSize + 2, { width: imgSize, align: 'center' });
-        doc.fillColor('#000');
-      }
-
-      doc.y = photoY + imgSize + 20;
-      doc.moveDown(0.5);
-      doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#e2e8f0').stroke();
-      doc.strokeColor('#000');
+      doc.fontSize(11).font('Helvetica').text(`Período: ${startDate} a ${endDate}`, { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(10).fillColor('#64748b').text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' });
+      doc.fillColor('#000');
+      doc.moveDown(1);
+      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
       doc.moveDown(0.8);
-    }
 
-    doc.end();
+      for (const svc of services) {
+        if (doc.y > 600) doc.addPage();
+
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text(`${svc.full_name}  ·  ${svc.unit_name}  ·  ${svc.date}`);
+        doc.moveDown(0.3);
+
+        const entryTime = svc.entry
+          ? formatLocalTime(svc.entry.clocked_at_utc, svc.entry.timezone, 'HH:mm')
+          : '—';
+        const exitTime  = svc.exit
+          ? formatLocalTime(svc.exit.clocked_at_utc,  svc.exit.timezone,  'HH:mm')
+          : '—';
+
+        let totalStr = '—';
+        if (svc.entry && svc.exit) {
+          const diffSec = Math.floor(
+            (new Date(svc.exit.clocked_at_utc) - new Date(svc.entry.clocked_at_utc)) / 1000
+          );
+          const h = Math.floor(diffSec / 3600);
+          const m = Math.floor((diffSec % 3600) / 60);
+          totalStr = `${h}h${String(m).padStart(2, '0')}m`;
+        }
+
+        const inside = svc.entry?.is_inside_zone !== false && svc.exit?.is_inside_zone !== false;
+
+        doc.fontSize(10).font('Helvetica')
+           .text(`Entrada: ${entryTime}   →   Saída: ${exitTime}   |   Total: ${totalStr}   |   Zona: ${inside ? '✓ Dentro' : '✗ Fora'}`);
+        doc.moveDown(0.5);
+
+        // Fotos
+        const photoY  = doc.y;
+        const imgSize = 150;
+
+        const [entryBuf, exitBuf] = await Promise.all([
+          svc.entry?.photo_path ? storage.getBuffer(svc.entry.photo_path).catch(() => null) : Promise.resolve(null),
+          svc.exit?.photo_path  ? storage.getBuffer(svc.exit.photo_path).catch(() => null)  : Promise.resolve(null),
+        ]);
+
+        if (entryBuf) {
+          doc.image(entryBuf, 40, photoY, { width: imgSize, height: imgSize });
+          doc.fontSize(9).fillColor('#64748b')
+             .text(`Entrada ${entryTime}`, 40, photoY + imgSize + 2, { width: imgSize, align: 'center' });
+          doc.fillColor('#000');
+        }
+        if (exitBuf) {
+          doc.image(exitBuf, 210, photoY, { width: imgSize, height: imgSize });
+          doc.fontSize(9).fillColor('#64748b')
+             .text(`Saída ${exitTime}`, 210, photoY + imgSize + 2, { width: imgSize, align: 'center' });
+          doc.fillColor('#000');
+        }
+
+        if (entryBuf || exitBuf) {
+          doc.y = photoY + imgSize + 20;
+        }
+        doc.moveDown(0.5);
+        doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#e2e8f0').stroke();
+        doc.strokeColor('#000');
+        doc.moveDown(0.8);
+      }
+
+      doc.end();
+    } catch (pdfErr) {
+      doc.end();
+      throw pdfErr;
+    }
   } catch (err) {
     next(err);
   }
