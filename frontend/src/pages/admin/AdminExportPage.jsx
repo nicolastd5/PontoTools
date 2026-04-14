@@ -20,6 +20,7 @@ export default function AdminExportPage() {
   const [pdfForm, setPdfForm] = useState({ employeeId: '', month: '', year: new Date().getFullYear() });
   // Estado do form Excel
   const [xlsForm, setXlsForm] = useState({ unitId: '', startDate: '', endDate: '' });
+  const [svcForm, setSvcForm] = useState({ filterType: 'employee', employeeId: '', unitId: '', startDate: '', endDate: '' });
 
   async function exportPdf() {
     if (!pdfForm.employeeId || !pdfForm.month) {
@@ -58,6 +59,33 @@ export default function AdminExportPage() {
       URL.revokeObjectURL(url);
     } catch {
       error('Erro ao gerar Excel. Tente novamente.');
+    }
+  }
+
+  async function exportServicesPdf() {
+    if (!svcForm.startDate || !svcForm.endDate) {
+      return error('Selecione o intervalo de datas.');
+    }
+    if (svcForm.filterType === 'employee' && !svcForm.employeeId) {
+      return error('Selecione o funcionário.');
+    }
+    if (svcForm.filterType === 'unit' && !svcForm.unitId) {
+      return error('Selecione a unidade.');
+    }
+    try {
+      const params = { startDate: svcForm.startDate, endDate: svcForm.endDate };
+      if (svcForm.filterType === 'employee') params.employeeId = svcForm.employeeId;
+      else params.unitId = svcForm.unitId;
+
+      const res = await api.get('/admin/export/services/pdf', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a   = document.createElement('a');
+      a.href = url;
+      a.download = `servicos_${svcForm.startDate}_${svcForm.endDate}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      error('Erro ao gerar PDF de serviços. Tente novamente.');
     }
   }
 
@@ -164,6 +192,74 @@ export default function AdminExportPage() {
 
           <button onClick={exportExcel} style={{ ...styles.btn, background: '#16a34a' }}>
             Gerar Excel
+          </button>
+        </div>
+
+        {/* PDF — Relatório de Serviços */}
+        <div style={styles.card}>
+          <div style={styles.cardIcon}>📋</div>
+          <h2 style={styles.cardTitle}>Relatório de Serviços (PDF)</h2>
+          <p style={styles.cardDesc}>
+            Exporta os serviços (turnos completos) com fotos de entrada e saída de cada funcionário.
+          </p>
+
+          <div style={styles.field}>
+            <label style={styles.label}>Filtrar por</label>
+            <select
+              value={svcForm.filterType}
+              onChange={(e) => setSvcForm((p) => ({ ...p, filterType: e.target.value, employeeId: '', unitId: '' }))}
+              style={styles.select}
+            >
+              <option value="employee">Funcionário</option>
+              <option value="unit">Unidade</option>
+            </select>
+          </div>
+
+          {svcForm.filterType === 'employee' ? (
+            <div style={styles.field}>
+              <label style={styles.label}>Funcionário</label>
+              <select
+                value={svcForm.employeeId}
+                onChange={(e) => setSvcForm((p) => ({ ...p, employeeId: e.target.value }))}
+                style={styles.select}
+              >
+                <option value="">Selecione...</option>
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>{e.full_name} ({e.badge_number})</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div style={styles.field}>
+              <label style={styles.label}>Unidade</label>
+              <select
+                value={svcForm.unitId}
+                onChange={(e) => setSvcForm((p) => ({ ...p, unitId: e.target.value }))}
+                style={styles.select}
+              >
+                <option value="">Selecione...</option>
+                {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ ...styles.field, flex: 1 }}>
+              <label style={styles.label}>Data início</label>
+              <input type="date" value={svcForm.startDate}
+                onChange={(e) => setSvcForm((p) => ({ ...p, startDate: e.target.value }))}
+                style={styles.input} />
+            </div>
+            <div style={{ ...styles.field, flex: 1 }}>
+              <label style={styles.label}>Data fim</label>
+              <input type="date" value={svcForm.endDate}
+                onChange={(e) => setSvcForm((p) => ({ ...p, endDate: e.target.value }))}
+                style={styles.input} />
+            </div>
+          </div>
+
+          <button onClick={exportServicesPdf} style={{ ...styles.btn, background: '#7c3aed' }}>
+            Gerar PDF de Serviços
           </button>
         </div>
       </div>
