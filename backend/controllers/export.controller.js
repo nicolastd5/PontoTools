@@ -17,6 +17,11 @@ async function exportPdf(req, res, next) {
       return res.status(400).json({ error: 'Parâmetros obrigatórios: employeeId, month, year.' });
     }
 
+    // Sanitiza parâmetros que irão para o header Content-Disposition
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const safeMonth = String(parseInt(month, 10)).padStart(2, '0');
+    const safeYear  = String(parseInt(year,  10));
+
     // Dados do funcionário
     const empResult = await db.query(
       `SELECT e.full_name, e.badge_number, u.name AS unit_name
@@ -30,6 +35,7 @@ async function exportPdf(req, res, next) {
     }
 
     const emp = empResult.rows[0];
+    const safeBadge = emp.badge_number.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     // Registros do mês
     const recordsResult = await db.query(
@@ -57,7 +63,7 @@ async function exportPdf(req, res, next) {
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
 
     res.set('Content-Type', 'application/pdf');
-    res.set('Content-Disposition', `attachment; filename="cartao_ponto_${emp.badge_number}_${month}_${year}.pdf"`);
+    res.set('Content-Disposition', `attachment; filename="cartao_ponto_${safeBadge}_${safeMonth}_${safeYear}.pdf"`);
     doc.pipe(res);
 
     // Cabeçalho
@@ -127,6 +133,11 @@ async function exportExcel(req, res, next) {
 
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Parâmetros obrigatórios: startDate, endDate.' });
+    }
+
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRe.test(startDate) || !dateRe.test(endDate)) {
+      return res.status(400).json({ error: 'Formato de data inválido. Use YYYY-MM-DD.' });
     }
 
     const params  = [startDate, endDate];
@@ -275,6 +286,12 @@ async function exportServicesPdf(req, res, next) {
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Parâmetros obrigatórios: startDate, endDate.' });
     }
+
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRe.test(startDate) || !dateRe.test(endDate)) {
+      return res.status(400).json({ error: 'Formato de data inválido. Use YYYY-MM-DD.' });
+    }
+
     if (!employeeId && !unitId) {
       return res.status(400).json({ error: 'Informe employeeId ou unitId.' });
     }

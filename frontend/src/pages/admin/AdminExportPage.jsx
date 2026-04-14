@@ -2,6 +2,7 @@ import { useState }  from 'react';
 import { useQuery }  from '@tanstack/react-query';
 import api           from '../../services/api';
 import { useToast }  from '../../contexts/ToastContext';
+import { useAuth }   from '../../contexts/AuthContext';
 
 function useUnits() {
   return useQuery({ queryKey: ['units'], queryFn: () => api.get('/units').then((r) => r.data.units) });
@@ -13,6 +14,8 @@ function useEmployees() {
 
 export default function AdminExportPage() {
   const { error } = useToast();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const { data: units = []     } = useUnits();
   const { data: employees = [] } = useEmployees();
 
@@ -101,99 +104,103 @@ export default function AdminExportPage() {
       <h1 style={styles.title}>Exportar Dados</h1>
 
       <div style={styles.grid}>
-        {/* PDF — Cartão de Ponto */}
-        <div style={styles.card}>
-          <div style={styles.cardIcon}>📄</div>
-          <h2 style={styles.cardTitle}>Cartão de Ponto (PDF)</h2>
-          <p style={styles.cardDesc}>
-            Gera o cartão de ponto mensal do funcionário com tabela de horários por dia.
-          </p>
+        {/* PDF — Cartão de Ponto (admin only) */}
+        {isAdmin && (
+          <div style={styles.card}>
+            <div style={styles.cardIcon}>📄</div>
+            <h2 style={styles.cardTitle}>Cartão de Ponto (PDF)</h2>
+            <p style={styles.cardDesc}>
+              Gera o cartão de ponto mensal do funcionário com tabela de horários por dia.
+            </p>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Funcionário</label>
-            <select
-              value={pdfForm.employeeId}
-              onChange={(e) => setPdfForm((p) => ({ ...p, employeeId: e.target.value }))}
-              style={styles.select}
-            >
-              <option value="">Selecione...</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>{e.full_name} ({e.badge_number})</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ ...styles.field, flex: 1 }}>
-              <label style={styles.label}>Mês</label>
+            <div style={styles.field}>
+              <label style={styles.label}>Funcionário</label>
               <select
-                value={pdfForm.month}
-                onChange={(e) => setPdfForm((p) => ({ ...p, month: e.target.value }))}
+                value={pdfForm.employeeId}
+                onChange={(e) => setPdfForm((p) => ({ ...p, employeeId: e.target.value }))}
                 style={styles.select}
               >
                 <option value="">Selecione...</option>
-                {months.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>{e.full_name} ({e.badge_number})</option>
+                ))}
               </select>
             </div>
-            <div style={{ ...styles.field, width: 90 }}>
-              <label style={styles.label}>Ano</label>
-              <input
-                type="number" min="2020" max="2099"
-                value={pdfForm.year}
-                onChange={(e) => setPdfForm((p) => ({ ...p, year: e.target.value }))}
-                style={styles.input}
-              />
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ ...styles.field, flex: 1 }}>
+                <label style={styles.label}>Mês</label>
+                <select
+                  value={pdfForm.month}
+                  onChange={(e) => setPdfForm((p) => ({ ...p, month: e.target.value }))}
+                  style={styles.select}
+                >
+                  <option value="">Selecione...</option>
+                  {months.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              <div style={{ ...styles.field, width: 90 }}>
+                <label style={styles.label}>Ano</label>
+                <input
+                  type="number" min="2020" max="2099"
+                  value={pdfForm.year}
+                  onChange={(e) => setPdfForm((p) => ({ ...p, year: e.target.value }))}
+                  style={styles.input}
+                />
+              </div>
             </div>
+
+            <button onClick={exportPdf} style={styles.btn}>
+              Gerar PDF
+            </button>
           </div>
+        )}
 
-          <button onClick={exportPdf} style={styles.btn}>
-            Gerar PDF
-          </button>
-        </div>
+        {/* Excel — Auditoria bruta (admin only) */}
+        {isAdmin && (
+          <div style={styles.card}>
+            <div style={styles.cardIcon}>📊</div>
+            <h2 style={styles.cardTitle}>Auditoria Bruta (Excel)</h2>
+            <p style={styles.cardDesc}>
+              Exporta todas as batidas com colunas completas: UTC, local, coordenadas, motivo de bloqueio.
+            </p>
 
-        {/* Excel — Auditoria bruta */}
-        <div style={styles.card}>
-          <div style={styles.cardIcon}>📊</div>
-          <h2 style={styles.cardTitle}>Auditoria Bruta (Excel)</h2>
-          <p style={styles.cardDesc}>
-            Exporta todas as batidas com colunas completas: UTC, local, coordenadas, motivo de bloqueio.
-          </p>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Unidade (opcional)</label>
-            <select
-              value={xlsForm.unitId}
-              onChange={(e) => setXlsForm((p) => ({ ...p, unitId: e.target.value }))}
-              style={styles.select}
-            >
-              <option value="">Todas as unidades</option>
-              {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ ...styles.field, flex: 1 }}>
-              <label style={styles.label}>Data início</label>
-              <input
-                type="date" value={xlsForm.startDate}
-                onChange={(e) => setXlsForm((p) => ({ ...p, startDate: e.target.value }))}
-                style={styles.input}
-              />
+            <div style={styles.field}>
+              <label style={styles.label}>Unidade (opcional)</label>
+              <select
+                value={xlsForm.unitId}
+                onChange={(e) => setXlsForm((p) => ({ ...p, unitId: e.target.value }))}
+                style={styles.select}
+              >
+                <option value="">Todas as unidades</option>
+                {units.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
             </div>
-            <div style={{ ...styles.field, flex: 1 }}>
-              <label style={styles.label}>Data fim</label>
-              <input
-                type="date" value={xlsForm.endDate}
-                onChange={(e) => setXlsForm((p) => ({ ...p, endDate: e.target.value }))}
-                style={styles.input}
-              />
-            </div>
-          </div>
 
-          <button onClick={exportExcel} style={{ ...styles.btn, background: '#16a34a' }}>
-            Gerar Excel
-          </button>
-        </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ ...styles.field, flex: 1 }}>
+                <label style={styles.label}>Data início</label>
+                <input
+                  type="date" value={xlsForm.startDate}
+                  onChange={(e) => setXlsForm((p) => ({ ...p, startDate: e.target.value }))}
+                  style={styles.input}
+                />
+              </div>
+              <div style={{ ...styles.field, flex: 1 }}>
+                <label style={styles.label}>Data fim</label>
+                <input
+                  type="date" value={xlsForm.endDate}
+                  onChange={(e) => setXlsForm((p) => ({ ...p, endDate: e.target.value }))}
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            <button onClick={exportExcel} style={{ ...styles.btn, background: '#16a34a' }}>
+              Gerar Excel
+            </button>
+          </div>
+        )}
 
         {/* PDF — Relatório de Serviços */}
         <div style={styles.card}>
