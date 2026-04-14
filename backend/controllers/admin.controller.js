@@ -41,6 +41,20 @@ async function getAbsences(req, res, next) {
 }
 
 // ----------------------------------------------------------------
+// GET /api/admin/services/today
+// ServiÃ§os do dia (entrada/saÃ­da) para admin e gestor
+// ----------------------------------------------------------------
+async function getTodayServices(req, res, next) {
+  try {
+    const contractId = req.user.role === 'gestor' ? req.user.contractId : null;
+    const services   = await dashboardSvc.getTodayServices(contractId);
+    res.json({ services });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
 // GET /api/admin/clocks
 // Todos os registros com filtros e paginação
 // ----------------------------------------------------------------
@@ -485,4 +499,4 @@ async function deleteClockRecord(req, res, next) {
   }
 }
 
-module.exports = { getDashboard, getAbsences, getClocks, getClockPhoto, getClockPhotos, getClockExtraPhoto, deleteClockPhoto, deleteClockExtraPhoto, deleteClockRecord, getBlocked, getAuditLogs };
+module.exports = { getDashboard, getAbsences, getTodayServices, getClocks, getClockPhoto, getClockPhotos, getClockExtraPhoto, deleteClockPhoto, deleteClockExtraPhoto, deleteClockRecord, getBlocked, getAuditLogs };

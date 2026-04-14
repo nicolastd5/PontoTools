@@ -214,6 +214,42 @@ async function getServicesSummary() {
   };
 }
 
+/**
+ * Retorna serviÃ§os do dia (entrada/saÃ­da) agrupados por funcionÃ¡rio.
+ * @param {number|null} contractId - null = admin vÃª todos; nÃºmero = gestor vÃª sÃ³ o contrato
+ */
+async function getTodayServices(contractId = null) {
+  const contractFilter = contractId
+    ? 'AND c.id = $1'
+    : '';
+  const params = contractId ? [contractId] : [];
+
+  const result = await db.query(
+    `SELECT
+       e.id            AS employee_id,
+       e.full_name,
+       e.badge_number,
+       u.name          AS unit_name,
+       u.code          AS unit_code,
+       MAX(CASE WHEN cr.clock_type = 'entry' THEN cr.clocked_at_utc END) AS entry_time,
+       MAX(CASE WHEN cr.clock_type = 'exit' THEN cr.clocked_at_utc END) AS exit_time,
+       MAX(CASE WHEN cr.clock_type = 'entry' THEN cr.timezone END) AS timezone,
+       BOOL_AND(cr.is_inside_zone) AS all_inside_zone
+     FROM clock_records cr
+     JOIN employees e ON e.id = cr.employee_id
+     JOIN units u ON u.id = cr.unit_id
+     JOIN contracts c ON c.id = u.contract_id
+     WHERE cr.clocked_at_utc::date = CURRENT_DATE
+       AND cr.clock_type IN ('entry', 'exit')
+       ${contractFilter}
+     GROUP BY e.id, e.full_name, e.badge_number, u.name, u.code
+     ORDER BY entry_time ASC NULLS LAST`,
+    params
+  );
+
+  return result.rows;
+}
+
 module.exports = {
   getDailySummary,
   getRecentClocks,
@@ -221,4 +257,5 @@ module.exports = {
   getAbsentEmployees,
   getBlockedByReason,
   getServicesSummary,
+  getTodayServices,
 };

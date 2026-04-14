@@ -12,6 +12,9 @@ router.use(auth);
 router.get('/dashboard',           requireAdmin, controller.getDashboard);
 router.get('/dashboard/absences',  requireAdmin, controller.getAbsences);
 
+// Serviços do dia — admin e gestor
+router.get('/services/today', requireAdminOrGestor, controller.getTodayServices);
+
 // Registros de ponto — admin e gestor (gestor filtrado por contrato)
 router.get('/clocks',              requireAdminOrGestor, controller.getClocks);
 router.delete('/clocks/:id',                 requireAdminOrGestor, controller.deleteClockRecord);
