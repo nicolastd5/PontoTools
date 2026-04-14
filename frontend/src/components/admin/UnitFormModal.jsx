@@ -52,6 +52,7 @@ export default function UnitFormModal({ unit, onSave, onClose, contracts = [], u
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`,
         { headers: { 'Accept-Language': 'pt-BR' } }
       );
+      if (!res.ok) throw new Error(`Nominatim ${res.status}`);
       const data = await res.json();
       if (data[0]) {
         const lat = parseFloat(data[0].lat);
@@ -61,6 +62,8 @@ export default function UnitFormModal({ unit, onSave, onClose, contracts = [], u
         setMapCenter([lat, lng]);
         setMapKey((k) => k + 1);
       }
+    } catch {
+      // silencia — o pin permanece onde está
     } finally {
       setSearching(false);
     }
