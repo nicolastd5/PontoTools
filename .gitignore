@@ -11,6 +11,10 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Git worktrees
+.worktrees/
+.superpowers/
 mobile/node_modules
 mobile/android/.gradle
 mobile/android/app/build
