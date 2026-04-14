@@ -8,6 +8,7 @@ import { useToast }          from '../../contexts/ToastContext';
 import { useGeolocation }    from '../../hooks/useGeolocation';
 import GpsStatus             from '../../components/employee/GpsStatus';
 import CameraCapture         from '../../components/employee/CameraCapture';
+import ServiceCard           from '../../components/employee/ServiceCard';
 
 const CLOCK_TYPES = [
   { key: 'entry',       label: 'Entrada',           icon: '▶', color: '#16a34a', bg: '#f0fdf4' },
@@ -158,6 +159,10 @@ export default function EmployeeDashboardPage() {
       )}
 
       {/* Botões de batida */}
+      {/* Card de serviço em andamento / concluído */}
+      {todayRecords.length > 0 && (
+        <ServiceCard records={todayRecords} />
+      )}
       <div style={styles.clockGrid}>
         {CLOCK_TYPES.map((ct) => {
           const gpsBlocks = requireLocation && (!gpsOk || !isInsideZone);
