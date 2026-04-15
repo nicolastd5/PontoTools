@@ -76,11 +76,19 @@ export default function CameraCapture({ clockType, maxPhotos = 1, onCapture, onC
         </div>
 
         <div style={styles.body}>
+          {/* Header flutuante sobre o vídeo */}
+          <div style={styles.header}>
+            <span style={styles.headerTitle}>
+              {LABELS[clockType] || clockType || 'Foto'}
+            </span>
+            <button onClick={handleCancel} style={styles.closeBtn}>✕</button>
+          </div>
+
           {error ? (
             <div style={styles.error}>
               <div style={styles.errorIcon}>📷</div>
               <div style={styles.errorText}>{error}</div>
-              <button onClick={handleCancel} style={styles.cancelBtn}>Fechar</button>
+              <button onClick={handleCancel} style={{ ...styles.cancelBtn, maxWidth: 200, margin: '0 auto' }}>Fechar</button>
             </div>
           ) : (
             <>
@@ -169,25 +177,29 @@ export default function CameraCapture({ clockType, maxPhotos = 1, onCapture, onC
 const styles = {
   overlay: {
     position: 'fixed', inset: 0,
-    background: 'rgba(0,0,0,0.85)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 1000, padding: 16,
+    background: 'rgba(0,0,0,0.92)',
+    display: 'flex', alignItems: 'stretch', justifyContent: 'center',
+    zIndex: 1000,
   },
   modal: {
-    background: '#fff', borderRadius: 16,
-    width: '100%', maxWidth: 420, overflow: 'hidden',
+    background: '#000',
+    width: '100%', maxWidth: 640,
+    display: 'flex', flexDirection: 'column',
+    overflow: 'hidden',
   },
   header: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '16px 20px', borderBottom: '1px solid #f1f5f9',
+    padding: '14px 18px',
+    background: 'rgba(0,0,0,0.7)',
+    position: 'absolute', top: 0, left: 0, right: 0,
+    zIndex: 10,
   },
-  headerTitle: { fontWeight: 700, fontSize: 15, color: '#0f172a' },
-  closeBtn: { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#94a3b8' },
-  body: { padding: '20px' },
+  headerTitle: { fontWeight: 700, fontSize: 15, color: '#fff' },
+  closeBtn: { background: 'rgba(255,255,255,0.15)', border: 'none', fontSize: 18, cursor: 'pointer', color: '#fff', borderRadius: '50%', width: 36, height: 36 },
+  body: { flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' },
   videoContainer: {
     position: 'relative', background: '#000',
-    borderRadius: 12, overflow: 'hidden',
-    aspectRatio: '4/3', marginBottom: 14,
+    flex: 1, overflow: 'hidden',
   },
   video: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   videoLoader: {
@@ -196,16 +208,16 @@ const styles = {
     color: '#fff', fontSize: 14,
   },
   switchBtn: {
-    position: 'absolute', top: 10, right: 10,
+    position: 'absolute', top: 60, right: 16,
     background: 'rgba(0,0,0,0.5)', border: 'none',
-    borderRadius: '50%', width: 40, height: 40,
-    fontSize: 18, cursor: 'pointer',
+    borderRadius: '50%', width: 46, height: 46,
+    fontSize: 20, cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
   },
-  hint: { fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 12 },
-  thumbRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 },
+  hint: { fontSize: 12, color: 'rgba(255,255,255,0.7)', textAlign: 'center', padding: '6px 0', background: 'rgba(0,0,0,0.5)', margin: 0 },
+  thumbRow: { display: 'flex', gap: 8, flexWrap: 'wrap', padding: '8px 16px', background: 'rgba(0,0,0,0.6)' },
   thumbWrap: { position: 'relative' },
-  thumb: { width: 72, height: 72, borderRadius: 8, objectFit: 'cover', display: 'block', border: '1px solid #e2e8f0' },
+  thumb: { width: 64, height: 64, borderRadius: 8, objectFit: 'cover', display: 'block', border: '2px solid #fff' },
   thumbRemove: {
     position: 'absolute', top: -6, right: -6,
     background: '#dc2626', border: 'none', borderRadius: '50%',
@@ -213,21 +225,21 @@ const styles = {
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontWeight: 'bold',
   },
-  photoCount: { fontSize: 12, color: '#94a3b8', textAlign: 'center', marginBottom: 12 },
-  actions: { display: 'flex', gap: 8 },
+  photoCount: { fontSize: 12, color: 'rgba(255,255,255,0.7)', textAlign: 'center', padding: '4px 0', background: 'rgba(0,0,0,0.6)', margin: 0 },
+  actions: { display: 'flex', gap: 10, padding: '14px 16px', background: '#111', paddingBottom: 'env(safe-area-inset-bottom, 14px)' },
   cancelBtn: {
-    flex: 1, padding: '12px', background: '#f1f5f9', border: 'none',
-    borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#475569',
+    flex: 1, padding: '14px', background: '#374151', border: 'none',
+    borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#fff',
   },
   captureBtn: {
-    flex: 2, padding: '12px', background: '#1d4ed8', border: 'none',
-    borderRadius: 10, fontSize: 14, fontWeight: 700, color: '#fff', transition: 'background 0.15s',
+    flex: 2, padding: '14px', background: '#1d4ed8', border: 'none',
+    borderRadius: 12, fontSize: 15, fontWeight: 700, color: '#fff', transition: 'background 0.15s',
   },
   confirmBtn: {
-    flex: 2, padding: '12px', background: '#16a34a', border: 'none',
-    borderRadius: 10, fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer',
+    flex: 2, padding: '14px', background: '#16a34a', border: 'none',
+    borderRadius: 12, fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer',
   },
-  error: { textAlign: 'center', padding: '20px 0' },
-  errorIcon: { fontSize: 40, marginBottom: 12 },
-  errorText: { fontSize: 13, color: '#dc2626', marginBottom: 16, lineHeight: 1.6 },
+  error: { textAlign: 'center', padding: '40px 20px', color: '#fff' },
+  errorIcon: { fontSize: 48, marginBottom: 16 },
+  errorText: { fontSize: 14, color: '#fca5a5', marginBottom: 20, lineHeight: 1.6 },
 };

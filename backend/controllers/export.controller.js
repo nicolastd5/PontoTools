@@ -362,8 +362,9 @@ async function exportServicesPdf(req, res, next) {
       // Cabeçalho
       doc.fontSize(16).font('Helvetica-Bold').text('RELATÓRIO DE ORDENS DE SERVIÇO', { align: 'center' });
       doc.moveDown(0.3);
+      const fmtQueryDate = (s) => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
       doc.fontSize(11).font('Helvetica')
-         .text(`Período: ${new Date(startDate + 'T12:00:00').toLocaleDateString('pt-BR')} a ${new Date(endDate + 'T12:00:00').toLocaleDateString('pt-BR')}`, { align: 'center' });
+         .text(`Período: ${fmtQueryDate(startDate)} a ${fmtQueryDate(endDate)}`, { align: 'center' });
       doc.moveDown(0.3);
       doc.fontSize(10).fillColor('#64748b')
          .text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' });
@@ -375,7 +376,9 @@ async function exportServicesPdf(req, res, next) {
       for (const svc of result.rows) {
         if (doc.y > 580) doc.addPage();
 
-        const scheduledDate = new Date(svc.scheduled_date + 'T12:00:00').toLocaleDateString('pt-BR');
+        // scheduled_date vem como objeto Date do pg — formata direto sem re-parsear
+        const sd = new Date(svc.scheduled_date);
+        const scheduledDate = `${String(sd.getUTCDate()).padStart(2,'0')}/${String(sd.getUTCMonth()+1).padStart(2,'0')}/${sd.getUTCFullYear()}`;
         const startedAt  = svc.started_at  ? new Date(svc.started_at).toLocaleString('pt-BR')  : '—';
         const finishedAt = svc.finished_at ? new Date(svc.finished_at).toLocaleString('pt-BR') : '—';
 
@@ -420,9 +423,9 @@ async function exportServicesPdf(req, res, next) {
         const beforePhotos = photos.filter((p) => p.phase === 'before');
         const afterPhotos  = photos.filter((p) => p.phase === 'after');
 
-        const imgSize  = 120;
-        const imgGap   = 10;
-        const maxPerRow = 4;
+        const imgSize  = 220;
+        const imgGap   = 15;
+        const maxPerRow = 2;
 
         async function renderPhotoRow(label, photoList) {
           if (!photoList.length) return;
