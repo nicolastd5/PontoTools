@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
@@ -34,6 +34,7 @@ export default function EmployeeServicesPage() {
   const [issuesModal, setIssuesModal]     = useState(false);
   const [issuesText, setIssuesText]       = useState('');
   const [lightbox, setLightbox]           = useState(null); // src da foto ampliada
+  const gpsRef = useRef(null); // coordenadas capturadas ao abrir câmera
 
   // Status update mutation
   const statusMutation = useMutation({
@@ -49,28 +50,32 @@ export default function EmployeeServicesPage() {
     onError: (err) => error(err.response?.data?.error || 'Erro ao atualizar status.'),
   });
 
-  // Captura GPS silenciosamente
-  function getGps() {
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-        ()    => resolve(null),
-        { timeout: 6000, maximumAge: 30000 }
+  // Captura GPS e guarda no ref — chama antes de abrir câmera
+  async function captureGps() {
+    gpsRef.current = null;
+    if (!navigator.geolocation) return;
+    try {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, maximumAge: 0, enableHighAccuracy: true })
       );
-    });
+      gpsRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+    } catch {}
+  }
+
+  async function openCamera(phase) {
+    await captureGps();
+    setCameraPhase(phase);
   }
 
   // Photo upload mutation
   const photoMutation = useMutation({
     mutationFn: async ({ id, phase, blob }) => {
-      const gps = await getGps();
       const fd = new FormData();
       fd.append('photo', blob, 'photo.jpg');
       fd.append('phase', phase);
-      if (gps) {
-        fd.append('latitude',  String(gps.latitude));
-        fd.append('longitude', String(gps.longitude));
+      if (gpsRef.current) {
+        fd.append('latitude',  String(gpsRef.current.latitude));
+        fd.append('longitude', String(gpsRef.current.longitude));
       }
       return api.post(`/services/${id}/photos`, fd);
     },
@@ -222,14 +227,14 @@ export default function EmployeeServicesPage() {
 
                 {/* Foto antes — inicia automaticamente */}
                 {detail.status === 'pending' && (
-                  <button onClick={() => setCameraPhase('before')} style={{ ...primaryBtn, background: '#1d4ed8' }}>
+                  <button onClick={() => openCamera('before')} style={{ ...primaryBtn, background: '#1d4ed8' }}>
                     📷 Enviar Foto de Início
                   </button>
                 )}
 
                 {/* Foto depois — conclui automaticamente */}
                 {detail.status === 'in_progress' && (
-                  <button onClick={() => setCameraPhase('after')} style={{ ...primaryBtn, background: '#16a34a' }}>
+                  <button onClick={() => openCamera('after')} style={{ ...primaryBtn, background: '#16a34a' }}>
                     📷 Enviar Foto de Conclusão
                   </button>
                 )}
@@ -279,7 +284,7 @@ export default function EmployeeServicesPage() {
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
-                onClick={() => { setIssuesModal(false); setCameraPhase('issues'); }}
+                onClick={() => { setIssuesModal(false); openCamera('issues'); }}
                 disabled={!issuesText.trim()}
                 style={{ ...primaryBtn, background: '#ea580c', opacity: !issuesText.trim() ? 0.6 : 1 }}>
                 📷 Tirar Foto e Concluir
