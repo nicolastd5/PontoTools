@@ -207,7 +207,7 @@ export default function AdminExportPage() {
           <div style={styles.cardIcon}>📋</div>
           <h2 style={styles.cardTitle}>Relatório de Serviços (PDF)</h2>
           <p style={styles.cardDesc}>
-            Exporta os serviços (turnos completos) com fotos de entrada e saída de cada funcionário.
+            Exporta as ordens de serviço do período com status, horários de início/conclusão e fotos antes/depois.
           </p>
 
           <div style={styles.field}>
