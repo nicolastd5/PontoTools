@@ -7,7 +7,6 @@ import api from '../../services/api';
 import './AdminLayout.css';
 
 const ADMIN_NAV = [
-  { to: '/admin/units',         label: 'Unidades',      icon: 'ðŸ“' },
   { to: '/admin/dashboard',     label: 'Dashboard',     icon: '▦' },
   { to: '/admin/employees',     label: 'Funcionários',  icon: '👤' },
   { to: '/admin/clocks',        label: 'Registros',     icon: '🕐' },

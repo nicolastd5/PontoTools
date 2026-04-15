@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import UnitFormModal from '../../components/admin/UnitFormModal';
 
 function useContracts() {
   return useQuery({
@@ -11,20 +12,17 @@ function useContracts() {
 }
 
 const EMPTY_CONTRACT = { name: '', code: '', description: '' };
-const EMPTY_UNIT = { name: '', code: '', latitude: '', longitude: '', radius_meters: '100', address: '', contract_id: '' };
 
 export default function AdminContractsPage() {
   const queryClient = useQueryClient();
   const { success, error } = useToast();
   const { data, isLoading } = useContracts();
 
-  const [expanded, setExpanded]         = useState({});
-  const [contractModal, setContractModal] = useState(null); // null | { mode: 'create'|'edit', data? }
-  const [unitModal, setUnitModal]         = useState(null); // null | { mode: 'create'|'edit', contractId, data? }
+  const [expanded, setExpanded]           = useState({});
+  const [contractModal, setContractModal] = useState(null); // null | 'form'
+  const [unitModal, setUnitModal]         = useState(null); // null | { unit?: object }
   const [contractForm, setContractForm]   = useState(EMPTY_CONTRACT);
-  const [unitForm, setUnitForm]           = useState(EMPTY_UNIT);
   const [editContractId, setEditContractId] = useState(null);
-  const [editUnitId, setEditUnitId]         = useState(null);
 
   const createContract = useMutation({
     mutationFn: (body) => api.post('/contracts', body),
@@ -58,15 +56,24 @@ export default function AdminContractsPage() {
 
   const createUnit = useMutation({
     mutationFn: (body) => api.post('/units', body),
-    onSuccess: () => { queryClient.invalidateQueries(['contracts']); queryClient.invalidateQueries(['units']); success('Posto criado.'); closeUnitModal(); },
+    onSuccess: () => { queryClient.invalidateQueries(['contracts']); queryClient.invalidateQueries(['units']); success('Posto criado.'); setUnitModal(null); },
     onError: (e) => error(e.response?.data?.error || 'Erro ao criar posto.'),
   });
 
   const updateUnit = useMutation({
     mutationFn: ({ id, body }) => api.put(`/units/${id}`, body),
-    onSuccess: () => { queryClient.invalidateQueries(['contracts']); queryClient.invalidateQueries(['units']); success('Posto atualizado.'); closeUnitModal(); },
+    onSuccess: () => { queryClient.invalidateQueries(['contracts']); queryClient.invalidateQueries(['units']); success('Posto atualizado.'); setUnitModal(null); },
     onError: (e) => error(e.response?.data?.error || 'Erro ao atualizar posto.'),
   });
+
+  function handleUnitSave(formData) {
+    const unitId = unitModal?.unit?.id;
+    if (unitId) {
+      updateUnit.mutate({ id: unitId, body: formData });
+    } else {
+      createUnit.mutate(formData);
+    }
+  }
 
   function openCreateContract() {
     setContractForm(EMPTY_CONTRACT);
@@ -86,52 +93,6 @@ export default function AdminContractsPage() {
     setEditContractId(null);
   }
 
-  function openCreateUnit(contractId) {
-    setUnitForm({ ...EMPTY_UNIT, contract_id: contractId });
-    setEditUnitId(null);
-    setUnitModal('form');
-  }
-
-  function openEditUnit(u) {
-    setUnitForm({
-      name: u.name, code: u.code,
-      latitude: u.latitude, longitude: u.longitude,
-      radius_meters: u.radius_meters, address: u.address || '',
-      contract_id: u.contract_id || '',
-    });
-    setEditUnitId(u.id);
-    setUnitModal('form');
-  }
-
-  function closeUnitModal() {
-    setUnitModal(null);
-    setUnitForm(EMPTY_UNIT);
-    setEditUnitId(null);
-  }
-
-  async function handleContractSubmit(e) {
-    e.preventDefault();
-    if (editContractId) {
-      updateContract.mutate({ id: editContractId, body: contractForm });
-    } else {
-      createContract.mutate(contractForm);
-    }
-  }
-
-  async function handleUnitSubmit(e) {
-    e.preventDefault();
-    const body = {
-      ...unitForm,
-      radius_meters: parseInt(unitForm.radius_meters, 10),
-      contract_id: unitForm.contract_id || null,
-    };
-    if (editUnitId) {
-      updateUnit.mutate({ id: editUnitId, body });
-    } else {
-      createUnit.mutate(body);
-    }
-  }
-
   function toggleExpand(id) {
     setExpanded((p) => ({ ...p, [id]: !p[id] }));
   }
@@ -139,7 +100,6 @@ export default function AdminContractsPage() {
   const contracts = data?.contracts || [];
   const unassigned = data?.unassigned || [];
   const isSavingContract = createContract.isLoading || updateContract.isLoading;
-  const isSavingUnit = createUnit.isLoading || updateUnit.isLoading;
 
   return (
     <div>
@@ -160,10 +120,7 @@ export default function AdminContractsPage() {
               {/* Cabeçalho do contrato */}
               <div style={styles.contractHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <button
-                    onClick={() => toggleExpand(c.id)}
-                    style={styles.expandBtn}
-                  >
+                  <button onClick={() => toggleExpand(c.id)} style={styles.expandBtn}>
                     {expanded[c.id] ? '▾' : '▸'}
                   </button>
                   <span style={styles.contractCode}>{c.code}</span>
@@ -181,7 +138,7 @@ export default function AdminContractsPage() {
                   <span style={styles.unitCount}>{c.units.length} posto{c.units.length !== 1 ? 's' : ''}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => openCreateUnit(c.id)} style={styles.outlineBtn}>+ Posto</button>
+                  <button onClick={() => setUnitModal({ unit: { contract_id: c.id } })} style={styles.outlineBtn}>+ Posto</button>
                   <button onClick={() => openEditContract(c)} style={styles.outlineBtn}>Editar</button>
                   {c.active && (
                     <button onClick={() => deactivateContract.mutate(c.id)} style={styles.dangerBtn}>Desativar</button>
@@ -201,7 +158,12 @@ export default function AdminContractsPage() {
               {expanded[c.id] && (
                 <div style={styles.unitsList}>
                   {c.units.length === 0 ? (
-                    <p style={styles.emptyUnits}>Nenhum posto neste contrato. <button onClick={() => openCreateUnit(c.id)} style={styles.linkBtn}>Adicionar posto</button></p>
+                    <p style={styles.emptyUnits}>
+                      Nenhum posto neste contrato.{' '}
+                      <button onClick={() => setUnitModal({ unit: { contract_id: c.id } })} style={styles.linkBtn}>
+                        Adicionar posto
+                      </button>
+                    </p>
                   ) : (
                     c.units.map((u) => (
                       <div key={u.id} style={styles.unitRow}>
@@ -218,7 +180,7 @@ export default function AdminContractsPage() {
                         >
                           Mapa ↗
                         </a>
-                        <button onClick={() => openEditUnit(u)} style={styles.outlineBtn}>Editar</button>
+                        <button onClick={() => setUnitModal({ unit: u })} style={styles.outlineBtn}>Editar</button>
                         <button
                           onClick={() => {
                             if (window.confirm(`Excluir o posto "${u.name}" permanentemente?`))
@@ -255,7 +217,7 @@ export default function AdminContractsPage() {
                         {u.address && <div style={styles.unitAddress}>{u.address}</div>}
                       </div>
                       <span style={styles.unitRadius}>{u.radius_meters}m</span>
-                      <button onClick={() => openEditUnit(u)} style={styles.outlineBtn}>Editar</button>
+                      <button onClick={() => setUnitModal({ unit: u })} style={styles.outlineBtn}>Editar</button>
                       <button
                         onClick={() => {
                           if (window.confirm(`Excluir o posto "${u.name}" permanentemente?`))
@@ -283,7 +245,7 @@ export default function AdminContractsPage() {
         <div style={overlay} onClick={closeContractModal}>
           <div style={modalCard} onClick={(e) => e.stopPropagation()}>
             <h2 style={modalTitle}>{editContractId ? 'Editar Contrato' : 'Novo Contrato'}</h2>
-            <form onSubmit={handleContractSubmit} style={formStyle}>
+            <form onSubmit={(e) => { e.preventDefault(); editContractId ? updateContract.mutate({ id: editContractId, body: contractForm }) : createContract.mutate(contractForm); }} style={formStyle}>
               <div style={fieldStyle}>
                 <label style={labelStyle}>Nome *</label>
                 <input value={contractForm.name} onChange={(e) => setContractForm((p) => ({ ...p, name: e.target.value }))} required placeholder="Nome do contrato" style={inputStyle} />
@@ -307,56 +269,15 @@ export default function AdminContractsPage() {
         </div>
       )}
 
-      {/* Modal de Posto */}
-      {unitModal === 'form' && (
-        <div style={overlay} onClick={closeUnitModal}>
-          <div style={{ ...modalCard, maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={modalTitle}>{editUnitId ? 'Editar Posto' : 'Novo Posto'}</h2>
-            <form onSubmit={handleUnitSubmit} style={formStyle}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Nome *</label>
-                  <input value={unitForm.name} onChange={(e) => setUnitForm((p) => ({ ...p, name: e.target.value }))} required placeholder="Nome do posto" style={inputStyle} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Código *</label>
-                  <input value={unitForm.code} onChange={(e) => setUnitForm((p) => ({ ...p, code: e.target.value }))} required placeholder="POSTO001" style={inputStyle} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Latitude *</label>
-                  <input value={unitForm.latitude} onChange={(e) => setUnitForm((p) => ({ ...p, latitude: e.target.value }))} required placeholder="-23.5505" style={inputStyle} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Longitude *</label>
-                  <input value={unitForm.longitude} onChange={(e) => setUnitForm((p) => ({ ...p, longitude: e.target.value }))} required placeholder="-46.6333" style={inputStyle} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Raio (metros)</label>
-                  <input type="number" value={unitForm.radius_meters} onChange={(e) => setUnitForm((p) => ({ ...p, radius_meters: e.target.value }))} min="10" style={inputStyle} />
-                </div>
-                <div style={fieldStyle}>
-                  <label style={labelStyle}>Contrato</label>
-                  <select value={unitForm.contract_id} onChange={(e) => setUnitForm((p) => ({ ...p, contract_id: e.target.value }))} style={inputStyle}>
-                    <option value="">Sem contrato</option>
-                    {(data?.contracts || []).map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div style={fieldStyle}>
-                <label style={labelStyle}>Endereço</label>
-                <input value={unitForm.address} onChange={(e) => setUnitForm((p) => ({ ...p, address: e.target.value }))} placeholder="Endereço completo" style={inputStyle} />
-              </div>
-              <div style={modalActions}>
-                <button type="button" onClick={closeUnitModal} style={styles.outlineBtn}>Cancelar</button>
-                <button type="submit" disabled={isSavingUnit} style={{ ...styles.primaryBtn, opacity: isSavingUnit ? 0.7 : 1 }}>
-                  {isSavingUnit ? 'Salvando...' : editUnitId ? 'Salvar' : 'Criar Posto'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {/* Modal de Posto com mapa interativo */}
+      {unitModal !== null && (
+        <UnitFormModal
+          unit={unitModal.unit}
+          contracts={contracts}
+          userRole="admin"
+          onSave={handleUnitSave}
+          onClose={() => setUnitModal(null)}
+        />
       )}
     </div>
   );

@@ -22,13 +22,15 @@ function ClickHandler({ onMapClick }) {
 export default function UnitFormModal({ unit, onSave, onClose, contracts = [], userRole }) {
   const isEdit = Boolean(unit?.id);
 
-  const [form, setForm] = useState(
-    unit
-      ? { name: unit.name, code: unit.code, radius_meters: unit.radius_meters,
-          address: unit.address || '', latitude: parseFloat(unit.latitude), longitude: parseFloat(unit.longitude),
-          contract_id: unit.contract_id || '' }
-      : { ...EMPTY, contract_id: '' }
-  );
+  const [form, setForm] = useState(() => {
+    if (!unit) return { ...EMPTY, contract_id: '' };
+    if (!unit.id) return { ...EMPTY, contract_id: unit.contract_id || '' };
+    return {
+      name: unit.name, code: unit.code, radius_meters: unit.radius_meters,
+      address: unit.address || '', latitude: parseFloat(unit.latitude), longitude: parseFloat(unit.longitude),
+      contract_id: unit.contract_id || '',
+    };
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [searching,   setSearching]   = useState(false);
   const [mapCenter,   setMapCenter]   = useState([form.latitude, form.longitude]);
