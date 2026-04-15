@@ -314,7 +314,7 @@ async function exportServicesPdf(req, res, next) {
          so.started_at, so.finished_at,
          so.problem_description, so.issue_description,
          e.full_name, e.badge_number,
-         u.name AS unit_name
+         u.name AS unit_name, u.address AS unit_address
        FROM service_orders so
        JOIN employees e ON e.id = so.assigned_employee_id
        JOIN units     u ON u.id = so.unit_id
@@ -391,6 +391,9 @@ async function exportServicesPdf(req, res, next) {
         // Linha de metadados
         doc.fontSize(9).font('Helvetica').fillColor('#64748b')
            .text(`${svc.full_name}  ·  ${svc.unit_name}  ·  Agendado: ${scheduledDate}${svc.due_time ? ' às ' + svc.due_time.slice(0,5) : ''}  ·  Status: ${STATUS_LABEL[svc.status] || svc.status}`);
+        if (svc.unit_address) {
+          doc.fontSize(9).fillColor('#64748b').text(`📍 ${svc.unit_address}`);
+        }
         doc.fillColor('#000');
         doc.moveDown(0.3);
 
