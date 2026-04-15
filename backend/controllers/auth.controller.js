@@ -22,7 +22,7 @@ async function login(req, res, next) {
     const result = await db.query(
       `SELECT e.*, u.name AS unit_name, u.code AS unit_code
        FROM employees e
-       JOIN units u ON u.id = e.unit_id
+       LEFT JOIN units u ON u.id = e.unit_id
        WHERE e.email = $1 AND e.active = TRUE`,
       [email.toLowerCase().trim()]
     );
@@ -218,7 +218,7 @@ async function me(req, res, next) {
               e.unit_id, u.name AS unit_name, u.code AS unit_code,
               u.latitude, u.longitude, u.radius_meters
        FROM employees e
-       JOIN units u ON u.id = e.unit_id
+       LEFT JOIN units u ON u.id = e.unit_id
        WHERE e.id = $1 AND e.active = TRUE`,
       [req.user.id]
     );
