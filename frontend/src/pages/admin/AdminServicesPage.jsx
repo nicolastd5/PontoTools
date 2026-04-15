@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone } from 'date-fns-tz';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
 
 const STATUS_LABEL = {
   pending:          'Pendente',
@@ -11,14 +12,6 @@ const STATUS_LABEL = {
   done_with_issues: 'Concluído c/ ressalvas',
   problem:          'Problema',
 };
-const STATUS_COLOR = {
-  pending:          { bg: '#fef9c3', color: '#854d0e' },
-  in_progress:      { bg: '#dbeafe', color: '#1e40af' },
-  done:             { bg: '#dcfce7', color: '#166534' },
-  done_with_issues: { bg: '#fff7ed', color: '#c2410c' },
-  problem:          { bg: '#fee2e2', color: '#991b1b' },
-};
-
 function useServices(filters) {
   return useQuery({
     queryKey: ['admin-services', filters],
@@ -190,7 +183,6 @@ export default function AdminServicesPage() {
             </thead>
             <tbody>
               {services.map((sv) => {
-                const sc = STATUS_COLOR[sv.status] || STATUS_COLOR.pending;
                 return (
                   <tr key={sv.id} style={{ borderBottom: '1px solid #f8fafc' }}>
                     <td style={s.td}>
@@ -201,9 +193,7 @@ export default function AdminServicesPage() {
                     <td style={s.td}>{new Date(sv.scheduled_date).toLocaleDateString('pt-BR')}</td>
                     <td style={s.td}>{sv.due_time ? sv.due_time.slice(0, 5) : '—'}</td>
                     <td style={s.td}>
-                      <span style={{ ...badge, background: sc.bg, color: sc.color }}>
-                        {STATUS_LABEL[sv.status]}
-                      </span>
+                      <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />
                     </td>
                     <td style={s.td}>
                       <button onClick={() => openDetail(sv)} style={actionBtn}>Ver detalhes</button>
@@ -266,7 +256,7 @@ export default function AdminServicesPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
                 <h2 style={modalTitle}>{detailModal.title}</h2>
-                <span style={{ ...badge, ...STATUS_COLOR[detailModal.status] }}>{STATUS_LABEL[detailModal.status]}</span>
+                <ServiceStatusBadge status={detailModal.status} label={STATUS_LABEL[detailModal.status]} />
               </div>
               <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
             </div>
@@ -452,7 +442,6 @@ function InfoRow({ label, value }) {
   );
 }
 
-const badge     = { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, display: 'inline-block' };
 const actionBtn = { padding: '4px 12px', fontSize: 12, cursor: 'pointer', border: '1px solid #e2e8f0', borderRadius: 6, background: '#f8fafc', color: '#374151' };
 const statusBtn = { padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', borderRadius: 8 };
 const overlay   = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 };

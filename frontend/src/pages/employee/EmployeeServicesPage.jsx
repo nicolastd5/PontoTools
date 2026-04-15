@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import CameraCapture from '../../components/employee/CameraCapture';
+import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
 
 const STATUS_LABEL = {
   pending:          'Pendente',
@@ -11,14 +12,6 @@ const STATUS_LABEL = {
   done_with_issues: 'Concluído c/ ressalvas',
   problem:          'Problema',
 };
-const STATUS_COLOR = {
-  pending:          { bg: '#fef9c3', color: '#854d0e' },
-  in_progress:      { bg: '#dbeafe', color: '#1e40af' },
-  done:             { bg: '#dcfce7', color: '#166534' },
-  done_with_issues: { bg: '#fff7ed', color: '#c2410c' },
-  problem:          { bg: '#fee2e2', color: '#991b1b' },
-};
-
 function useMyServices() {
   return useQuery({
     queryKey: ['my-services'],
@@ -139,7 +132,6 @@ export default function EmployeeServicesPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {services.map((sv) => {
-            const sc = STATUS_COLOR[sv.status] || STATUS_COLOR.pending;
             return (
               <div key={sv.id} style={s.card} onClick={() => openDetail(sv)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -147,7 +139,7 @@ export default function EmployeeServicesPage() {
                     <div style={s.cardTitle}>{sv.title}</div>
                     {sv.description && <div style={s.cardDesc}>{sv.description.slice(0, 80)}{sv.description.length > 80 ? '…' : ''}</div>}
                   </div>
-                  <span style={{ ...badge, background: sc.bg, color: sc.color }}>{STATUS_LABEL[sv.status]}</span>
+                  <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />
                 </div>
                 <div style={s.cardMeta}>
                   <span>📅 {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')}</span>
@@ -166,7 +158,7 @@ export default function EmployeeServicesPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
                 <h2 style={modalTitle}>{detail.title}</h2>
-                <span style={{ ...badge, ...STATUS_COLOR[detail.status] }}>{STATUS_LABEL[detail.status]}</span>
+                <ServiceStatusBadge status={detail.status} label={STATUS_LABEL[detail.status]} />
               </div>
               <button onClick={() => setDetail(null)} style={closeBtn}>✕</button>
             </div>
@@ -349,7 +341,6 @@ function PhotoSection({ title, photos, photoSrc, onLoad, serviceId, onOpen }) {
   );
 }
 
-const badge = { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, display: 'inline-block' };
 const overlay   = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 };
 const modalCard = { background: '#fff', borderRadius: 12, padding: '24px 20px', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' };
 const modalTitle = { fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 8 };
