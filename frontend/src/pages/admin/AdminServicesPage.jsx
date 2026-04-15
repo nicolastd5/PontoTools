@@ -276,6 +276,8 @@ export default function AdminServicesPage() {
               <InfoRow label="Unidade" value={detailModal.unit_name} />
               <InfoRow label="Data" value={new Date(detailModal.scheduled_date).toLocaleDateString('pt-BR')} />
               <InfoRow label="Prazo" value={detailModal.due_time?.slice(0, 5) || '—'} />
+              <InfoRow label="Iniciado em" value={detailModal.started_at ? new Date(detailModal.started_at).toLocaleString('pt-BR') : '—'} />
+              <InfoRow label="Concluído em" value={detailModal.finished_at ? new Date(detailModal.finished_at).toLocaleString('pt-BR') : '—'} />
             </div>
 
             {detailModal.description && (

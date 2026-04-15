@@ -20,6 +20,8 @@ interface ServiceOrder {
   due_time: string | null;
   unit_name: string;
   problem_description: string | null;
+  started_at: string | null;
+  finished_at: string | null;
 }
 
 interface ServicePhoto {
@@ -215,6 +217,17 @@ export default function ServicesScreen({
                     </View>
                   ) : null}
 
+                  {(selected.started_at || selected.finished_at) ? (
+                    <View style={modal.tsBox}>
+                      {selected.started_at ? (
+                        <Text style={modal.tsText}>▶ Iniciado em: {new Date(selected.started_at).toLocaleString('pt-BR')}</Text>
+                      ) : null}
+                      {selected.finished_at ? (
+                        <Text style={modal.tsText}>✔ Concluído em: {new Date(selected.finished_at).toLocaleString('pt-BR')}</Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+
                   {/* Fotos existentes */}
                   {photos.length > 0 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
@@ -337,6 +350,8 @@ const modal = StyleSheet.create({
   problemBox:   { backgroundColor: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 12 },
   problemLabel: { fontSize: 11, fontWeight: '700', color: '#dc2626', marginBottom: 4 },
   problemText:  { fontSize: 13, color: '#374151' },
+  tsBox:        { backgroundColor: '#f0fdf4', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#bbf7d0' },
+  tsText:       { fontSize: 13, color: '#166534', marginBottom: 2 },
   thumb:        { width: 80, height: 80, borderRadius: 8, resizeMode: 'cover' },
   thumbLabel:   { fontSize: 10, color: '#64748b', textAlign: 'center', marginTop: 2 },
   removeBtn:    { position: 'absolute', top: 2, right: 2, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },

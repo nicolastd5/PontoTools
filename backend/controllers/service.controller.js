@@ -38,6 +38,7 @@ async function list(req, res, next) {
       `SELECT
          so.id, so.title, so.description, so.status,
          so.scheduled_date, so.due_time, so.problem_description,
+         so.started_at, so.finished_at,
          so.created_at, so.updated_at,
          e.full_name  AS employee_name,
          cb.full_name AS created_by_name,
@@ -184,12 +185,19 @@ async function updateStatus(req, res, next) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
+    // Determina quais timestamps atualizar conforme a transição de status
+    const tsExtra =
+      status === 'in_progress'                          ? ', started_at  = COALESCE(started_at,  NOW())' :
+      ['done', 'done_with_issues', 'problem'].includes(status) ? ', finished_at = COALESCE(finished_at, NOW())' :
+      '';
+
     const result = await db.query(
       `UPDATE service_orders
        SET status = $1,
            problem_description = COALESCE($2, problem_description),
            issue_description   = COALESCE($3, issue_description),
            updated_at = NOW()
+           ${tsExtra}
        WHERE id = $4
        RETURNING *`,
       [status, problem_description?.trim() || null, issue_description?.trim() || null, id]
@@ -258,17 +266,21 @@ async function addPhoto(req, res, next) {
       [id, phase, filename]
     );
 
-    // Foto "antes" → muda para in_progress (se ainda pendente)
-    // Foto "depois" → muda para done (se in_progress)
+    // Foto "antes" → muda para in_progress (se ainda pendente) e marca started_at
+    // Foto "depois" → muda para done (se in_progress) e marca finished_at
     const svc = current.rows[0];
     if (phase === 'before' && svc.status === 'pending') {
       await db.query(
-        `UPDATE service_orders SET status = 'in_progress', updated_at = NOW() WHERE id = $1`,
+        `UPDATE service_orders
+         SET status = 'in_progress', started_at = COALESCE(started_at, NOW()), updated_at = NOW()
+         WHERE id = $1`,
         [id]
       );
     } else if (phase === 'after' && svc.status === 'in_progress') {
       await db.query(
-        `UPDATE service_orders SET status = 'done', updated_at = NOW() WHERE id = $1`,
+        `UPDATE service_orders
+         SET status = 'done', finished_at = COALESCE(finished_at, NOW()), updated_at = NOW()
+         WHERE id = $1`,
         [id]
       );
     }

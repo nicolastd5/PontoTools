@@ -286,57 +286,6 @@ async function unsubscribe(req, res, next) {
   }
 }
 
-// ----------------------------------------------------------------
-// POST /api/notifications/subscribe-fcm
-// Registra ou atualiza token FCM do funcionário (app nativo)
-// ----------------------------------------------------------------
-async function subscribeFcm(req, res, next) {
-  try {
-    const { fcm_token } = req.body;
-    if (!fcm_token) return res.status(400).json({ error: 'fcm_token obrigatório.' });
-
-    const existing = await db.query(
-      `SELECT id FROM push_subscriptions
-       WHERE employee_id = $1 AND (endpoint IS NULL OR endpoint = '')`,
-      [req.user.id]
-    );
-
-    if (existing.rows.length > 0) {
-      await db.query(
-        `UPDATE push_subscriptions SET fcm_token = $1 WHERE id = $2`,
-        [fcm_token, existing.rows[0].id]
-      );
-    } else {
-      await db.query(
-        `INSERT INTO push_subscriptions (employee_id, fcm_token, endpoint, p256dh, auth)
-         VALUES ($1, $2, NULL, NULL, NULL)`,
-        [req.user.id, fcm_token]
-      );
-    }
-
-    res.json({ ok: true });
-  } catch (err) {
-    next(err);
-  }
-}
-
-// ----------------------------------------------------------------
-// DELETE /api/notifications/subscribe-fcm
-// Remove token FCM do funcionário
-// ----------------------------------------------------------------
-async function unsubscribeFcm(req, res, next) {
-  try {
-    await db.query(
-      `UPDATE push_subscriptions SET fcm_token = NULL
-       WHERE employee_id = $1 AND fcm_token IS NOT NULL`,
-      [req.user.id]
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    next(err);
-  }
-}
-
 module.exports = {
   list,
   markRead,
@@ -346,6 +295,4 @@ module.exports = {
   send,
   subscribe,
   unsubscribe,
-  subscribeFcm,
-  unsubscribeFcm,
 };

@@ -1,11 +1,9 @@
 // mobile/src/screens/NotificationsScreen.tsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import messaging from '@react-native-firebase/messaging';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
 
@@ -30,6 +28,8 @@ function fmtRelative(isoDate: string): string {
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
+const POLL_INTERVAL = 30_000; // 30 segundos
+
 export default function NotificationsScreen({
   onNavigate,
   unreadCount = 0,
@@ -42,50 +42,35 @@ export default function NotificationsScreen({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading]             = useState(false);
   const [refreshing, setRefreshing]       = useState(false);
+  const prevUnreadRef = useRef<number>(unreadCount);
 
   const loadNotifications = useCallback(async (reset = false) => {
     if (!reset) setLoading(true);
     try {
       const { data } = await api.get('/notifications');
       setNotifications(data.notifications);
-      onUnreadChange?.(data.unread);
+
+      // Mostra alerta se chegou nova notificação não lida desde a última verificação
+      const newUnread: number = data.unread;
+      if (newUnread > prevUnreadRef.current) {
+        const newest = data.notifications.find((n: Notification) => !n.read);
+        if (newest) {
+          Alert.alert(newest.title, newest.body);
+        }
+      }
+      prevUnreadRef.current = newUnread;
+      onUnreadChange?.(newUnread);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
   }, [onUnreadChange]);
 
-  // Registrar FCM ao entrar na tela
   useEffect(() => {
     loadNotifications(false);
-    registerFcm();
 
-    // Ouve notificações com app em foreground
-    const unsub = messaging().onMessage(async (remoteMessage) => {
-      const title = remoteMessage.notification?.title || 'Aviso';
-      const body  = remoteMessage.notification?.body  || '';
-      Alert.alert(title, body);
-      loadNotifications(false);
-    });
-    return unsub;
-  }, []);
-
-  async function registerFcm() {
-    try {
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-      if (!enabled) return;
-
-      const token = await messaging().getToken();
-      const stored = await AsyncStorage.getItem('fcmToken');
-      if (token !== stored) {
-        await api.post('/notifications/subscribe-fcm', { fcm_token: token });
-        await AsyncStorage.setItem('fcmToken', token);
-      }
-    } catch {
-      // Silencia erros de permissão negada
-    }
-  }
+    // Polling periódico enquanto a tela estiver montada
+    const timer = setInterval(() => loadNotifications(false), POLL_INTERVAL);
+    return () => clearInterval(timer);
+  }, [loadNotifications]);
 
   const markRead = useCallback(async (id: number) => {
     try {

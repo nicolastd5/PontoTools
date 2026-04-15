@@ -171,10 +171,20 @@ export default function EmployeeServicesPage() {
               <button onClick={() => setDetail(null)} style={closeBtn}>✕</button>
             </div>
 
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12, display: 'flex', gap: 16 }}>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
               <span>📅 {new Date(detail.scheduled_date).toLocaleDateString('pt-BR')}</span>
               {detail.due_time && <span>⏰ até {detail.due_time.slice(0, 5)}</span>}
             </div>
+            {(detail.started_at || detail.finished_at) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, marginBottom: 12, padding: '10px 14px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                {detail.started_at && (
+                  <span style={{ color: '#166534' }}>▶ Iniciado em: <strong>{new Date(detail.started_at).toLocaleString('pt-BR')}</strong></span>
+                )}
+                {detail.finished_at && (
+                  <span style={{ color: '#166534' }}>✔ Concluído em: <strong>{new Date(detail.finished_at).toLocaleString('pt-BR')}</strong></span>
+                )}
+              </div>
+            )}
 
             {detail.description && (
               <div style={descBox}>{detail.description}</div>
