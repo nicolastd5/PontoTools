@@ -1,7 +1,9 @@
 .service-status-badge {
   --badge-bg: #e2e8f0;
   --badge-color: #334155;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 12px;
@@ -10,48 +12,117 @@
   color: var(--badge-color);
   background: var(--badge-bg);
   border: 1px solid color-mix(in srgb, var(--badge-color) 18%, #ffffff);
+  position: relative;
+  overflow: hidden;
+  transform-origin: center;
 }
 
 .service-status-badge--pending {
-  animation: serviceStatusPending 2.2s ease-in-out infinite;
+  animation: serviceStatusPendingPulse 1.8s ease-in-out infinite;
 }
 
 .service-status-badge--in_progress {
-  animation: serviceStatusProgress 1.6s linear infinite;
+  animation: serviceStatusProgressBreath 1.6s ease-in-out infinite;
+}
+
+.service-status-badge--in_progress::after {
+  content: '';
+  position: absolute;
+  inset: -30% auto -30% -40%;
+  width: 40%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  transform: skewX(-20deg);
+  animation: serviceStatusProgressScan 1.3s linear infinite;
+}
+
+.service-status-badge--done {
+  animation: serviceStatusDoneSpark 3s ease-in-out infinite;
 }
 
 .service-status-badge--done_with_issues {
-  animation: serviceStatusIssues 2.8s ease-in-out infinite;
+  animation: serviceStatusIssuesPulse 1.9s ease-in-out infinite;
 }
 
 .service-status-badge--problem {
-  animation: serviceStatusProblem 1.2s ease-in-out infinite;
+  animation: serviceStatusProblemShake 0.9s ease-in-out infinite;
 }
 
-@keyframes serviceStatusPending {
-  0%, 100% { transform: translateY(0); box-shadow: 0 0 0 0 rgba(133, 77, 14, 0.00); }
-  50%      { transform: translateY(-1px); box-shadow: 0 0 0 5px rgba(133, 77, 14, 0.12); }
+@keyframes serviceStatusPendingPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(133, 77, 14, 0);
+  }
+  45% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 6px rgba(133, 77, 14, 0.18);
+  }
+  70% {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 2px rgba(133, 77, 14, 0.08);
+  }
 }
 
-@keyframes serviceStatusProgress {
-  0%   { box-shadow: inset 0 0 0 0 rgba(30, 64, 175, 0.22); }
-  50%  { box-shadow: inset 0 0 0 999px rgba(30, 64, 175, 0.10); }
-  100% { box-shadow: inset 0 0 0 0 rgba(30, 64, 175, 0.22); }
+@keyframes serviceStatusProgressBreath {
+  0%, 100% {
+    box-shadow: inset 0 0 0 0 rgba(30, 64, 175, 0.20);
+  }
+  50% {
+    box-shadow: inset 0 0 0 999px rgba(30, 64, 175, 0.16);
+  }
 }
 
-@keyframes serviceStatusIssues {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(194, 65, 12, 0.00); }
-  50%      { box-shadow: 0 0 0 5px rgba(194, 65, 12, 0.14); }
+@keyframes serviceStatusProgressScan {
+  0% {
+    left: -45%;
+  }
+  100% {
+    left: 110%;
+  }
 }
 
-@keyframes serviceStatusProblem {
-  0%, 100% { transform: translateX(0); }
-  25%      { transform: translateX(-1px); }
-  75%      { transform: translateX(1px); }
+@keyframes serviceStatusDoneSpark {
+  0%, 85%, 100% {
+    box-shadow: 0 0 0 0 rgba(22, 101, 52, 0);
+    transform: scale(1);
+  }
+  90% {
+    box-shadow: 0 0 0 5px rgba(22, 101, 52, 0.20);
+    transform: scale(1.03);
+  }
+}
+
+@keyframes serviceStatusIssuesPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(194, 65, 12, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(194, 65, 12, 0.16);
+  }
+}
+
+@keyframes serviceStatusProblemShake {
+  0%, 100% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 0 rgba(153, 27, 27, 0);
+  }
+  20% {
+    transform: translateX(-1.5px);
+  }
+  40% {
+    transform: translateX(1.5px);
+  }
+  60% {
+    transform: translateX(-1px);
+    box-shadow: 0 0 0 4px rgba(153, 27, 27, 0.14);
+  }
+  80% {
+    transform: translateX(1px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .service-status-badge {
+  .service-status-badge,
+  .service-status-badge::after {
     animation: none !important;
   }
 }
