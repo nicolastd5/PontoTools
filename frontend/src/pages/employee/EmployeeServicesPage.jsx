@@ -49,12 +49,29 @@ export default function EmployeeServicesPage() {
     onError: (err) => error(err.response?.data?.error || 'Erro ao atualizar status.'),
   });
 
+  // Captura GPS silenciosamente
+  function getGps() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        ()    => resolve(null),
+        { timeout: 6000, maximumAge: 30000 }
+      );
+    });
+  }
+
   // Photo upload mutation
   const photoMutation = useMutation({
-    mutationFn: ({ id, phase, blob }) => {
+    mutationFn: async ({ id, phase, blob }) => {
+      const gps = await getGps();
       const fd = new FormData();
       fd.append('photo', blob, 'photo.jpg');
       fd.append('phase', phase);
+      if (gps) {
+        fd.append('latitude',  String(gps.latitude));
+        fd.append('longitude', String(gps.longitude));
+      }
       return api.post(`/services/${id}/photos`, fd);
     },
     onSuccess: async (_, vars) => {

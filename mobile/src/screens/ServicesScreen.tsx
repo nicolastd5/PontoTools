@@ -6,6 +6,7 @@ import {
   RefreshControl, TextInput, Image,
 } from 'react-native';
 import { launchCamera, type CameraOptions } from 'react-native-image-picker';
+import Geolocation from '@react-native-community/geolocation';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
 
@@ -94,6 +95,16 @@ export default function ServicesScreen({
     } catch { setPhotos([]); }
   }, []);
 
+  function getGps(): Promise<{ latitude: number; longitude: number } | null> {
+    return new Promise((resolve) => {
+      Geolocation.getCurrentPosition(
+        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        ()    => resolve(null),
+        { timeout: 6000, maximumAge: 30000 }
+      );
+    });
+  }
+
   const takePhoto = useCallback(async () => {
     const options: CameraOptions = {
       mediaType: 'photo',
@@ -121,10 +132,15 @@ export default function ServicesScreen({
 
       // 2. Envia fotos novas (fase 'after' para done/problem, 'before' para in_progress)
       const phase = status === 'in_progress' ? 'before' : 'after';
+      const gps = await getGps();
       for (const uri of newPhotoUris) {
         const form = new FormData();
         form.append('photo', { uri, type: 'image/jpeg', name: 'photo.jpg' } as any);
         form.append('phase', phase);
+        if (gps) {
+          form.append('latitude',  String(gps.latitude));
+          form.append('longitude', String(gps.longitude));
+        }
         await api.post(`/services/${serviceId}/photos`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });

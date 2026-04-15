@@ -1,9 +1,38 @@
 // Controller de exportação: PDF (cartão de ponto) e Excel (auditoria)
 const PDFDocument = require('pdfkit');
 const ExcelJS     = require('exceljs');
+const https       = require('https');
 const db          = require('../config/database');
 const { formatLocalTime, monthName } = require('../utils/timeUtils');
 const storage     = require('../config/storage');
+
+// Geocoding reverso via Nominatim (OpenStreetMap) — gratuito, sem chave
+function reverseGeocode(lat, lon) {
+  return new Promise((resolve) => {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
+    const req = https.get(url, { headers: { 'User-Agent': 'PontoTools/1.0' } }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          // Monta endereço resumido: rua + número + bairro + cidade + estado
+          const a = json.address || {};
+          const parts = [
+            a.road || a.pedestrian || a.path,
+            a.house_number,
+            a.suburb || a.neighbourhood || a.quarter,
+            a.city || a.town || a.village || a.municipality,
+            a.state,
+          ].filter(Boolean);
+          resolve(parts.length ? parts.join(', ') : json.display_name || null);
+        } catch { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(5000, () => { req.destroy(); resolve(null); });
+  });
+}
 
 // ----------------------------------------------------------------
 // GET /api/admin/export/pdf
@@ -391,10 +420,23 @@ async function exportServicesPdf(req, res, next) {
         // Linha de metadados
         doc.fontSize(9).font('Helvetica').fillColor('#64748b')
            .text(`${svc.full_name}  ·  ${svc.unit_name}  ·  Agendado: ${scheduledDate}${svc.due_time ? ' às ' + svc.due_time.slice(0,5) : ''}  ·  Status: ${STATUS_LABEL[svc.status] || svc.status}`);
-        if (svc.unit_address) {
-          doc.fontSize(9).fillColor('#64748b').text(`📍 ${svc.unit_address}`);
-        }
         doc.fillColor('#000');
+        doc.moveDown(0.2);
+
+        // Endereço GPS da foto de início (before)
+        const photos = photosByService[svc.id] || [];
+        const gpsPhoto = photos.find((p) => p.phase === 'before' && p.latitude && p.longitude)
+                      || photos.find((p) => p.latitude && p.longitude);
+        if (gpsPhoto) {
+          const gpsAddress = await reverseGeocode(gpsPhoto.latitude, gpsPhoto.longitude);
+          if (gpsAddress) {
+            doc.fontSize(9).fillColor('#374151')
+               .text(`📍 ${gpsAddress}`);
+            doc.fontSize(8).fillColor('#94a3b8')
+               .text('* Endereço aproximado obtido via GPS do colaborador');
+            doc.fillColor('#000');
+          }
+        }
         doc.moveDown(0.3);
 
         // Timestamps de execução
@@ -422,7 +464,6 @@ async function exportServicesPdf(req, res, next) {
         }
 
         // Fotos
-        const photos = photosByService[svc.id] || [];
         const beforePhotos = photos.filter((p) => p.phase === 'before');
         const afterPhotos  = photos.filter((p) => p.phase === 'after');
 

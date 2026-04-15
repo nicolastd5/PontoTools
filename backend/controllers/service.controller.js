@@ -256,14 +256,16 @@ async function addPhoto(req, res, next) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
-    const dateStr  = new Date().toISOString().split('T')[0];
     const filename = `services/${id}/${phase}_${req.user.id}_${Date.now()}.jpg`;
     await storage.save(file.buffer, filename);
 
+    const lat = req.body.latitude  ? parseFloat(req.body.latitude)  : null;
+    const lon = req.body.longitude ? parseFloat(req.body.longitude) : null;
+
     const photo = await db.query(
-      `INSERT INTO service_photos (service_order_id, phase, photo_path)
-       VALUES ($1, $2, $3) RETURNING id, phase, photo_path, created_at`,
-      [id, phase, filename]
+      `INSERT INTO service_photos (service_order_id, phase, photo_path, latitude, longitude)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, phase, photo_path, latitude, longitude, created_at`,
+      [id, phase, filename, lat, lon]
     );
 
     // Foto "antes" → muda para in_progress (se ainda pendente) e marca started_at
