@@ -11,7 +11,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const EMPTY = { name: '', code: '', radius_meters: 100, address: '', latitude: -14.235, longitude: -51.925 };
+const EMPTY = { name: '', code: '', radius_meters: 100, address: '', latitude: -23.55052, longitude: -46.633308 };
 
 /** Captura cliques no mapa e atualiza a posição do pin. */
 function ClickHandler({ onMapClick }) {
