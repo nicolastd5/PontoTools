@@ -17,7 +17,9 @@ async function registerClock(req, res, next) {
     // Busca a unidade e cargo do funcionário autenticado (filtra pelo employee específico)
     const unitResult = await db.query(
       `SELECT u.id, u.latitude, u.longitude, u.radius_meters,
-              jr.max_photos, COALESCE(jr.require_location, TRUE) AS require_location
+              jr.max_photos,
+              COALESCE(jr.require_location, TRUE) AS require_location,
+              COALESCE(jr.has_break, TRUE) AS has_break
        FROM units u
        JOIN employees e ON e.unit_id = u.id AND e.id = $2
        LEFT JOIN job_roles jr ON jr.id = e.job_role_id
@@ -37,6 +39,34 @@ async function registerClock(req, res, next) {
     const { isInside, distanceMeters } = hasValidCoords
       ? validateZone({ latitude: lat, longitude: lon }, unit)
       : { isInside: false, distanceMeters: null };
+
+    // Validação server-side da sequência de batidas (não confiar só no front)
+    const todayResult = await db.query(
+      `SELECT clock_type
+       FROM clock_records
+       WHERE employee_id = $1
+         AND (clocked_at_utc AT TIME ZONE $2)::date = (NOW() AT TIME ZONE $2)::date
+       ORDER BY clocked_at_utc ASC`,
+      [req.user.id, timezone]
+    );
+    const types = todayResult.rows.map((r) => r.clock_type);
+    const lastType = types[types.length - 1] || null;
+
+    const available = {
+      entry:       !lastType || lastType === 'exit',
+      break_start: unit.has_break && (lastType === 'entry' || lastType === 'break_end'),
+      break_end:   unit.has_break && lastType === 'break_start',
+      exit:        unit.has_break
+        ? (lastType === 'entry' || lastType === 'break_end')
+        : lastType === 'entry',
+    };
+
+    if (!available[clock_type]) {
+      return res.status(422).json({
+        error: 'Sequência de batidas inválida para o momento atual.',
+        available,
+      });
+    }
 
     // Se fora da zona e o cargo exige localização: bloqueia e registra tentativa
     if (!isInside && unit.require_location) {
@@ -81,6 +111,11 @@ async function registerClock(req, res, next) {
     await storage.save(firstPhoto.buffer, filename);
 
     // Grava o registro de ponto
+    const storedLatitude = hasValidCoords ? lat : 0;
+    const storedLongitude = hasValidCoords ? lon : 0;
+    const storedDistance = distanceMeters ?? 0;
+    const storedInsideZone = hasValidCoords ? isInside : !unit.require_location;
+
     const clockResult = await db.query(
       `INSERT INTO clock_records
          (employee_id, unit_id, clock_type, clocked_at_utc, timezone,
@@ -93,11 +128,11 @@ async function registerClock(req, res, next) {
         unit.id,
         clock_type,
         timezone,
-        hasValidCoords ? lat : null,
-        hasValidCoords ? lon : null,
+        storedLatitude,
+        storedLongitude,
         accuracy ? parseFloat(accuracy) : null,
-        distanceMeters,
-        isInside,
+        storedDistance,
+        storedInsideZone,
         filename,
         observation?.trim() || null,
         JSON.stringify({ userAgent: req.headers['user-agent'] }),
