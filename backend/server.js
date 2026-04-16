@@ -16,6 +16,7 @@ const unitRoutes         = require('./routes/unit.routes');
 const contractRoutes     = require('./routes/contract.routes');
 const jobRoleRoutes      = require('./routes/jobRole.routes');
 const serviceRoutes      = require('./routes/service.routes');
+const serviceTemplateRoutes  = require('./routes/serviceTemplate.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminRoutes        = require('./routes/admin.routes');
 const errorHandler       = require('./utils/errorHandler');
@@ -86,6 +87,7 @@ app.use('/api/units',         unitRoutes);
 app.use('/api/contracts',     contractRoutes);
 app.use('/api/job-roles',     jobRoleRoutes);
 app.use('/api/services',      serviceRoutes);
+app.use('/api/service-templates', serviceTemplateRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin',         adminRoutes);
 
