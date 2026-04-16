@@ -40,6 +40,7 @@ async function list(req, res, next) {
          so.scheduled_date, so.due_time, so.problem_description,
          so.template_id,
          so.started_at, so.finished_at,
+         so.unit_id,
          so.created_at, so.updated_at,
          e.full_name  AS employee_name,
          cb.full_name AS created_by_name,
