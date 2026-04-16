@@ -39,6 +39,7 @@ async function list(req, res, next) {
          so.id, so.title, so.description, so.status,
          so.scheduled_date, so.due_time, so.problem_description,
          so.template_id,
+         so.started_at, so.finished_at,
          so.created_at, so.updated_at,
          e.full_name  AS employee_name,
          cb.full_name AS created_by_name,
@@ -67,7 +68,6 @@ async function create(req, res, next) {
     const { title, description, assigned_employee_id, unit_id: bodyUnitId, scheduled_date, due_time } = req.body;
 
     let unit_id;
-    let empName = null;
 
     if (assigned_employee_id) {
       // Busca unidade do funcionário — gestor só pode atribuir a employees do próprio contrato
@@ -84,7 +84,6 @@ async function create(req, res, next) {
         return res.status(404).json({ error: 'Funcionário não encontrado.' });
       }
       unit_id = empResult.rows[0].unit_id;
-      empName = empResult.rows[0].full_name;
     } else {
       // Sem funcionário: unit_id obrigatório no body
       if (!bodyUnitId) {
@@ -414,12 +413,14 @@ async function reschedule(req, res, next) {
     );
 
     // Notifica o funcionário sobre o reagendamento
-    await push.notify(
-      current.rows[0].assigned_employee_id,
-      'Serviço reagendado',
-      `O serviço "${current.rows[0].title}" foi reagendado para ${new Date(scheduled_date).toLocaleDateString('pt-BR')}.`,
-      'service_assigned'
-    );
+    if (current.rows[0].assigned_employee_id) {
+      await push.notify(
+        current.rows[0].assigned_employee_id,
+        'Serviço reagendado',
+        `O serviço "${current.rows[0].title}" foi reagendado para ${new Date(scheduled_date).toLocaleDateString('pt-BR')}.`,
+        'service_assigned'
+      );
+    }
 
     res.json(result.rows[0]);
   } catch (err) {
