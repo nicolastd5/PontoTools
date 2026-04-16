@@ -1,4 +1,4 @@
--- database/13_service_templates.sql
+-- database/15_service_templates.sql
 
 -- Cria tabela de templates
 CREATE TABLE IF NOT EXISTS service_templates (
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS service_templates (
   start_date           DATE NOT NULL,
   next_run_at          TIMESTAMPTZ NOT NULL,
   active               BOOLEAN NOT NULL DEFAULT TRUE,
-  created_by_id        INTEGER NOT NULL REFERENCES employees(id),
+  created_by_id        INTEGER NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -30,3 +30,5 @@ ALTER TABLE service_orders
 
 ALTER TABLE service_orders
   ADD COLUMN IF NOT EXISTS template_id INTEGER REFERENCES service_templates(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_service_orders_template ON service_orders(template_id);
