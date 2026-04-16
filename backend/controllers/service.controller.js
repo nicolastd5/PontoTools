@@ -38,16 +38,16 @@ async function list(req, res, next) {
       `SELECT
          so.id, so.title, so.description, so.status,
          so.scheduled_date, so.due_time, so.problem_description,
-         so.started_at, so.finished_at,
+         so.template_id,
          so.created_at, so.updated_at,
          e.full_name  AS employee_name,
          cb.full_name AS created_by_name,
          u.name       AS unit_name,
          u.code       AS unit_code
        FROM service_orders so
-       JOIN employees e  ON e.id  = so.assigned_employee_id
-       JOIN employees cb ON cb.id = so.created_by_id
-       JOIN units u      ON u.id  = so.unit_id
+       LEFT JOIN employees e  ON e.id  = so.assigned_employee_id
+       JOIN      employees cb ON cb.id = so.created_by_id
+       JOIN      units u      ON u.id  = so.unit_id
        ${where}
        ORDER BY so.scheduled_date ASC, so.created_at DESC`,
       params
@@ -64,22 +64,42 @@ async function list(req, res, next) {
 // ----------------------------------------------------------------
 async function create(req, res, next) {
   try {
-    const { title, description, assigned_employee_id, scheduled_date, due_time } = req.body;
+    const { title, description, assigned_employee_id, unit_id: bodyUnitId, scheduled_date, due_time } = req.body;
 
-    // Busca unidade do funcionário — gestor só pode atribuir a employees do próprio contrato
-    const empQuery = req.user.role === 'gestor'
-      ? `SELECT e.unit_id, e.full_name FROM employees e
-         JOIN units u ON u.id = e.unit_id
-         WHERE e.id = $1 AND u.contract_id = $2`
-      : `SELECT e.unit_id, e.full_name FROM employees e WHERE e.id = $1`;
-    const empParams = req.user.role === 'gestor'
-      ? [assigned_employee_id, req.user.contractId]
-      : [assigned_employee_id];
-    const empResult = await db.query(empQuery, empParams);
-    if (!empResult.rows[0]) {
-      return res.status(404).json({ error: 'Funcionário não encontrado.' });
+    let unit_id;
+    let empName = null;
+
+    if (assigned_employee_id) {
+      // Busca unidade do funcionário — gestor só pode atribuir a employees do próprio contrato
+      const empQuery = req.user.role === 'gestor'
+        ? `SELECT e.unit_id, e.full_name FROM employees e
+           JOIN units u ON u.id = e.unit_id
+           WHERE e.id = $1 AND u.contract_id = $2`
+        : `SELECT e.unit_id, e.full_name FROM employees e WHERE e.id = $1`;
+      const empParams = req.user.role === 'gestor'
+        ? [assigned_employee_id, req.user.contractId]
+        : [assigned_employee_id];
+      const empResult = await db.query(empQuery, empParams);
+      if (!empResult.rows[0]) {
+        return res.status(404).json({ error: 'Funcionário não encontrado.' });
+      }
+      unit_id = empResult.rows[0].unit_id;
+      empName = empResult.rows[0].full_name;
+    } else {
+      // Sem funcionário: unit_id obrigatório no body
+      if (!bodyUnitId) {
+        return res.status(400).json({ error: 'unit_id obrigatório quando não há funcionário atribuído.' });
+      }
+      unit_id = parseInt(bodyUnitId, 10);
+      // Gestor só pode usar units do próprio contrato
+      if (req.user.role === 'gestor') {
+        const unitCheck = await db.query(
+          'SELECT id FROM units WHERE id = $1 AND contract_id = $2',
+          [unit_id, req.user.contractId]
+        );
+        if (!unitCheck.rows[0]) return res.status(403).json({ error: 'Unidade fora do seu contrato.' });
+      }
     }
-    const { unit_id, full_name: empName } = empResult.rows[0];
 
     const result = await db.query(
       `INSERT INTO service_orders
@@ -89,7 +109,7 @@ async function create(req, res, next) {
       [
         title.trim(),
         description?.trim() || null,
-        assigned_employee_id,
+        assigned_employee_id || null,
         unit_id,
         req.user.id,
         scheduled_date,
@@ -99,13 +119,15 @@ async function create(req, res, next) {
 
     const service = result.rows[0];
 
-    // Notificação automática
-    await push.notify(
-      assigned_employee_id,
-      'Novo serviço atribuído',
-      `Você tem um novo serviço: "${title}" para ${new Date(scheduled_date).toLocaleDateString('pt-BR')}.`,
-      'service_assigned'
-    );
+    // Notificação automática — apenas se há funcionário atribuído
+    if (assigned_employee_id) {
+      await push.notify(
+        assigned_employee_id,
+        'Novo serviço atribuído',
+        `Você tem um novo serviço: "${title}" para ${new Date(scheduled_date).toLocaleDateString('pt-BR')}.`,
+        'service_assigned'
+      );
+    }
 
     logger.info('Serviço criado', { serviceId: service.id, assignedTo: assigned_employee_id });
     res.status(201).json(service);
@@ -129,9 +151,9 @@ async function getOne(req, res, next) {
          u.name       AS unit_name,
          u.contract_id
        FROM service_orders so
-       JOIN employees e  ON e.id  = so.assigned_employee_id
-       JOIN employees cb ON cb.id = so.created_by_id
-       JOIN units u      ON u.id  = so.unit_id
+       LEFT JOIN employees e  ON e.id  = so.assigned_employee_id
+       JOIN      employees cb ON cb.id = so.created_by_id
+       JOIN      units u      ON u.id  = so.unit_id
        WHERE so.id = $1`,
       [id]
     );
@@ -441,4 +463,57 @@ async function deleteService(req, res, next) {
   }
 }
 
-module.exports = { list, create, getOne, updateStatus, addPhoto, getPhoto, deletePhoto, reschedule, deleteService };
+// ----------------------------------------------------------------
+// PATCH /api/services/:id/assign
+// Admin/gestor atribui funcionário a serviço sem responsável
+// ----------------------------------------------------------------
+async function assign(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const { assigned_employee_id } = req.body;
+
+    const current = await db.query(
+      `SELECT so.title, so.unit_id, u.contract_id
+       FROM service_orders so
+       JOIN units u ON u.id = so.unit_id
+       WHERE so.id = $1`,
+      [id]
+    );
+    if (!current.rows[0]) return res.status(404).json({ error: 'Serviço não encontrado.' });
+    if (req.user.role === 'gestor' && current.rows[0].contract_id !== req.user.contractId) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+
+    // Verifica se o funcionário pertence ao contrato do gestor
+    if (req.user.role === 'gestor') {
+      const empCheck = await db.query(
+        `SELECT e.id FROM employees e
+         JOIN units u ON u.id = e.unit_id
+         WHERE e.id = $1 AND u.contract_id = $2`,
+        [assigned_employee_id, req.user.contractId]
+      );
+      if (!empCheck.rows[0]) return res.status(403).json({ error: 'Funcionário fora do seu contrato.' });
+    }
+
+    const result = await db.query(
+      `UPDATE service_orders
+       SET assigned_employee_id = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [assigned_employee_id, id]
+    );
+
+    await push.notify(
+      assigned_employee_id,
+      'Novo serviço atribuído',
+      `Você tem um novo serviço: "${current.rows[0].title}".`,
+      'service_assigned'
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, getOne, updateStatus, addPhoto, getPhoto, deletePhoto, reschedule, deleteService, assign };
