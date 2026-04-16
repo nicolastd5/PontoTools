@@ -25,6 +25,16 @@ function useEmployees() {
     queryFn:  () => api.get('/employees').then((r) => r.data.employees || r.data),
   });
 }
+function useEmployeesByUnit(unitId) {
+  return useQuery({
+    queryKey: ['employees-by-unit', unitId],
+    queryFn: () =>
+      api.get('/employees').then((r) =>
+        (r.data.employees || r.data).filter((e) => String(e.unit_id) === String(unitId))
+      ),
+    enabled: !!unitId,
+  });
+}
 
 const EMPTY_FORM = { title: '', description: '', assigned_employee_id: '', scheduled_date: '', due_time: '' };
 
@@ -40,11 +50,14 @@ export default function AdminServicesPage() {
   const [form, setForm]             = useState(EMPTY_FORM);
   const [photoIdx, setPhotoIdx]     = useState(0);
   const [photoSrc, setPhotoSrc]     = useState({});
+  const [assignModal, setAssignModal] = useState(null);
+  const [assignEmpId, setAssignEmpId] = useState('');
 
   const { data: services = [], isLoading } = useServices(
     Object.fromEntries(Object.entries(filters).filter(([, v]) => v))
   );
   const { data: employees = [] } = useEmployees();
+  const { data: assignEmployees = [] } = useEmployeesByUnit(assignModal?.unit_id);
 
   const createMutation = useMutation({
     mutationFn: (body) => api.post('/services', body),
@@ -118,6 +131,18 @@ export default function AdminServicesPage() {
     onError: () => error('Erro ao reagendar serviço.'),
   });
 
+  const assignMutation = useMutation({
+    mutationFn: ({ id, assigned_employee_id }) =>
+      api.patch(`/services/${id}/assign`, { assigned_employee_id }),
+    onSuccess: async () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Funcionário atribuído.');
+      setAssignModal(null);
+      setAssignEmpId('');
+    },
+    onError: (err) => error(err.response?.data?.error || 'Erro ao atribuir funcionário.'),
+  });
+
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }) => api.patch(`/services/${id}/status`, { status }),
     onSuccess: async () => {
@@ -189,7 +214,23 @@ export default function AdminServicesPage() {
                       <div style={{ fontWeight: 600, color: '#0f172a' }}>{sv.title}</div>
                       {sv.description && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sv.description.slice(0, 60)}{sv.description.length > 60 ? '…' : ''}</div>}
                     </td>
-                    <td style={s.td}>{sv.employee_name}</td>
+                    <td style={s.td}>
+                      {sv.employee_name ? (
+                        sv.employee_name
+                      ) : (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ background: '#fef9c3', color: '#854d0e', borderRadius: 999, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+                            Sem responsável
+                          </span>
+                          <button
+                            onClick={() => { setAssignModal(sv); setAssignEmpId(''); }}
+                            style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 6, padding: '2px 8px', fontSize: 11, cursor: 'pointer', color: '#1d4ed8', fontWeight: 600 }}
+                          >
+                            Atribuir
+                          </button>
+                        </span>
+                      )}
+                    </td>
                     <td style={s.td}>{new Date(sv.scheduled_date).toLocaleDateString('pt-BR')}</td>
                     <td style={s.td}>{sv.due_time ? sv.due_time.slice(0, 5) : '—'}</td>
                     <td style={s.td}>
@@ -356,6 +397,51 @@ export default function AdminServicesPage() {
                   {deleteServiceMutation.isLoading ? 'Excluindo...' : 'Excluir'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de atribuição de funcionário */}
+      {assignModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}
+          onClick={() => { setAssignModal(null); setAssignEmpId(''); }}
+        >
+          <div
+            style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 400 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 16, marginTop: 0 }}>
+              Atribuir funcionário
+            </h2>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
+              Serviço: <strong>{assignModal.title}</strong>
+            </p>
+            <select
+              style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '8px 12px', fontSize: 14, width: '100%', marginBottom: 20 }}
+              value={assignEmpId}
+              onChange={(e) => setAssignEmpId(e.target.value)}
+            >
+              <option value="">Selecione o funcionário</option>
+              {assignEmployees.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+              ))}
+            </select>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                onClick={() => { setAssignModal(null); setAssignEmpId(''); }}
+                style={{ background: '#f1f5f9', color: '#374151', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => assignMutation.mutate({ id: assignModal.id, assigned_employee_id: parseInt(assignEmpId, 10) })}
+                disabled={!assignEmpId || assignMutation.isLoading}
+                style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: !assignEmpId ? 0.5 : 1 }}
+              >
+                {assignMutation.isLoading ? 'Salvando...' : 'Atribuir'}
+              </button>
             </div>
           </div>
         </div>
