@@ -127,8 +127,28 @@ async function update(req, res, next) {
       ? (assigned_employee_id ? parseInt(assigned_employee_id, 10) : null)
       : tpl.assigned_employee_id;
 
-    // Recalcula next_run_at se start_date ou interval_days mudaram
-    const next_run_at = (start_date || interval_days)
+    // Gestor não pode mover template para unit fora do seu contrato
+    if (unit_id && req.user.role === 'gestor') {
+      const unitCheck = await db.query(
+        'SELECT id FROM units WHERE id = $1 AND contract_id = $2',
+        [newUnitId, req.user.contractId]
+      );
+      if (!unitCheck.rows[0]) return res.status(403).json({ error: 'Unidade fora do seu contrato.' });
+    }
+
+    // Verifica vínculo funcionário-posto se algum dos dois mudou
+    if (newAssigned) {
+      const empCheck = await db.query(
+        'SELECT id FROM employees WHERE id = $1 AND unit_id = $2',
+        [newAssigned, newUnitId]
+      );
+      if (!empCheck.rows[0]) {
+        return res.status(400).json({ error: 'Funcionário não pertence a este posto.' });
+      }
+    }
+
+    // Recalcula next_run_at se start_date mudou
+    const next_run_at = start_date
       ? new Date(newStartDate + 'T00:00:00Z').toISOString()
       : tpl.next_run_at;
 
