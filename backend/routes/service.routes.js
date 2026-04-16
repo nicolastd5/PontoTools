@@ -68,6 +68,15 @@ router.patch('/:id/reschedule',
   controller.reschedule
 );
 
+// Atribuir funcionário — apenas admin/gestor
+router.patch('/:id/assign',
+  auth,
+  requireAdminOrGestor,
+  body('assigned_employee_id').isInt({ min: 1 }).withMessage('Funcionário obrigatório.'),
+  validate,
+  controller.assign
+);
+
 // Deletar serviço — apenas admin/gestor
 router.delete('/:id', auth, requireAdminOrGestor, controller.deleteService);
 
