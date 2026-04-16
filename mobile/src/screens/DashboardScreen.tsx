@@ -42,6 +42,12 @@ interface Available {
   exit: boolean;
 }
 
+interface GpsSnapshot {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+}
+
 function useClock() {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -77,6 +83,7 @@ export default function DashboardScreen({
   const [photoUris, setPhotoUris]       = useState<string[]>([]);
   const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
   const [takingPhoto, setTakingPhoto]   = useState(false);
+  const [gpsSnapshot, setGpsSnapshot]   = useState<GpsSnapshot | null>(null);
 
   function loadToday() {
     api.get('/clock/today', { params: { timezone: tz } })
@@ -110,6 +117,7 @@ export default function DashboardScreen({
     setObservation('');
     setPhotoUris([]);
     setCameraFacing('front');
+    setGpsSnapshot(coords ? { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy } : null);
     setConfirmModal(clockType);
   }, [gpsStatus, isInsideZone, coords, distanceMeters, user]);
 
@@ -145,6 +153,7 @@ export default function DashboardScreen({
   async function submitClock() {
     if (!confirmModal) return;
     const clockType = confirmModal;
+    const coordsToSend = gpsSnapshot || coords;
     setConfirmModal(null);
     setLoading(true);
     try {
@@ -152,9 +161,9 @@ export default function DashboardScreen({
       formData.append('clock_type', clockType);
       formData.append('timezone',   tz);
       // Envia coordenadas se disponíveis; senão usa 0,0 (backend trata hasValidCoords)
-      formData.append('latitude',   coords ? String(coords.latitude)  : '0');
-      formData.append('longitude',  coords ? String(coords.longitude) : '0');
-      formData.append('accuracy',   coords ? String(coords.accuracy ?? '') : '');
+      formData.append('latitude',   coordsToSend ? String(coordsToSend.latitude)  : '0');
+      formData.append('longitude',  coordsToSend ? String(coordsToSend.longitude) : '0');
+      formData.append('accuracy',   coordsToSend ? String(coordsToSend.accuracy ?? '') : '');
       if (observation.trim()) formData.append('observation', observation.trim());
 
       if (photoUris.length > 0) {
@@ -189,6 +198,7 @@ export default function DashboardScreen({
       else Alert.alert('Erro', data?.error || 'Erro ao registrar ponto.');
     } finally {
       setLoading(false);
+      setGpsSnapshot(null);
     }
   }
 
@@ -351,7 +361,7 @@ export default function DashboardScreen({
             <Text style={modal.charCount}>{observation.length}/300</Text>
 
             <View style={modal.actions}>
-              <TouchableOpacity style={modal.cancelBtn} onPress={() => setConfirmModal(null)}>
+              <TouchableOpacity style={modal.cancelBtn} onPress={() => { setConfirmModal(null); setGpsSnapshot(null); }}>
                 <Text style={modal.cancelText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={modal.confirmBtn} onPress={submitClock}>

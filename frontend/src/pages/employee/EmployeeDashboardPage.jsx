@@ -40,6 +40,7 @@ export default function EmployeeDashboardPage() {
   const now             = useLiveClock();
 
   const [cameraFor, setCameraFor] = useState(null);
+  const [gpsSnapshot, setGpsSnapshot] = useState(null);
 
   const { status: gpsStatus, coords, distanceMeters, isInsideZone } = useGeolocation(user?.unit);
 
@@ -86,21 +87,23 @@ export default function EmployeeDashboardPage() {
         return;
       }
     }
+    setGpsSnapshot(coords || null);
     setCameraFor(clockType);
   }
 
   async function handlePhotoCapture(blobs) {
     const clockType = cameraFor;
+    const coordsToSend = gpsSnapshot || coords;
     setCameraFor(null);
 
     const formData = new FormData();
     formData.append('clock_type', clockType);
     formData.append('timezone',   TZ);
 
-    if (coords) {
-      formData.append('latitude',  String(coords.latitude));
-      formData.append('longitude', String(coords.longitude));
-      formData.append('accuracy',  String(coords.accuracy || ''));
+    if (coordsToSend) {
+      formData.append('latitude',  String(coordsToSend.latitude));
+      formData.append('longitude', String(coordsToSend.longitude));
+      formData.append('accuracy',  String(coordsToSend.accuracy || ''));
     } else {
       formData.append('latitude',  '0');
       formData.append('longitude', '0');
@@ -116,7 +119,11 @@ export default function EmployeeDashboardPage() {
       formData.append('photo', blob, 'photo.jpg');
     }
 
-    await clockMutation.mutateAsync(formData);
+    try {
+      await clockMutation.mutateAsync(formData);
+    } finally {
+      setGpsSnapshot(null);
+    }
   }
 
   return (
@@ -224,7 +231,10 @@ export default function EmployeeDashboardPage() {
           clockType={cameraFor}
           maxPhotos={maxPhotos}
           onCapture={handlePhotoCapture}
-          onCancel={() => setCameraFor(null)}
+          onCancel={() => {
+            setCameraFor(null);
+            setGpsSnapshot(null);
+          }}
         />
       )}
     </div>

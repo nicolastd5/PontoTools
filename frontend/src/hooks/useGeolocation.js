@@ -64,6 +64,7 @@ export function useGeolocation(unit) {
     }
 
     let cancelled = false;
+    let refreshId = null;
 
     function startWatch() {
       if (cancelled) return;
@@ -79,6 +80,15 @@ export function useGeolocation(unit) {
         handleError,
         { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
       );
+
+      if (refreshId !== null) clearInterval(refreshId);
+      refreshId = setInterval(() => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => { if (!cancelled) handleSuccess(pos); },
+          () => {},
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
+      }, 2 * 60 * 1000);
     }
 
     navigator.permissions?.query({ name: 'geolocation' }).then((result) => {
@@ -103,6 +113,10 @@ export function useGeolocation(unit) {
 
     return () => {
       cancelled = true;
+      if (refreshId !== null) {
+        clearInterval(refreshId);
+        refreshId = null;
+      }
       if (watchIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
