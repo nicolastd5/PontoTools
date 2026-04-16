@@ -5,6 +5,15 @@ const storage = require('../config/storage');
 const { validateZone } = require('../services/geoValidation.service');
 const logger  = require('../utils/logger');
 
+function isValidTimeZone(timeZone) {
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ----------------------------------------------------------------
 // POST /api/clock
 // Recebe multipart/form-data: campos + foto(s)
@@ -13,6 +22,9 @@ async function registerClock(req, res, next) {
   try {
     const { clock_type, latitude, longitude, accuracy, timezone, observation } = req.body;
     const photoFiles = req.files || (req.file ? [req.file] : []);
+    if (!isValidTimeZone(timezone)) {
+      return res.status(400).json({ error: 'Fuso horário inválido.' });
+    }
 
     // Busca a unidade e cargo do funcionário autenticado (filtra pelo employee específico)
     const unitResult = await db.query(
@@ -70,13 +82,16 @@ async function registerClock(req, res, next) {
 
     // Se fora da zona e o cargo exige localização: bloqueia e registra tentativa
     if (!isInside && unit.require_location) {
+      const blockReason = hasValidCoords ? 'outside_zone' : 'gps_disabled';
+
       await db.query(
         `INSERT INTO blocked_attempts
            (employee_id, unit_id, attempted_at, block_reason, latitude, longitude, distance_meters, timezone, ip_address, device_info)
-         VALUES ($1, $2, NOW(), 'outside_zone', $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9)`,
         [
           req.user.id,
           unit.id,
+          blockReason,
           hasValidCoords ? lat : null,
           hasValidCoords ? lon : null,
           distanceMeters,
@@ -86,11 +101,22 @@ async function registerClock(req, res, next) {
         ]
       );
 
-      logger.warn('Batida bloqueada: fora da zona', {
+      logger.warn('Batida bloqueada', {
         employeeId: req.user.id,
+        blockReason,
         distanceMeters,
         unitRadius: unit.radius_meters,
       });
+
+      if (!hasValidCoords) {
+        return res.status(422).json({
+          blocked: true,
+          reason:  'gps_disabled',
+          message: 'Não foi possível validar sua localização. Ative o GPS e tente novamente.',
+          distanceMeters: null,
+          radiusMeters: unit.radius_meters,
+        });
+      }
 
       return res.status(422).json({
         blocked: true,
@@ -235,6 +261,9 @@ async function getHistory(req, res, next) {
 async function getToday(req, res, next) {
   try {
     const tz = req.query.timezone || 'America/Sao_Paulo';
+    if (!isValidTimeZone(tz)) {
+      return res.status(400).json({ error: 'Fuso horário inválido.' });
+    }
 
     const result = await db.query(
       `SELECT id, clock_type, clocked_at_utc, timezone, is_inside_zone, distance_meters

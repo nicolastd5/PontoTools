@@ -175,6 +175,7 @@ async function exportExcel(req, res, next) {
     const result = await db.query(
       `SELECT
          cr.id,
+         e.id AS employee_id,
          e.full_name, e.badge_number,
          u.name AS unit_name, u.code AS unit_code,
          cr.clock_type,
@@ -345,7 +346,7 @@ async function exportServicesPdf(req, res, next) {
          e.full_name, e.badge_number,
          u.name AS unit_name, u.address AS unit_address
        FROM service_orders so
-       JOIN employees e ON e.id = so.assigned_employee_id
+       LEFT JOIN employees e ON e.id = so.assigned_employee_id
        JOIN units     u ON u.id = so.unit_id
        WHERE so.scheduled_date BETWEEN $1 AND $2
          ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
@@ -360,7 +361,7 @@ async function exportServicesPdf(req, res, next) {
     // Busca fotos de todos os serviços encontrados
     const serviceIds = result.rows.map((r) => r.id);
     const photosResult = await db.query(
-      `SELECT service_order_id, id AS photo_id, phase, photo_path
+      `SELECT service_order_id, id AS photo_id, phase, photo_path, latitude, longitude
        FROM service_photos
        WHERE service_order_id = ANY($1)
        ORDER BY service_order_id, created_at ASC`,
@@ -418,15 +419,16 @@ async function exportServicesPdf(req, res, next) {
         doc.moveDown(0.2);
 
         // Linha de metadados
+        const assignedName = svc.full_name || 'Sem responsável';
         doc.fontSize(9).font('Helvetica').fillColor('#64748b')
-           .text(`${svc.full_name}  ·  ${svc.unit_name}  ·  Agendado: ${scheduledDate}${svc.due_time ? ' às ' + svc.due_time.slice(0,5) : ''}  ·  Status: ${STATUS_LABEL[svc.status] || svc.status}`);
+           .text(`${assignedName}  ·  ${svc.unit_name}  ·  Agendado: ${scheduledDate}${svc.due_time ? ' às ' + svc.due_time.slice(0,5) : ''}  ·  Status: ${STATUS_LABEL[svc.status] || svc.status}`);
         doc.fillColor('#000');
         doc.moveDown(0.2);
 
         // Endereço GPS da foto de início (before)
         const photos = photosByService[svc.id] || [];
-        const gpsPhoto = photos.find((p) => p.phase === 'before' && p.latitude && p.longitude)
-                      || photos.find((p) => p.latitude && p.longitude);
+        const gpsPhoto = photos.find((p) => p.phase === 'before' && p.latitude != null && p.longitude != null)
+                      || photos.find((p) => p.latitude != null && p.longitude != null);
         if (gpsPhoto) {
           const gpsAddress = await reverseGeocode(gpsPhoto.latitude, gpsPhoto.longitude);
           if (gpsAddress) {

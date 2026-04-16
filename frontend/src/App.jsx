@@ -80,8 +80,11 @@ function AppRoutes() {
       <Route path="/admin" element={
         <PrivateRoute roles={['admin','gestor']}><AdminLayout /></PrivateRoute>
       }>
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard"  element={<AdminDashboardPage />} />
+        <Route index element={<Navigate to={user?.role === 'gestor' ? '/admin/employees' : '/admin/dashboard'} replace />} />
+        <Route
+          path="dashboard"
+          element={user?.role === 'admin' ? <AdminDashboardPage /> : <Navigate to="/admin/employees" replace />}
+        />
         <Route path="employees"  element={<AdminEmployeesPage />} />
         <Route path="clocks"     element={<AdminClocksPage />} />
         <Route path="blocked"    element={<AdminBlockedPage />} />

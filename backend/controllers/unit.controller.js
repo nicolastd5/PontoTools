@@ -100,10 +100,14 @@ async function deactivate(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    const params = [parseInt(req.params.id, 10)];
+    const unitId = parseInt(req.params.id, 10);
+    const params = [unitId];
     let scopeFilter = '';
 
-    if (req.user.role === 'gestor' && req.user.contractId) {
+    if (req.user.role === 'employee') {
+      params.push(req.user.unitId);
+      scopeFilter = `AND id = $${params.length}`;
+    } else if (req.user.role === 'gestor' && req.user.contractId) {
       params.push(req.user.contractId);
       scopeFilter = `AND contract_id = $${params.length}`;
     }

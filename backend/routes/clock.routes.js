@@ -8,6 +8,15 @@ const auth                = require('../middleware/auth');
 const validate            = require('../middleware/validate');
 const { clockLimiter }    = require('../middleware/rateLimiter');
 
+function isValidTimeZone(timeZone) {
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Multer: foto apenas em memória (não salva em disco diretamente)
 // O photoStorage.service decide onde gravar
 const upload = multer({
@@ -32,8 +41,15 @@ router.post('/',
     .withMessage('Latitude inválida.'),
   body('longitude').isFloat({ min: -180, max: 180 })
     .withMessage('Longitude inválida.'),
-  body('timezone').notEmpty()
-    .withMessage('Fuso horário obrigatório.'),
+  body('timezone')
+    .notEmpty().withMessage('Fuso horário obrigatório.')
+    .bail()
+    .custom((value) => {
+      if (!isValidTimeZone(value)) {
+        throw new Error('Fuso horário inválido.');
+      }
+      return true;
+    }),
   validate,
   controller.registerClock
 );

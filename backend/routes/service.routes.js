@@ -27,7 +27,12 @@ router.post('/',
   auth,
   requireAdminOrGestor,
   body('title').notEmpty().withMessage('Título obrigatório.'),
-  body('assigned_employee_id').isInt().withMessage('Funcionário obrigatório.'),
+  body('assigned_employee_id')
+    .optional({ values: 'falsy' })
+    .isInt({ min: 1 }).withMessage('assigned_employee_id inválido.'),
+  body('unit_id')
+    .optional({ values: 'falsy' })
+    .isInt({ min: 1 }).withMessage('unit_id inválido.'),
   body('scheduled_date').isDate().withMessage('Data inválida.'),
   validate,
   controller.create
