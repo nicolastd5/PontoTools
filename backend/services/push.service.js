@@ -79,9 +79,69 @@ async function checkLateServices() {
   }
 }
 
+async function checkTemplates() {
+  try {
+    const result = await db.query(
+      `SELECT * FROM service_templates
+       WHERE active = TRUE AND next_run_at <= NOW()`
+    );
+
+    for (const tpl of result.rows) {
+      // Cria a ordem de serviço
+      const inserted = await db.query(
+        `INSERT INTO service_orders
+           (title, description, assigned_employee_id, unit_id, created_by_id,
+            scheduled_date, due_time, template_id)
+         VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8)
+         RETURNING id`,
+        [
+          tpl.title,
+          tpl.description,
+          tpl.assigned_employee_id,  // pode ser NULL
+          tpl.unit_id,
+          tpl.created_by_id,
+          tpl.next_run_at,           // cast para date no SQL
+          tpl.due_time,
+          tpl.id,
+        ]
+      );
+
+      // Notifica funcionário se houver um atribuído
+      if (tpl.assigned_employee_id) {
+        await notify(
+          tpl.assigned_employee_id,
+          'Novo serviço atribuído',
+          `Você tem um novo serviço: "${tpl.title}".`,
+          'service_assigned'
+        );
+      }
+
+      // Avança next_run_at
+      await db.query(
+        `UPDATE service_templates
+         SET next_run_at = next_run_at + ($1 || ' days')::interval,
+             updated_at  = NOW()
+         WHERE id = $2`,
+        [tpl.interval_days, tpl.id]
+      );
+
+      logger.info('Serviço criado pelo template', {
+        templateId: tpl.id,
+        serviceId:  inserted.rows[0].id,
+      });
+    }
+  } catch (err) {
+    logger.error('Erro no cron de templates', { error: err.message });
+  }
+}
+
 function startCron() {
-  setInterval(checkLateServices, 60 * 60 * 1000);
+  setInterval(async () => {
+    await checkLateServices();
+    await checkTemplates();
+  }, 60 * 60 * 1000);
   checkLateServices();
+  checkTemplates();
 }
 
 module.exports = { notify, startCron };
