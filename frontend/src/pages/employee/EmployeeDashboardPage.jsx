@@ -128,7 +128,7 @@ export default function EmployeeDashboardPage() {
   }
 
   if (todayData?.servicesOnly) {
-    return <Navigate to="/employee/services" replace />;
+    return <Navigate to="/services" replace />;
   }
 
   return (
