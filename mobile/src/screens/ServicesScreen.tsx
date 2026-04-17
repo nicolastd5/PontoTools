@@ -16,11 +16,13 @@ interface ServiceOrder {
   id: number;
   title: string;
   description: string | null;
-  status: 'pending' | 'in_progress' | 'done' | 'problem';
+  status: 'pending' | 'in_progress' | 'done' | 'done_with_issues' | 'problem';
   scheduled_date: string;
   due_time: string | null;
   unit_name: string;
+  employee_posto: string | null;
   problem_description: string | null;
+  issue_description: string | null;
   started_at: string | null;
   finished_at: string | null;
 }
@@ -31,24 +33,27 @@ interface ServicePhoto {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  pending:    'Pendente',
-  in_progress:'Em andamento',
-  done:       'Concluído',
-  problem:    'Problema',
+  pending:          'Pendente',
+  in_progress:      'Em andamento',
+  done:             'Concluído',
+  done_with_issues: 'Concluído c/ ressalvas',
+  problem:          'Problema',
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  pending:    '#64748b',
-  in_progress:'#d97706',
-  done:       '#16a34a',
-  problem:    '#dc2626',
+  pending:          '#64748b',
+  in_progress:      '#d97706',
+  done:             '#16a34a',
+  done_with_issues: '#ea580c',
+  problem:          '#dc2626',
 };
 
 const STATUS_BG: Record<string, string> = {
-  pending:    '#f1f5f9',
-  in_progress:'#fffbeb',
-  done:       '#f0fdf4',
-  problem:    '#fef2f2',
+  pending:          '#f1f5f9',
+  in_progress:      '#fffbeb',
+  done:             '#f0fdf4',
+  done_with_issues: '#fff7ed',
+  problem:          '#fef2f2',
 };
 
 function fmtDate(dateStr: string) {
@@ -63,15 +68,18 @@ export default function ServicesScreen({
   onNavigate: (s: Screen) => void;
   unreadCount?: number;
 }) {
-  const [services, setServices]       = useState<ServiceOrder[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [refreshing, setRefreshing]   = useState(false);
-  const [selected, setSelected]       = useState<ServiceOrder | null>(null);
-  const [photos, setPhotos]           = useState<ServicePhoto[]>([]);
+  const [services, setServices]         = useState<ServiceOrder[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [refreshing, setRefreshing]     = useState(false);
+  const [selected, setSelected]         = useState<ServiceOrder | null>(null);
+  const [photos, setPhotos]             = useState<ServicePhoto[]>([]);
   const [newPhotoUris, setNewPhotoUris] = useState<string[]>([]);
-  const [problemText, setProblemText] = useState('');
-  const [submitting, setSubmitting]   = useState(false);
+  const [problemText, setProblemText]   = useState('');
+  const [issuesText, setIssuesText]     = useState('');
+  const [posto, setPosto]               = useState('');
+  const [submitting, setSubmitting]     = useState(false);
   const [showProblemInput, setShowProblemInput] = useState(false);
+  const [showIssuesInput, setShowIssuesInput]   = useState(false);
 
   const loadServices = useCallback(async (reset = false) => {
     if (!reset) setLoading(true);
@@ -88,10 +96,15 @@ export default function ServicesScreen({
     setSelected(service);
     setNewPhotoUris([]);
     setProblemText('');
+    setIssuesText('');
+    setPosto(service.employee_posto || '');
     setShowProblemInput(false);
+    setShowIssuesInput(false);
     try {
       const { data } = await api.get(`/services/${service.id}`);
       setPhotos(data.photos || []);
+      setSelected(data);
+      setPosto(data.employee_posto || '');
     } catch { setPhotos([]); }
   }, []);
 
@@ -122,15 +135,20 @@ export default function ServicesScreen({
 
   const handleUpdateStatus = useCallback(async (
     serviceId: number,
-    status: 'in_progress' | 'done' | 'problem',
-    problemDescription?: string
+    status: 'in_progress' | 'done' | 'done_with_issues' | 'problem',
+    problemDescription?: string,
+    issueDescription?: string,
   ) => {
     setSubmitting(true);
     try {
       // 1. Atualiza status
-      await api.patch(`/services/${serviceId}/status`, { status, problem_description: problemDescription });
+      await api.patch(`/services/${serviceId}/status`, {
+        status,
+        problem_description: problemDescription,
+        issue_description:   issueDescription,
+      });
 
-      // 2. Envia fotos novas (fase 'after' para done/problem, 'before' para in_progress)
+      // 2. Envia fotos novas
       const phase = status === 'in_progress' ? 'before' : 'after';
       const gps = await getGps();
       for (const uri of newPhotoUris) {
@@ -140,6 +158,9 @@ export default function ServicesScreen({
         if (gps) {
           form.append('latitude',  String(gps.latitude));
           form.append('longitude', String(gps.longitude));
+        }
+        if (phase === 'before' && posto.trim()) {
+          form.append('employee_posto', posto.trim());
         }
         await api.post(`/services/${serviceId}/photos`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -154,7 +175,9 @@ export default function ServicesScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [newPhotoUris, loadServices]);
+  }, [newPhotoUris, posto, loadServices]);
+
+  const isActive = selected && (selected.status === 'pending' || selected.status === 'in_progress');
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
@@ -233,6 +256,13 @@ export default function ServicesScreen({
                     </View>
                   ) : null}
 
+                  {selected.issue_description ? (
+                    <View style={[modal.problemBox, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
+                      <Text style={[modal.problemLabel, { color: '#ea580c' }]}>Ressalvas:</Text>
+                      <Text style={modal.problemText}>{selected.issue_description}</Text>
+                    </View>
+                  ) : null}
+
                   {(selected.started_at || selected.finished_at) ? (
                     <View style={modal.tsBox}>
                       {selected.started_at ? (
@@ -243,6 +273,24 @@ export default function ServicesScreen({
                       ) : null}
                     </View>
                   ) : null}
+
+                  {/* Campo Posto */}
+                  <View style={{ marginBottom: 14 }}>
+                    <Text style={modal.fieldLabel}>Posto</Text>
+                    {selected.employee_posto && selected.status !== 'pending' ? (
+                      <View style={modal.fieldReadonly}>
+                        <Text style={{ fontSize: 14, color: '#374151' }}>{selected.employee_posto}</Text>
+                      </View>
+                    ) : (
+                      <TextInput
+                        style={modal.fieldInput}
+                        placeholder="Informe o posto de trabalho"
+                        placeholderTextColor="#94a3b8"
+                        value={posto}
+                        onChangeText={setPosto}
+                      />
+                    )}
+                  </View>
 
                   {/* Fotos existentes */}
                   {photos.length > 0 && (
@@ -277,41 +325,81 @@ export default function ServicesScreen({
                     </ScrollView>
                   )}
 
-                  {/* Botão adicionar foto (visível se ainda pode agir) */}
-                  {(selected.status === 'pending' || selected.status === 'in_progress') && (
+                  {/* Botão adicionar foto */}
+                  {isActive && (
                     <TouchableOpacity style={modal.photoBtn} onPress={takePhoto}>
                       <Text style={modal.photoBtnText}>📸 Adicionar foto</Text>
                     </TouchableOpacity>
                   )}
 
                   {/* Ações */}
-                  {selected.status === 'pending' && !submitting && (
-                    <TouchableOpacity
-                      style={[modal.actionBtn, { backgroundColor: '#d97706' }]}
-                      onPress={() => handleUpdateStatus(selected.id, 'in_progress')}
-                    >
-                      <Text style={modal.actionBtnText}>Iniciar serviço</Text>
-                    </TouchableOpacity>
+                  {!submitting && !showProblemInput && !showIssuesInput && (
+                    <>
+                      {selected.status === 'pending' && (
+                        <TouchableOpacity
+                          style={[modal.actionBtn, { backgroundColor: '#d97706' }]}
+                          onPress={() => handleUpdateStatus(selected.id, 'in_progress')}
+                        >
+                          <Text style={modal.actionBtnText}>Iniciar serviço</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {selected.status === 'in_progress' && (
+                        <View style={{ gap: 10 }}>
+                          <TouchableOpacity
+                            style={[modal.actionBtn, { backgroundColor: '#16a34a' }]}
+                            onPress={() => handleUpdateStatus(selected.id, 'done')}
+                          >
+                            <Text style={modal.actionBtnText}>Concluir serviço</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[modal.actionBtn, { backgroundColor: '#ea580c' }]}
+                            onPress={() => setShowIssuesInput(true)}
+                          >
+                            <Text style={modal.actionBtnText}>Concluir com ressalvas</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[modal.actionBtn, { backgroundColor: '#dc2626' }]}
+                            onPress={() => setShowProblemInput(true)}
+                          >
+                            <Text style={modal.actionBtnText}>Reportar problema</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
                   )}
 
-                  {selected.status === 'in_progress' && !showProblemInput && !submitting && (
-                    <View style={{ gap: 10 }}>
+                  {/* Input de ressalvas */}
+                  {showIssuesInput && !submitting && (
+                    <View>
+                      <TextInput
+                        style={modal.problemInput}
+                        placeholder="Descreva as ressalvas..."
+                        placeholderTextColor="#94a3b8"
+                        value={issuesText}
+                        onChangeText={setIssuesText}
+                        multiline
+                        numberOfLines={3}
+                        maxLength={500}
+                      />
                       <TouchableOpacity
-                        style={[modal.actionBtn, { backgroundColor: '#16a34a' }]}
-                        onPress={() => handleUpdateStatus(selected.id, 'done')}
+                        style={[modal.actionBtn, { backgroundColor: '#ea580c', marginTop: 10 }]}
+                        onPress={() => handleUpdateStatus(selected!.id, 'done_with_issues', undefined, issuesText)}
+                        disabled={!issuesText.trim()}
                       >
-                        <Text style={modal.actionBtnText}>Concluir serviço</Text>
+                        <Text style={modal.actionBtnText}>Confirmar ressalvas</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[modal.actionBtn, { backgroundColor: '#dc2626' }]}
-                        onPress={() => setShowProblemInput(true)}
+                        style={[modal.actionBtn, { backgroundColor: '#64748b', marginTop: 6 }]}
+                        onPress={() => setShowIssuesInput(false)}
                       >
-                        <Text style={modal.actionBtnText}>Reportar problema</Text>
+                        <Text style={modal.actionBtnText}>Cancelar</Text>
                       </TouchableOpacity>
                     </View>
                   )}
 
-                  {showProblemInput && (
+                  {/* Input de problema */}
+                  {showProblemInput && !submitting && (
                     <View>
                       <TextInput
                         style={modal.problemInput}
@@ -325,10 +413,16 @@ export default function ServicesScreen({
                       />
                       <TouchableOpacity
                         style={[modal.actionBtn, { backgroundColor: '#dc2626', marginTop: 10 }]}
-                        onPress={() => handleUpdateStatus(selected.id, 'problem', problemText)}
+                        onPress={() => handleUpdateStatus(selected!.id, 'problem', problemText)}
                         disabled={!problemText.trim()}
                       >
                         <Text style={modal.actionBtnText}>Confirmar problema</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[modal.actionBtn, { backgroundColor: '#64748b', marginTop: 6 }]}
+                        onPress={() => setShowProblemInput(false)}
+                      >
+                        <Text style={modal.actionBtnText}>Cancelar</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -363,7 +457,10 @@ const modal = StyleSheet.create({
   statusText:   { fontSize: 12, fontWeight: '700' },
   desc:         { fontSize: 14, color: '#374151', marginBottom: 10, lineHeight: 20 },
   meta:         { fontSize: 12, color: '#94a3b8', marginBottom: 14 },
-  problemBox:   { backgroundColor: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 12 },
+  fieldLabel:   { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  fieldInput:   { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a' },
+  fieldReadonly:{ backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 12 },
+  problemBox:   { backgroundColor: '#fef2f2', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#fca5a5' },
   problemLabel: { fontSize: 11, fontWeight: '700', color: '#dc2626', marginBottom: 4 },
   problemText:  { fontSize: 13, color: '#374151' },
   tsBox:        { backgroundColor: '#f0fdf4', borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: '#bbf7d0' },
