@@ -1,5 +1,6 @@
 // App principal do funcionário — batida de ponto com GPS e câmera
 import { useState, useEffect }  from 'react';
+import { Navigate }             from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone }  from 'date-fns-tz';
 import api                   from '../../services/api';
@@ -124,6 +125,10 @@ export default function EmployeeDashboardPage() {
     } finally {
       setGpsSnapshot(null);
     }
+  }
+
+  if (todayData?.servicesOnly) {
+    return <Navigate to="/employee/services" replace />;
   }
 
   return (

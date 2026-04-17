@@ -276,9 +276,10 @@ async function getToday(req, res, next) {
 
     // Busca configurações do cargo do funcionário
     const jobResult = await db.query(
-      `SELECT COALESCE(jr.max_photos, 1)        AS max_photos,
-              COALESCE(jr.has_break, TRUE)       AS has_break,
-              COALESCE(jr.require_location, TRUE) AS require_location
+      `SELECT COALESCE(jr.max_photos, 1)         AS max_photos,
+              COALESCE(jr.has_break, TRUE)        AS has_break,
+              COALESCE(jr.require_location, TRUE) AS require_location,
+              COALESCE(jr.services_only, FALSE)   AS services_only
        FROM employees e
        LEFT JOIN job_roles jr ON jr.id = e.job_role_id
        WHERE e.id = $1`,
@@ -287,6 +288,7 @@ async function getToday(req, res, next) {
     const maxPhotos       = jobResult.rows[0]?.max_photos ?? 1;
     const hasBreak        = jobResult.rows[0]?.has_break ?? true;
     const requireLocation = jobResult.rows[0]?.require_location ?? true;
+    const servicesOnly    = jobResult.rows[0]?.services_only ?? false;
 
     const records = result.rows;
     const types = records.map((r) => r.clock_type);
@@ -301,7 +303,7 @@ async function getToday(req, res, next) {
         : lastType === 'entry',
     };
 
-    res.json({ records, available, maxPhotos, requireLocation });
+    res.json({ records, available, maxPhotos, requireLocation, servicesOnly });
   } catch (err) {
     next(err);
   }

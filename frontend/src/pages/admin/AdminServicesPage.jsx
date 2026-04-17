@@ -50,7 +50,18 @@ function useUnits() {
 }
 
 const EMPTY_SERVICE  = { title: '', description: '', assigned_employee_id: '', scheduled_date: '', due_time: '' };
-const EMPTY_TEMPLATE = { title: '', description: '', unit_id: '', assigned_employee_id: '', due_time: '', interval_days: '', start_date: '', quantity: '1' };
+// fire_weekdays: array[7] booleans [Dom,Seg,Ter,Qua,Qui,Sex,Sáb] — null = todos os dias
+const ALL_DAYS = [true, true, true, true, true, true, true];
+const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+function bitmaskToDays(mask) {
+  if (mask == null) return [...ALL_DAYS];
+  return Array.from({ length: 7 }, (_, i) => Boolean((mask >> i) & 1));
+}
+function daysToBitmask(days) {
+  if (days.every(Boolean)) return null; // todos = sem restrição
+  return days.reduce((acc, on, i) => acc | (on ? 1 << i : 0), 0);
+}
+const EMPTY_TEMPLATE = { title: '', description: '', unit_id: '', assigned_employee_id: '', due_time: '', interval_days: '', start_date: '', quantity: '1', fire_days: [...ALL_DAYS] };
 
 export default function AdminServicesPage() {
   const queryClient = useQueryClient();
@@ -259,6 +270,7 @@ export default function AdminServicesPage() {
       interval_days:        String(tpl.interval_days),
       start_date:           tpl.start_date?.slice(0, 10) || '',
       quantity:             String(tpl.quantity || 1),
+      fire_days:            bitmaskToDays(tpl.fire_weekdays),
     });
     setTplModal(tpl);
   }
@@ -278,6 +290,7 @@ export default function AdminServicesPage() {
       due_time:             tplForm.due_time || undefined,
       interval_days:        parseInt(tplForm.interval_days, 10),
       quantity:             Math.min(40, Math.max(1, parseInt(tplForm.quantity, 10) || 1)),
+      fire_weekdays:        daysToBitmask(tplForm.fire_days),
       start_date:           tplForm.start_date,
     };
     const isEditing = tplModal && tplModal !== 'create';
@@ -704,6 +717,34 @@ export default function AdminServicesPage() {
                     onChange={(e) => setTplForm((p) => ({ ...p, quantity: e.target.value }))} required />
                 </Field>
               </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>Dias de disparo</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {DAY_LABELS.map((lbl, i) => (
+                    <label key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px',
+                      borderRadius: 8, border: `1.5px solid ${tplForm.fire_days[i] ? '#1d4ed8' : '#e2e8f0'}`,
+                      background: tplForm.fire_days[i] ? '#eff6ff' : '#f8fafc',
+                      cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                      color: tplForm.fire_days[i] ? '#1d4ed8' : '#64748b',
+                    }}>
+                      <input type="checkbox" checked={tplForm.fire_days[i]}
+                        onChange={(e) => setTplForm((p) => {
+                          const days = [...p.fire_days];
+                          days[i] = e.target.checked;
+                          return { ...p, fire_days: days };
+                        })}
+                        style={{ accentColor: '#1d4ed8', width: 14, height: 14 }}
+                      />
+                      {lbl}
+                    </label>
+                  ))}
+                </div>
+                {tplForm.fire_days.every(Boolean) && (
+                  <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>Todos os dias selecionados — dispara diariamente.</p>
+                )}
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
                 <button type="button" onClick={closeTplModal} style={s.outlineBtn} disabled={tplBusy}>Cancelar</button>
                 <button type="submit" style={s.primaryBtn} disabled={tplBusy}>

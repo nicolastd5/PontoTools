@@ -18,7 +18,7 @@ async function list(req, res, next) {
     const result = await db.query(
       `SELECT
          st.id, st.title, st.description,
-         st.interval_days, st.quantity, st.start_date, st.due_time,
+         st.interval_days, st.quantity, st.fire_weekdays, st.start_date, st.due_time,
          st.next_run_at, st.active,
          st.assigned_employee_id,
          e.full_name  AS employee_name,
@@ -48,10 +48,11 @@ async function create(req, res, next) {
     const {
       title, description,
       unit_id, assigned_employee_id,
-      due_time, interval_days, start_date, quantity,
+      due_time, interval_days, start_date, quantity, fire_weekdays,
     } = req.body;
 
     const qty = Math.min(40, Math.max(1, parseInt(quantity, 10) || 1));
+    const fwd = (fire_weekdays != null && fire_weekdays !== 127) ? (parseInt(fire_weekdays, 10) & 127) : null;
 
     // Gestor só pode criar em units do próprio contrato
     const unitCheck = req.user.role === 'gestor'
@@ -75,8 +76,8 @@ async function create(req, res, next) {
 
     const result = await db.query(
       `INSERT INTO service_templates
-         (title, description, unit_id, assigned_employee_id, due_time, interval_days, quantity, start_date, next_run_at, created_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         (title, description, unit_id, assigned_employee_id, due_time, interval_days, quantity, fire_weekdays, start_date, next_run_at, created_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         title.trim(),
@@ -86,6 +87,7 @@ async function create(req, res, next) {
         due_time || null,
         parseInt(interval_days, 10),
         qty,
+        fwd,
         start_date,
         next_run_at,
         req.user.id,
@@ -108,7 +110,7 @@ async function update(req, res, next) {
     const {
       title, description,
       unit_id, assigned_employee_id,
-      due_time, interval_days, start_date, quantity,
+      due_time, interval_days, start_date, quantity, fire_weekdays,
     } = req.body;
 
     // Verifica existência e escopo
@@ -129,6 +131,9 @@ async function update(req, res, next) {
     const newQuantity     = quantity !== undefined
       ? Math.min(40, Math.max(1, parseInt(quantity, 10) || 1))
       : tpl.quantity;
+    const newFireWeekdays = fire_weekdays !== undefined
+      ? ((fire_weekdays != null && fire_weekdays !== 127) ? (parseInt(fire_weekdays, 10) & 127) : null)
+      : tpl.fire_weekdays;
     const newStartDate    = start_date     || tpl.start_date;
     const newAssigned     = assigned_employee_id !== undefined
       ? (assigned_employee_id ? parseInt(assigned_employee_id, 10) : null)
@@ -168,10 +173,11 @@ async function update(req, res, next) {
          due_time             = $5,
          interval_days        = $6,
          quantity             = $7,
-         start_date           = $8,
-         next_run_at          = $9,
+         fire_weekdays        = $8,
+         start_date           = $9,
+         next_run_at          = $10,
          updated_at           = NOW()
-       WHERE id = $10
+       WHERE id = $11
        RETURNING *`,
       [
         title?.trim() || null,
@@ -181,6 +187,7 @@ async function update(req, res, next) {
         due_time !== undefined ? (due_time || null) : tpl.due_time,
         newInterval,
         newQuantity,
+        newFireWeekdays,
         newStartDate,
         next_run_at,
         id,

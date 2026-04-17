@@ -10,7 +10,7 @@ function useJobRoles() {
   });
 }
 
-const EMPTY_FORM = { name: '', description: '', has_break: true, max_photos: 1, require_location: true };
+const EMPTY_FORM = { name: '', description: '', has_break: true, max_photos: 1, require_location: true, services_only: false };
 
 export default function AdminJobRolesPage() {
   const queryClient = useQueryClient();
@@ -46,7 +46,7 @@ export default function AdminJobRolesPage() {
   }
 
   function openEdit(row) {
-    setForm({ name: row.name, description: row.description || '', has_break: row.has_break, max_photos: row.max_photos ?? 1, require_location: row.require_location ?? true });
+    setForm({ name: row.name, description: row.description || '', has_break: row.has_break, max_photos: row.max_photos ?? 1, require_location: row.require_location ?? true, services_only: row.services_only ?? false });
     setEditId(row.id);
     setModal(true);
   }
@@ -59,7 +59,7 @@ export default function AdminJobRolesPage() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    saveMutation.mutate({ ...form, has_break: Boolean(form.has_break), require_location: Boolean(form.require_location) });
+    saveMutation.mutate({ ...form, has_break: Boolean(form.has_break), require_location: Boolean(form.require_location), services_only: Boolean(form.services_only) });
   }
 
   return (
@@ -78,7 +78,7 @@ export default function AdminJobRolesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                {['Cargo', 'Descrição', 'Intervalo', 'Localização', 'Fotos', 'Status', 'Ações'].map((h) => (
+                {['Cargo', 'Descrição', 'Módulo', 'Intervalo', 'Localização', 'Fotos', 'Status', 'Ações'].map((h) => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -88,6 +88,15 @@ export default function AdminJobRolesPage() {
                 <tr key={jr.id} style={{ borderBottom: '1px solid #f8fafc' }}>
                   <td style={styles.td}><strong style={{ color: '#0f172a' }}>{jr.name}</strong></td>
                   <td style={styles.td}><span style={{ color: '#64748b', fontSize: 13 }}>{jr.description || '—'}</span></td>
+                  <td style={styles.td}>
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      background: jr.services_only ? '#faf5ff' : '#f0f9ff',
+                      color:      jr.services_only ? '#7e22ce' : '#0369a1',
+                    }}>
+                      {jr.services_only ? 'Só Serviços' : 'Ponto + Serviços'}
+                    </span>
+                  </td>
                   <td style={styles.td}>
                     <span style={{
                       padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
@@ -215,6 +224,26 @@ export default function AdminJobRolesPage() {
                     {form.require_location
                       ? 'Funcionários só podem registrar ponto dentro do raio da unidade.'
                       : 'Funcionários podem registrar de qualquer lugar. A localização ainda é gravada.'}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: '#faf5ff', borderRadius: 10, padding: '14px 16px', border: '1.5px solid #e9d5ff' }}>
+                <input
+                  type="checkbox"
+                  id="services_only"
+                  checked={form.services_only}
+                  onChange={(e) => setForm((p) => ({ ...p, services_only: e.target.checked }))}
+                  style={{ width: 18, height: 18, marginTop: 2, accentColor: '#7e22ce', cursor: 'pointer' }}
+                />
+                <div>
+                  <label htmlFor="services_only" style={{ ...labelStyle, cursor: 'pointer' }}>
+                    Apenas Serviços (ocultar Ponto Eletrônico)
+                  </label>
+                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+                    {form.services_only
+                      ? 'Funcionários deste cargo vão direto para a tela de Serviços — sem tela de ponto.'
+                      : 'Funcionários deste cargo usam Ponto Eletrônico e Serviços normalmente.'}
                   </p>
                 </div>
               </div>

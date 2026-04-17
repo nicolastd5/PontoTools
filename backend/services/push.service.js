@@ -87,6 +87,21 @@ async function checkTemplates() {
     );
 
     for (const tpl of result.rows) {
+      // Verifica restrição de dia da semana (fire_weekdays bitmask: bit0=Dom...bit6=Sáb)
+      if (tpl.fire_weekdays != null) {
+        const todayBit = 1 << new Date().getDay();
+        if (!(tpl.fire_weekdays & todayBit)) {
+          // Dia não permitido: avança next_run_at mas não cria OS
+          await db.query(
+            `UPDATE service_templates
+             SET next_run_at = next_run_at + ($1 || ' days')::interval, updated_at = NOW()
+             WHERE id = $2`,
+            [tpl.interval_days, tpl.id]
+          );
+          continue;
+        }
+      }
+
       const qty = Math.min(40, Math.max(1, tpl.quantity || 1));
 
       // Todos os INSERTs + UPDATE do next_run_at em uma única transação
