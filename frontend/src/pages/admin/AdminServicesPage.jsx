@@ -60,6 +60,7 @@ export default function AdminServicesPage() {
 
   // ── Services state ──
   const [filters, setFilters]           = useState({ status: '', employeeId: '' });
+  const [selected, setSelected]         = useState(new Set());
   const [modal, setModal]               = useState(false);
   const [detailModal, setDetail]        = useState(null);
   const [rescheduleModal, setReschedule] = useState(null);
@@ -137,6 +138,17 @@ export default function AdminServicesPage() {
       if (detailModal) setDetail((await api.get(`/services/${detailModal.id}`)).data);
     },
     onError: () => error('Erro ao atualizar status.'),
+  });
+
+  const bulkStatus = useMutation({
+    mutationFn: ({ ids, status }) =>
+      Promise.all(ids.map((id) => api.patch(`/services/${id}/status`, { status }))),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Status atualizado em massa.');
+      setSelected(new Set());
+    },
+    onError: () => error('Erro ao atualizar status em massa.'),
   });
 
   const deletePhoto = useMutation({
@@ -308,6 +320,23 @@ export default function AdminServicesPage() {
             )}
           </div>
 
+          {selected.size > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', marginRight: 4 }}>{selected.size} selecionado(s)</span>
+              <button onClick={() => bulkStatus.mutate({ ids: [...selected], status: 'in_progress' })} disabled={bulkStatus.isLoading}
+                style={{ ...statusBtn, background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe', fontSize: 12 }}>Em andamento</button>
+              <button onClick={() => bulkStatus.mutate({ ids: [...selected], status: 'done' })} disabled={bulkStatus.isLoading}
+                style={{ ...statusBtn, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', fontSize: 12 }}>Marcar como concluído</button>
+              <button onClick={() => bulkStatus.mutate({ ids: [...selected], status: 'done_with_issues' })} disabled={bulkStatus.isLoading}
+                style={{ ...statusBtn, background: '#ffedd5', color: '#c2410c', border: '1px solid #fed7aa', fontSize: 12 }}>Concluído c/ ressalvas</button>
+              <button onClick={() => bulkStatus.mutate({ ids: [...selected], status: 'problem' })} disabled={bulkStatus.isLoading}
+                style={{ ...statusBtn, background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', fontSize: 12 }}>Problema</button>
+              <button onClick={() => bulkStatus.mutate({ ids: [...selected], status: 'pending' })} disabled={bulkStatus.isLoading}
+                style={{ ...statusBtn, background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', fontSize: 12 }}>Reabrir</button>
+              <button onClick={() => setSelected(new Set())} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 12, cursor: 'pointer', color: '#64748b' }}>Cancelar</button>
+            </div>
+          )}
+
           <div style={s.card}>
             {svcLoading ? (
               <p style={s.empty}>Carregando...</p>
@@ -317,6 +346,12 @@ export default function AdminServicesPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <th style={{ ...s.th, width: 36 }}>
+                      <input type="checkbox"
+                        checked={selected.size === services.length && services.length > 0}
+                        onChange={(e) => setSelected(e.target.checked ? new Set(services.map((sv) => sv.id)) : new Set())}
+                      />
+                    </th>
                     {['Título', 'Funcionário', 'Data', 'Prazo', 'Status', 'Ações'].map((h) => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
@@ -324,7 +359,12 @@ export default function AdminServicesPage() {
                 </thead>
                 <tbody>
                   {services.map((sv) => (
-                    <tr key={sv.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                    <tr key={sv.id} style={{ borderBottom: '1px solid #f8fafc', background: selected.has(sv.id) ? '#f0f9ff' : undefined }}>
+                      <td style={{ ...s.td, width: 36 }}>
+                        <input type="checkbox" checked={selected.has(sv.id)}
+                          onChange={(e) => setSelected((prev) => { const next = new Set(prev); e.target.checked ? next.add(sv.id) : next.delete(sv.id); return next; })}
+                        />
+                      </td>
                       <td style={s.td}>
                         <div style={{ fontWeight: 600, color: '#0f172a' }}>{sv.title}</div>
                         {sv.description && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sv.description.slice(0, 60)}{sv.description.length > 60 ? '…' : ''}</div>}
