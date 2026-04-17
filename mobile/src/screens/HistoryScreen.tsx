@@ -26,9 +26,11 @@ interface ClockRecord {
 export default function HistoryScreen({
   onNavigate,
   unreadCount = 0,
+  servicesOnly = false,
 }: {
   onNavigate: (s: Screen) => void;
   unreadCount?: number;
+  servicesOnly?: boolean;
 }) {
   const [records, setRecords]       = useState<ClockRecord[]>([]);
   const [page, setPage]             = useState(1);
@@ -52,7 +54,7 @@ export default function HistoryScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="history" onNavigate={onNavigate} unreadCount={unreadCount} />
+      <TabBar active="history" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
 
       <FlatList
         data={records}

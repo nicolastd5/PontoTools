@@ -8,16 +8,20 @@ interface TabBarProps {
   active: Screen;
   onNavigate: (screen: Screen) => void;
   unreadCount?: number;
+  servicesOnly?: boolean;
 }
 
-const TABS: { screen: Screen; label: string; icon: string }[] = [
+const ALL_TABS: { screen: Screen; label: string; icon: string }[] = [
   { screen: 'dashboard',     label: 'Ponto',     icon: '🕐' },
   { screen: 'history',       label: 'Histórico', icon: '📋' },
   { screen: 'services',      label: 'Serviços',  icon: '🔧' },
   { screen: 'notifications', label: 'Avisos',    icon: '🔔' },
 ];
 
-export default function TabBar({ active, onNavigate, unreadCount = 0 }: TabBarProps) {
+export default function TabBar({ active, onNavigate, unreadCount = 0, servicesOnly = false }: TabBarProps) {
+  const TABS = servicesOnly
+    ? ALL_TABS.filter((t) => t.screen === 'services' || t.screen === 'notifications')
+    : ALL_TABS;
   return (
     <View style={styles.tabBar}>
       {TABS.map(({ screen, label, icon }) => {

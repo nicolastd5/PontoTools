@@ -18,7 +18,22 @@ function AppContent() {
   const [screen, setScreen]           = useState<Screen>('dashboard');
   const [authScreen, setAuthScreen]   = useState<AuthScreen>('login');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [servicesOnly, setServicesOnly] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Detecta services_only e define tela inicial ao logar
+  useEffect(() => {
+    if (!user) { setServicesOnly(false); setScreen('dashboard'); return; }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    api.get('/clock/today', { params: { timezone: tz } })
+      .then(({ data }) => {
+        if (data.servicesOnly) {
+          setServicesOnly(true);
+          setScreen('services');
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   // Polling de notificações não lidas a cada 30s
   useEffect(() => {
@@ -50,7 +65,7 @@ function AppContent() {
     return <LoginScreen onForgotPassword={() => setAuthScreen('forgot-password')} />;
   }
 
-  const sharedProps = { onNavigate: setScreen, unreadCount };
+  const sharedProps = { onNavigate: setScreen, unreadCount, servicesOnly };
 
   return (
     <View style={{ flex: 1 }}>

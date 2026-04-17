@@ -407,7 +407,7 @@ export default function AdminServicesPage() {
                           </span>
                         )}
                       </td>
-                      <td style={s.td}>{new Date(sv.scheduled_date).toLocaleDateString('pt-BR')}</td>
+                      <td style={s.td}>{sv.scheduled_date?.slice(0, 10).split('-').reverse().join('/')}</td>
                       <td style={s.td}>{sv.due_time ? sv.due_time.slice(0, 5) : '—'}</td>
                       <td style={s.td}><ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} /></td>
                       <td style={s.td}>
@@ -542,7 +542,7 @@ export default function AdminServicesPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16, fontSize: 13 }}>
               <InfoRow label="Funcionário" value={detailModal.employee_name} />
               <InfoRow label="Unidade" value={detailModal.unit_name} />
-              <InfoRow label="Data" value={new Date(detailModal.scheduled_date).toLocaleDateString('pt-BR')} />
+              <InfoRow label="Data" value={detailModal.scheduled_date?.slice(0, 10).split('-').reverse().join('/')} />
               <InfoRow label="Prazo" value={detailModal.due_time?.slice(0, 5) || '—'} />
               <InfoRow label="Iniciado em" value={detailModal.started_at ? new Date(detailModal.started_at).toLocaleString('pt-BR') : '—'} />
               <InfoRow label="Concluído em" value={detailModal.finished_at ? new Date(detailModal.finished_at).toLocaleString('pt-BR') : '—'} />
