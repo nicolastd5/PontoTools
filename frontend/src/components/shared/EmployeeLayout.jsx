@@ -16,6 +16,13 @@ export default function EmployeeLayout() {
   });
   const unreadCount = notifData?.unread ?? 0;
 
+  const { data: todayData } = useQuery({
+    queryKey: ['clock-today'],
+    queryFn:  () => api.get('/clock/today', { params: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } }).then((r) => r.data),
+    staleTime: 60000,
+  });
+  const servicesOnly = todayData?.servicesOnly ?? false;
+
   async function handleLogout() {
     await logout();
     success('Até logo!');
@@ -40,19 +47,23 @@ export default function EmployeeLayout() {
 
       {/* Barra de navegação inferior (mobile) */}
       <nav style={styles.bottomNav}>
-        <NavLink to="/dashboard" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
-          <span>🕐</span>
-          <span style={styles.navLabel}>Ponto</span>
-        </NavLink>
-        <NavLink to="/history" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
-          <span>📋</span>
-          <span style={styles.navLabel}>Histórico</span>
-        </NavLink>
+        {!servicesOnly && (
+          <NavLink to="/dashboard" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
+            <span>🕐</span>
+            <span style={styles.navLabel}>Ponto</span>
+          </NavLink>
+        )}
+        {!servicesOnly && (
+          <NavLink to="/history" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
+            <span>📋</span>
+            <span style={styles.navLabel}>Histórico</span>
+          </NavLink>
+        )}
         <NavLink to="/services" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
           <span>🔧</span>
           <span style={styles.navLabel}>Serviços</span>
         </NavLink>
-<NavLink to="/notifications" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
+        <NavLink to="/notifications" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
           <span style={{ position: 'relative', display: 'inline-block' }}>
             🔔
             {unreadCount > 0 && (
