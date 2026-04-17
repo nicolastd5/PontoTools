@@ -41,6 +41,7 @@ export default function EmployeeServicesPage() {
   const [issuesModal, setIssuesModal]     = useState(false);
   const [issuesText, setIssuesText]       = useState('');
   const [lightbox, setLightbox]           = useState(null); // src da foto ampliada
+  const [posto, setPosto]                 = useState('');
 
   // Status update mutation
   const statusMutation = useMutation({
@@ -70,6 +71,9 @@ export default function EmployeeServicesPage() {
         fd.append('latitude',  String(coords.latitude));
         fd.append('longitude', String(coords.longitude));
       }
+      if (phase === 'before' && posto.trim()) {
+        fd.append('employee_posto', posto.trim());
+      }
       return api.post(`/services/${id}/photos`, fd);
     },
     onSuccess: async (_, vars) => {
@@ -97,6 +101,7 @@ export default function EmployeeServicesPage() {
     setDetail(res.data);
     setPhotoSrc({});
     setCameraPhase(null);
+    setPosto(res.data.employee_posto || '');
   }
 
   async function loadPhoto(photo) {
@@ -213,9 +218,24 @@ export default function EmployeeServicesPage() {
             <PhotoSection title="Fotos — Antes" photos={beforePhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detail.id} onOpen={setLightbox} />
             <PhotoSection title="Fotos — Depois" photos={afterPhotos} photoSrc={photoSrc} onLoad={loadPhoto} serviceId={detail.id} onOpen={setLightbox} />
 
+            {/* Campo Posto */}
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Posto</label>
+              {detail.employee_posto && detail.status !== 'pending' ? (
+                <div style={{ ...descBox, marginBottom: 0 }}>{detail.employee_posto}</div>
+              ) : (
+                <input
+                  value={posto}
+                  onChange={(e) => setPosto(e.target.value)}
+                  placeholder="Informe o posto de trabalho"
+                  style={inputStyle}
+                />
+              )}
+            </div>
+
             {/* Action buttons */}
             {isActive && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', margin: 0 }}>Ações</p>
 
                 {/* Foto antes — inicia automaticamente */}

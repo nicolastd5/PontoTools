@@ -363,6 +363,7 @@ async function exportServicesPdf(req, res, next) {
          so.scheduled_date, so.due_time,
          so.started_at, so.finished_at,
          so.problem_description, so.issue_description,
+         so.employee_posto,
          e.full_name, e.badge_number,
          u.name AS unit_name, u.address AS unit_address
        FROM service_orders so
@@ -440,8 +441,9 @@ async function exportServicesPdf(req, res, next) {
 
         // Linha de metadados
         const assignedName = svc.full_name || 'Sem responsável';
+        const postoLabel   = svc.employee_posto || svc.unit_name;
         doc.fontSize(9).font('Helvetica').fillColor('#64748b')
-           .text(`${assignedName}  ·  ${svc.unit_name}  ·  Agendado: ${scheduledDate}${svc.due_time ? ' às ' + svc.due_time.slice(0,5) : ''}  ·  Status: ${STATUS_LABEL[svc.status] || svc.status}`);
+           .text(`${assignedName}  ·  ${postoLabel}  ·  Agendado: ${scheduledDate}${svc.due_time ? ' às ' + svc.due_time.slice(0,5) : ''}  ·  Status: ${STATUS_LABEL[svc.status] || svc.status}`);
         doc.fillColor('#000');
         doc.moveDown(0.2);
 
@@ -452,8 +454,9 @@ async function exportServicesPdf(req, res, next) {
         if (gpsPhoto) {
           const gpsAddress = await reverseGeocode(gpsPhoto.latitude, gpsPhoto.longitude);
           if (gpsAddress) {
-            doc.fontSize(9).fillColor('#374151')
-               .text(`📍 ${gpsAddress}`);
+            doc.fontSize(9).font('Helvetica-Bold').fillColor('#374151')
+               .text('Endereço: ', { continued: true })
+               .font('Helvetica').text(gpsAddress);
             doc.fontSize(8).fillColor('#94a3b8')
                .text('* Endereço aproximado obtido via GPS do colaborador');
             doc.fillColor('#000');

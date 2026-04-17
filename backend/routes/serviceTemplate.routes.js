@@ -36,6 +36,9 @@ router.patch('/:id',
 // Ativar/Pausar
 router.patch('/:id/toggle', auth, requireAdminOrGestor, controller.toggle);
 
+// Disparar manualmente
+router.post('/:id/fire', auth, requireAdminOrGestor, controller.fire);
+
 // Deletar
 router.delete('/:id', auth, requireAdminOrGestor, controller.remove);
 

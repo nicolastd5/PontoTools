@@ -188,6 +188,15 @@ export default function AdminServicesPage() {
     onError: () => error('Erro ao remover template.'),
   });
 
+  const fireTpl = useMutation({
+    mutationFn: (id) => api.post(`/service-templates/${id}/fire`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Serviço criado a partir do template.');
+    },
+    onError: (err) => error(err.response?.data?.error || 'Erro ao disparar template.'),
+  });
+
   // ── Handlers ──
   function handleSvcSubmit(e) {
     e.preventDefault();
@@ -382,6 +391,11 @@ export default function AdminServicesPage() {
                           onClick={() => toggleTpl.mutate(tpl.id)}
                           style={{ ...actionBtn, color: tpl.active ? '#d97706' : '#16a34a' }}
                         >{tpl.active ? 'Pausar' : 'Ativar'}</button>
+                        <button
+                          onClick={() => { if (window.confirm(`Disparar agora o template "${tpl.title}"?`)) fireTpl.mutate(tpl.id); }}
+                          disabled={fireTpl.isLoading}
+                          style={{ ...actionBtn, color: '#0891b2', borderColor: '#bae6fd' }}
+                        >Disparar</button>
                         <button
                           onClick={() => setConfirmDelete(tpl)}
                           style={{ ...actionBtn, color: '#dc2626' }}

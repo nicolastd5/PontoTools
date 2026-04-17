@@ -1,4 +1,5 @@
 const db     = require('../config/database');
+const push   = require('../services/push.service');
 const logger = require('../utils/logger');
 
 // ----------------------------------------------------------------
@@ -239,4 +240,55 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, create, update, toggle, remove };
+// ----------------------------------------------------------------
+// POST /api/service-templates/:id/fire
+// Dispara o template manualmente, criando uma OS com data de hoje
+// sem avançar next_run_at (não interfere no agendamento automático)
+// ----------------------------------------------------------------
+async function fire(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+
+    const tplRes = await db.query(
+      `SELECT st.*, u.contract_id FROM service_templates st
+       JOIN units u ON u.id = st.unit_id
+       WHERE st.id = $1`,
+      [id]
+    );
+    if (!tplRes.rows[0]) return res.status(404).json({ error: 'Template não encontrado.' });
+    const tpl = tplRes.rows[0];
+
+    if (req.user.role === 'gestor' && tpl.contract_id !== req.user.contractId) {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await db.query(
+      `INSERT INTO service_orders
+         (title, description, assigned_employee_id, unit_id, created_by_id,
+          scheduled_date, due_time, template_id)
+       VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8)
+       RETURNING id`,
+      [tpl.title, tpl.description, tpl.assigned_employee_id, tpl.unit_id,
+       req.user.id, today, tpl.due_time, tpl.id]
+    );
+
+    const serviceId = result.rows[0].id;
+
+    if (tpl.assigned_employee_id) {
+      push.notify(
+        tpl.assigned_employee_id,
+        'Novo serviço atribuído',
+        `Você tem um novo serviço: "${tpl.title}".`,
+        'service_assigned'
+      ).catch(() => {});
+    }
+
+    logger.info('Template disparado manualmente', { templateId: id, serviceId, firedBy: req.user.id });
+    res.status(201).json({ serviceId });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, create, update, toggle, remove, fire };

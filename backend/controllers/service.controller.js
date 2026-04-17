@@ -297,11 +297,13 @@ async function addPhoto(req, res, next) {
     // Foto "depois" → muda para done (se in_progress) e marca finished_at
     const svc = current.rows[0];
     if (phase === 'before' && svc.status === 'pending') {
+      const postoRaw = typeof req.body.employee_posto === 'string' ? req.body.employee_posto.trim() : null;
       await db.query(
         `UPDATE service_orders
          SET status = 'in_progress', started_at = COALESCE(started_at, NOW()), updated_at = NOW()
+             ${postoRaw ? ', employee_posto = $2' : ''}
          WHERE id = $1`,
-        [id]
+        postoRaw ? [id, postoRaw] : [id]
       );
     } else if (phase === 'after' && svc.status === 'in_progress') {
       await db.query(
