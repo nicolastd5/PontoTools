@@ -277,7 +277,7 @@ async function fire(req, res, next) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const scheduledDate = new Date(tpl.next_run_at).toISOString().slice(0, 10);
     const qty = tpl.quantity || 1;
     const serviceIds = [];
     for (let i = 0; i < qty; i++) {
@@ -288,7 +288,7 @@ async function fire(req, res, next) {
          VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8)
          RETURNING id`,
         [tpl.title, tpl.description, tpl.assigned_employee_id, tpl.unit_id,
-         req.user.id, today, tpl.due_time, tpl.id]
+         req.user.id, scheduledDate, tpl.due_time, tpl.id]
       );
       serviceIds.push(result.rows[0].id);
     }
