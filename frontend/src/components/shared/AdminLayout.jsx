@@ -17,7 +17,6 @@ const ADMIN_NAV = [
   { to: '/admin/contracts',     label: 'Contratos',     icon: '📋' },
   { to: '/admin/job-roles',     label: 'Cargos',        icon: '🏷️' },
   { to: '/admin/export',        label: 'Exportar',      icon: '📄' },
-  { to: '/admin/service-templates', label: 'Templates', icon: '🔁' },
 ];
 
 const GESTOR_NAV = [
@@ -25,7 +24,6 @@ const GESTOR_NAV = [
   { to: '/admin/clocks',        label: 'Registros',     icon: '🕐' },
   { to: '/admin/photos',        label: 'Galeria',       icon: '🖼️' },
   { to: '/admin/services',      label: 'Serviços',      icon: '🔧' },
-  { to: '/admin/service-templates', label: 'Templates', icon: '🔁' },
   { to: '/admin/notifications', label: 'Notificações',  icon: '🔔' },
   { to: '/admin/contracts',     label: 'Contratos',     icon: '📋' },
 ];

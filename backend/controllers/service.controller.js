@@ -281,8 +281,11 @@ async function addPhoto(req, res, next) {
     const filename = `services/${id}/${phase}_${req.user.id}_${Date.now()}.jpg`;
     await storage.save(file.buffer, filename);
 
-    const lat = req.body.latitude  ? parseFloat(req.body.latitude)  : null;
-    const lon = req.body.longitude ? parseFloat(req.body.longitude) : null;
+    // Valida lat/lon: aceita apenas números finitos em range válido; caso contrário grava NULL
+    const latRaw = parseFloat(req.body.latitude);
+    const lonRaw = parseFloat(req.body.longitude);
+    const lat = Number.isFinite(latRaw) && Math.abs(latRaw) <=  90 ? latRaw : null;
+    const lon = Number.isFinite(lonRaw) && Math.abs(lonRaw) <= 180 ? lonRaw : null;
 
     const photo = await db.query(
       `INSERT INTO service_photos (service_order_id, phase, photo_path, latitude, longitude)

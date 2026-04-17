@@ -6,29 +6,49 @@ const db          = require('../config/database');
 const { formatLocalTime, monthName } = require('../utils/timeUtils');
 const storage     = require('../config/storage');
 
-// Geocoding reverso via Nominatim (OpenStreetMap) — gratuito, sem chave
+// Geocoding reverso via Nominatim (OpenStreetMap) — gratuito, sem chave.
+// Nominatim exige User-Agent identificável e limita a ~1 req/s.
+const GEOCODE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const geocodeCache = new Map(); // key: "lat4,lon4" → { value, expiresAt }
+
 function reverseGeocode(lat, lon) {
+  const latNum = Number(lat);
+  const lonNum = Number(lon);
+  if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) return Promise.resolve(null);
+  if (Math.abs(latNum) > 90 || Math.abs(lonNum) > 180)      return Promise.resolve(null);
+
+  // Arredonda a ~11m de precisão para coalescer requisições no mesmo local
+  const key = `${latNum.toFixed(4)},${lonNum.toFixed(4)}`;
+  const now = Date.now();
+  const hit = geocodeCache.get(key);
+  if (hit && hit.expiresAt > now) return Promise.resolve(hit.value);
+
   return new Promise((resolve) => {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
-    const req = https.get(url, { headers: { 'User-Agent': 'PontoTools/1.0' } }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          // Monta endereço resumido: rua + número + bairro + cidade + estado
-          const a = json.address || {};
-          const parts = [
-            a.road || a.pedestrian || a.path,
-            a.house_number,
-            a.suburb || a.neighbourhood || a.quarter,
-            a.city || a.town || a.village || a.municipality,
-            a.state,
-          ].filter(Boolean);
-          resolve(parts.length ? parts.join(', ') : json.display_name || null);
-        } catch { resolve(null); }
-      });
-    });
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${latNum}&lon=${lonNum}&format=json&addressdetails=1`;
+    const req = https.get(
+      url,
+      { headers: { 'User-Agent': 'PontoTools/1.0 (https://pontotools.shop)' } },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const json  = JSON.parse(data);
+            const a     = json.address || {};
+            const parts = [
+              a.road || a.pedestrian || a.path,
+              a.house_number,
+              a.suburb || a.neighbourhood || a.quarter,
+              a.city || a.town || a.village || a.municipality,
+              a.state,
+            ].filter(Boolean);
+            const value = parts.length ? parts.join(', ') : (json.display_name || null);
+            geocodeCache.set(key, { value, expiresAt: now + GEOCODE_CACHE_TTL_MS });
+            resolve(value);
+          } catch { resolve(null); }
+        });
+      }
+    );
     req.on('error', () => resolve(null));
     req.setTimeout(5000, () => { req.destroy(); resolve(null); });
   });

@@ -83,6 +83,7 @@ Nova função `checkTemplates()`:
 
 - `create`: remove obrigatoriedade de `assigned_employee_id` (passa a ser opcional)
 - Nova função `assign`: `PATCH /api/services/:id/assign` — atribui `assigned_employee_id` a um serviço existente; dispara notificação push; apenas admin/gestor
+- Todas as queries de `list`, `getOne`, `updateStatus` que fazem `JOIN employees e ON e.id = so.assigned_employee_id` precisam ser alteradas para `LEFT JOIN` para não excluir serviços sem responsável dos resultados
 
 ---
 

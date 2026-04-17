@@ -1,7 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useGeolocation } from '../../hooks/useGeolocation';
 import CameraCapture from '../../components/employee/CameraCapture';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
 
@@ -23,6 +25,11 @@ function useMyServices() {
 export default function EmployeeServicesPage() {
   const queryClient = useQueryClient();
   const { success, error } = useToast();
+  const { user } = useAuth();
+
+  // GPS contínuo — já começa a monitorar assim que a página abre, então quando
+  // o usuário tira a foto as coordenadas já estão disponíveis (sem novo fix na hora).
+  const { coords } = useGeolocation(user?.unit);
 
   const { data: services = [], isLoading } = useMyServices();
 
@@ -34,7 +41,6 @@ export default function EmployeeServicesPage() {
   const [issuesModal, setIssuesModal]     = useState(false);
   const [issuesText, setIssuesText]       = useState('');
   const [lightbox, setLightbox]           = useState(null); // src da foto ampliada
-  const gpsRef = useRef(null); // coordenadas capturadas ao abrir câmera
 
   // Status update mutation
   const statusMutation = useMutation({
@@ -50,20 +56,7 @@ export default function EmployeeServicesPage() {
     onError: (err) => error(err.response?.data?.error || 'Erro ao atualizar status.'),
   });
 
-  // Captura GPS e guarda no ref — chama antes de abrir câmera
-  async function captureGps() {
-    gpsRef.current = null;
-    if (!navigator.geolocation) return;
-    try {
-      const pos = await new Promise((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000, maximumAge: 0, enableHighAccuracy: true })
-      );
-      gpsRef.current = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-    } catch {}
-  }
-
-  async function openCamera(phase) {
-    await captureGps();
+  function openCamera(phase) {
     setCameraPhase(phase);
   }
 
@@ -73,9 +66,9 @@ export default function EmployeeServicesPage() {
       const fd = new FormData();
       fd.append('photo', blob, 'photo.jpg');
       fd.append('phase', phase);
-      if (gpsRef.current) {
-        fd.append('latitude',  String(gpsRef.current.latitude));
-        fd.append('longitude', String(gpsRef.current.longitude));
+      if (coords?.latitude != null && coords?.longitude != null) {
+        fd.append('latitude',  String(coords.latitude));
+        fd.append('longitude', String(coords.longitude));
       }
       return api.post(`/services/${id}/photos`, fd);
     },
