@@ -151,6 +151,16 @@ export default function AdminServicesPage() {
     onError: () => error('Erro ao atualizar status em massa.'),
   });
 
+  const bulkDelete = useMutation({
+    mutationFn: (ids) => Promise.all(ids.map((id) => api.delete(`/services/${id}`))),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-services']);
+      success('Serviços excluídos.');
+      setSelected(new Set());
+    },
+    onError: () => error('Erro ao excluir serviços.'),
+  });
+
   const deletePhoto = useMutation({
     mutationFn: ({ serviceId, photoId }) => api.delete(`/services/${serviceId}/photos/${photoId}`),
     onSuccess: async () => {
@@ -333,6 +343,10 @@ export default function AdminServicesPage() {
                 style={{ ...statusBtn, background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', fontSize: 12 }}>Problema</button>
               <button onClick={() => bulkStatus.mutate({ ids: [...selected], status: 'pending' })} disabled={bulkStatus.isLoading}
                 style={{ ...statusBtn, background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', fontSize: 12 }}>Reabrir</button>
+              <button
+                onClick={() => { if (window.confirm(`Excluir ${selected.size} serviço(s) permanentemente?`)) bulkDelete.mutate([...selected]); }}
+                disabled={bulkDelete.isLoading}
+                style={{ ...statusBtn, background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', fontSize: 12 }}>Excluir</button>
               <button onClick={() => setSelected(new Set())} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 12, cursor: 'pointer', color: '#64748b' }}>Cancelar</button>
             </div>
           )}
