@@ -370,6 +370,7 @@ async function exportServicesPdf(req, res, next) {
        LEFT JOIN employees e ON e.id = so.assigned_employee_id
        JOIN units     u ON u.id = so.unit_id
        WHERE so.scheduled_date BETWEEN $1 AND $2
+         AND so.status <> 'pending'
          ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
        ORDER BY so.scheduled_date ASC, so.id ASC`,
       params
