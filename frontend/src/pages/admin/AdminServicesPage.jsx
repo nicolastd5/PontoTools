@@ -59,7 +59,7 @@ export default function AdminServicesPage() {
   const [tab, setTab] = useState('services');
 
   // ── Services state ──
-  const [filters, setFilters]           = useState({ status: '' });
+  const [filters, setFilters]           = useState({ status: '', employeeId: '' });
   const [modal, setModal]               = useState(false);
   const [detailModal, setDetail]        = useState(null);
   const [rescheduleModal, setReschedule] = useState(null);
@@ -299,8 +299,12 @@ export default function AdminServicesPage() {
               <option value="">Todos os status</option>
               {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-            {filters.status && (
-              <button onClick={() => setFilters({ status: '' })} style={s.clearBtn}>Limpar</button>
+            <select value={filters.employeeId} onChange={(e) => setFilters((p) => ({ ...p, employeeId: e.target.value }))} style={s.select}>
+              <option value="">Todos os funcionários</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+            </select>
+            {(filters.status || filters.employeeId) && (
+              <button onClick={() => setFilters({ status: '', employeeId: '' })} style={s.clearBtn}>Limpar</button>
             )}
           </div>
 
