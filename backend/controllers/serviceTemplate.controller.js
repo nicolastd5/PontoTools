@@ -18,7 +18,7 @@ async function list(req, res, next) {
     const result = await db.query(
       `SELECT
          st.id, st.title, st.description,
-         st.interval_days, st.start_date, st.due_time,
+         st.interval_days, st.quantity, st.start_date, st.due_time,
          st.next_run_at, st.active,
          st.assigned_employee_id,
          e.full_name  AS employee_name,
@@ -48,8 +48,10 @@ async function create(req, res, next) {
     const {
       title, description,
       unit_id, assigned_employee_id,
-      due_time, interval_days, start_date,
+      due_time, interval_days, start_date, quantity,
     } = req.body;
+
+    const qty = Math.min(40, Math.max(1, parseInt(quantity, 10) || 1));
 
     // Gestor só pode criar em units do próprio contrato
     const unitCheck = req.user.role === 'gestor'
@@ -73,8 +75,8 @@ async function create(req, res, next) {
 
     const result = await db.query(
       `INSERT INTO service_templates
-         (title, description, unit_id, assigned_employee_id, due_time, interval_days, start_date, next_run_at, created_by_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (title, description, unit_id, assigned_employee_id, due_time, interval_days, quantity, start_date, next_run_at, created_by_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         title.trim(),
@@ -83,6 +85,7 @@ async function create(req, res, next) {
         assigned_employee_id ? parseInt(assigned_employee_id, 10) : null,
         due_time || null,
         parseInt(interval_days, 10),
+        qty,
         start_date,
         next_run_at,
         req.user.id,
@@ -105,7 +108,7 @@ async function update(req, res, next) {
     const {
       title, description,
       unit_id, assigned_employee_id,
-      due_time, interval_days, start_date,
+      due_time, interval_days, start_date, quantity,
     } = req.body;
 
     // Verifica existência e escopo
@@ -123,6 +126,9 @@ async function update(req, res, next) {
     const tpl = current.rows[0];
     const newUnitId       = unit_id        ? parseInt(unit_id, 10)         : tpl.unit_id;
     const newInterval     = interval_days  ? parseInt(interval_days, 10)   : tpl.interval_days;
+    const newQuantity     = quantity !== undefined
+      ? Math.min(40, Math.max(1, parseInt(quantity, 10) || 1))
+      : tpl.quantity;
     const newStartDate    = start_date     || tpl.start_date;
     const newAssigned     = assigned_employee_id !== undefined
       ? (assigned_employee_id ? parseInt(assigned_employee_id, 10) : null)
@@ -161,10 +167,11 @@ async function update(req, res, next) {
          assigned_employee_id = $4,
          due_time             = $5,
          interval_days        = $6,
-         start_date           = $7,
-         next_run_at          = $8,
+         quantity             = $7,
+         start_date           = $8,
+         next_run_at          = $9,
          updated_at           = NOW()
-       WHERE id = $9
+       WHERE id = $10
        RETURNING *`,
       [
         title?.trim() || null,
@@ -173,6 +180,7 @@ async function update(req, res, next) {
         newAssigned,
         due_time !== undefined ? (due_time || null) : tpl.due_time,
         newInterval,
+        newQuantity,
         newStartDate,
         next_run_at,
         id,
@@ -263,17 +271,21 @@ async function fire(req, res, next) {
     }
 
     const today = new Date().toISOString().slice(0, 10);
-    const result = await db.query(
-      `INSERT INTO service_orders
-         (title, description, assigned_employee_id, unit_id, created_by_id,
-          scheduled_date, due_time, template_id)
-       VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8)
-       RETURNING id`,
-      [tpl.title, tpl.description, tpl.assigned_employee_id, tpl.unit_id,
-       req.user.id, today, tpl.due_time, tpl.id]
-    );
-
-    const serviceId = result.rows[0].id;
+    const qty = tpl.quantity || 1;
+    const serviceIds = [];
+    for (let i = 0; i < qty; i++) {
+      const result = await db.query(
+        `INSERT INTO service_orders
+           (title, description, assigned_employee_id, unit_id, created_by_id,
+            scheduled_date, due_time, template_id)
+         VALUES ($1, $2, $3, $4, $5, $6::date, $7, $8)
+         RETURNING id`,
+        [tpl.title, tpl.description, tpl.assigned_employee_id, tpl.unit_id,
+         req.user.id, today, tpl.due_time, tpl.id]
+      );
+      serviceIds.push(result.rows[0].id);
+    }
+    const serviceId = serviceIds[0];
 
     if (tpl.assigned_employee_id) {
       push.notify(
@@ -284,8 +296,8 @@ async function fire(req, res, next) {
       ).catch(() => {});
     }
 
-    logger.info('Template disparado manualmente', { templateId: id, serviceId, firedBy: req.user.id });
-    res.status(201).json({ serviceId });
+    logger.info('Template disparado manualmente', { templateId: id, serviceIds, firedBy: req.user.id });
+    res.status(201).json({ serviceIds, count: serviceIds.length });
   } catch (err) {
     next(err);
   }

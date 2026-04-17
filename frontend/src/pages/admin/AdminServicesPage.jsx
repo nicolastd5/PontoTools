@@ -50,7 +50,7 @@ function useUnits() {
 }
 
 const EMPTY_SERVICE  = { title: '', description: '', assigned_employee_id: '', scheduled_date: '', due_time: '' };
-const EMPTY_TEMPLATE = { title: '', description: '', unit_id: '', assigned_employee_id: '', due_time: '', interval_days: '', start_date: '' };
+const EMPTY_TEMPLATE = { title: '', description: '', unit_id: '', assigned_employee_id: '', due_time: '', interval_days: '', start_date: '', quantity: '1' };
 
 export default function AdminServicesPage() {
   const queryClient = useQueryClient();
@@ -236,6 +236,7 @@ export default function AdminServicesPage() {
       due_time:             tpl.due_time?.slice(0, 5) || '',
       interval_days:        String(tpl.interval_days),
       start_date:           tpl.start_date?.slice(0, 10) || '',
+      quantity:             String(tpl.quantity || 1),
     });
     setTplModal(tpl);
   }
@@ -254,6 +255,7 @@ export default function AdminServicesPage() {
       assigned_employee_id: tplForm.assigned_employee_id ? parseInt(tplForm.assigned_employee_id, 10) : undefined,
       due_time:             tplForm.due_time || undefined,
       interval_days:        parseInt(tplForm.interval_days, 10),
+      quantity:             Math.min(40, Math.max(1, parseInt(tplForm.quantity, 10) || 1)),
       start_date:           tplForm.start_date,
     };
     const isEditing = tplModal && tplModal !== 'create';
@@ -361,7 +363,7 @@ export default function AdminServicesPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr>
-                    {['Título', 'Posto', 'Responsável', 'Intervalo', 'Próximo disparo', 'Status', 'Ações'].map((h) => (
+                    {['Título', 'Posto', 'Responsável', 'Intervalo', 'Qtd.', 'Próximo disparo', 'Status', 'Ações'].map((h) => (
                       <th key={h} style={{ textAlign: 'left', padding: '10px 12px', borderBottom: '2px solid #e2e8f0', color: '#64748b', fontWeight: 700, whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -377,6 +379,7 @@ export default function AdminServicesPage() {
                           : <span style={{ background: '#fef9c3', color: '#854d0e', borderRadius: 999, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>A definir</span>}
                       </td>
                       <td style={tplTd}>A cada {tpl.interval_days} dia(s)</td>
+                      <td style={tplTd}>{tpl.quantity || 1}</td>
                       <td style={tplTd}>{fmtDate(tpl.next_run_at)}</td>
                       <td style={tplTd}>
                         <span style={tpl.active
@@ -633,10 +636,16 @@ export default function AdminServicesPage() {
                 <input type="time" style={inputStyle} value={tplForm.due_time}
                   onChange={(e) => setTplForm((p) => ({ ...p, due_time: e.target.value }))} />
               </Field>
-              <Field label="Intervalo em dias *">
-                <input type="number" min={1} style={inputStyle} value={tplForm.interval_days}
-                  onChange={(e) => setTplForm((p) => ({ ...p, interval_days: e.target.value }))} required />
-              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Field label="Intervalo em dias *">
+                  <input type="number" min={1} style={inputStyle} value={tplForm.interval_days}
+                    onChange={(e) => setTplForm((p) => ({ ...p, interval_days: e.target.value }))} required />
+                </Field>
+                <Field label="Qtd. de serviços por disparo *">
+                  <input type="number" min={1} max={40} style={inputStyle} value={tplForm.quantity}
+                    onChange={(e) => setTplForm((p) => ({ ...p, quantity: e.target.value }))} required />
+                </Field>
+              </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
                 <button type="button" onClick={closeTplModal} style={s.outlineBtn} disabled={tplBusy}>Cancelar</button>
                 <button type="submit" style={s.primaryBtn} disabled={tplBusy}>
