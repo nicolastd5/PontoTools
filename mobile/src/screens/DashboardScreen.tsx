@@ -60,9 +60,11 @@ function useClock() {
 export default function DashboardScreen({
   onNavigate,
   unreadCount = 0,
+  servicesOnly = false,
 }: {
   onNavigate: (s: Screen) => void;
   unreadCount?: number;
+  servicesOnly?: boolean;
 }) {
   const { user, logout }      = useAuth();
   const { status: gpsStatus, coords, distanceMeters, isInsideZone } = useGeolocation(user?.unit);
@@ -208,7 +210,7 @@ export default function DashboardScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="dashboard" onNavigate={onNavigate} unreadCount={unreadCount} />
+      <TabBar active="dashboard" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
 
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {/* Relógio com segundos */}

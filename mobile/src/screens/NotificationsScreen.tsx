@@ -34,10 +34,12 @@ export default function NotificationsScreen({
   onNavigate,
   unreadCount = 0,
   onUnreadChange,
+  servicesOnly = false,
 }: {
   onNavigate: (s: Screen) => void;
   unreadCount?: number;
   onUnreadChange?: (count: number) => void;
+  servicesOnly?: boolean;
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading]             = useState(false);
@@ -92,7 +94,7 @@ export default function NotificationsScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="notifications" onNavigate={onNavigate} unreadCount={unreadCount} />
+      <TabBar active="notifications" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
 
       {unreadCount > 0 && (
         <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>

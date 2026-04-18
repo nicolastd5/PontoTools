@@ -20,11 +20,17 @@ function AppContent() {
   const [screen, setScreen]           = useState<Screen>('dashboard');
   const [authScreen, setAuthScreen]   = useState<AuthScreen>('login');
   const [unreadCount, setUnreadCount] = useState(0);
+  const [servicesOnly, setServicesOnly] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Polling de notificações não lidas a cada 30s
+  // Busca servicesOnly e inicia polling de notificações após login
   useEffect(() => {
     if (!user) return;
+
+    api.get('/clock/today')
+      .then(({ data }) => setServicesOnly(data.servicesOnly ?? false))
+      .catch(() => {});
+
     function fetchUnread() {
       api.get('/notifications')
         .then(({ data }) => setUnreadCount(data.unread ?? 0))
@@ -52,7 +58,7 @@ function AppContent() {
     return <LoginScreen onForgotPassword={() => setAuthScreen('forgot-password')} />;
   }
 
-  const sharedProps = { onNavigate: setScreen, unreadCount };
+  const sharedProps = { onNavigate: setScreen, unreadCount, servicesOnly };
 
   return (
     <View style={{ flex: 1 }}>

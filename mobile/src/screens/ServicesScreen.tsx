@@ -64,9 +64,11 @@ function fmtDate(dateStr: string) {
 export default function ServicesScreen({
   onNavigate,
   unreadCount = 0,
+  servicesOnly = false,
 }: {
   onNavigate: (s: Screen) => void;
   unreadCount?: number;
+  servicesOnly?: boolean;
 }) {
   const [services, setServices]         = useState<ServiceOrder[]>([]);
   const [loading, setLoading]           = useState(false);
@@ -181,7 +183,7 @@ export default function ServicesScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="services" onNavigate={onNavigate} unreadCount={unreadCount} />
+      <TabBar active="services" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
 
       <FlatList
         data={services}
