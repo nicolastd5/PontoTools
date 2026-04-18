@@ -145,7 +145,7 @@ export default function EmployeeNotificationsPage() {
               📲 Instale o app para receber notificações
             </span>
             <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              No Safari, toque em <strong>Compartilhar</strong> (ícone ↑) e depois em <strong>"Adicionar à Tela de Início"</strong>. Abra o app pela tela inicial e ative as notificações aqui.
+              No Safari, toque em <strong>Compartilhar</strong> (ícone ···) e depois em <strong>"Adicionar à Tela de Início"</strong>. Abra o app pela tela inicial e ative as notificações aqui.
             </p>
           </div>
         </div>
