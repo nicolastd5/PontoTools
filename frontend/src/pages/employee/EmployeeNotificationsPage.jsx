@@ -1,18 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { useFcmWeb } from '../../hooks/useFcmWeb';
-
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw     = window.atob(base64);
-  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-}
+import PushBanner from '../../components/employee/PushBanner';
 
 function useMyNotifications() {
   return useQuery({
@@ -30,28 +20,6 @@ export default function EmployeeNotificationsPage() {
   const notifications = data?.notifications || [];
   const unread        = data?.unread ?? 0;
 
-  const [pushSupported, setPushSupported] = useState(false);
-  const [pushGranted,   setPushGranted]   = useState(false);
-  const [subscribing,   setSubscribing]   = useState(false);
-  const [showIosTip,    setShowIosTip]    = useState(false);
-
-  const { user } = useAuth();
-  useFcmWeb(pushGranted && !!user);
-
-  // Check push support and current permission on mount
-  useEffect(() => {
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isIos && !isStandalone) {
-      setShowIosTip(true);
-      return;
-    }
-    const supported = 'serviceWorker' in navigator && 'PushManager' in window && !!VAPID_PUBLIC_KEY;
-    setPushSupported(supported);
-    if (supported) {
-      setPushGranted(Notification.permission === 'granted');
-    }
-  }, []);
 
   const markReadMutation = useMutation({
     mutationFn: (id) => api.patch(`/notifications/${id}/read`),
@@ -65,49 +33,6 @@ export default function EmployeeNotificationsPage() {
       queryClient.invalidateQueries(['my-notifications']);
     },
   });
-
-  async function enablePush() {
-    if (!pushSupported) return;
-    setSubscribing(true);
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        error('Permissão negada para notificações.');
-        setSubscribing(false);
-        return;
-      }
-      setPushGranted(true);
-
-      const reg          = await navigator.serviceWorker.ready;
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly:      true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
-
-      await api.post('/notifications/subscribe', subscription.toJSON());
-      success('Notificações push ativadas!');
-    } catch (err) {
-      console.error(err);
-      error('Erro ao ativar notificações push.');
-    } finally {
-      setSubscribing(false);
-    }
-  }
-
-  async function disablePush() {
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await api.delete('/notifications/subscribe', { data: { endpoint: sub.endpoint } });
-        await sub.unsubscribe();
-      }
-      setPushGranted(false);
-      success('Notificações push desativadas.');
-    } catch {
-      error('Erro ao desativar notificações push.');
-    }
-  }
 
   function fmtDate(dt) {
     const d = new Date(dt);
@@ -137,39 +62,7 @@ export default function EmployeeNotificationsPage() {
         )}
       </div>
 
-      {/* iOS install tip */}
-      {showIosTip && (
-        <div style={{ ...s.pushBanner, background: '#fff7ed', border: '1px solid #fed7aa' }}>
-          <div>
-            <span style={{ fontSize: 14, fontWeight: 600, color: '#9a3412' }}>
-              📲 Instale o app para receber notificações
-            </span>
-            <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              No Safari, toque em <strong>Compartilhar</strong> (ícone ···) e depois em <strong>"Adicionar à Tela de Início"</strong>. Abra o app pela tela inicial e ative as notificações aqui.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Push banner */}
-      {pushSupported && (
-        <div style={{ ...s.pushBanner, background: pushGranted ? '#f0fdf4' : '#eff6ff', border: `1px solid ${pushGranted ? '#86efac' : '#bfdbfe'}` }}>
-          <div>
-            <span style={{ fontSize: 14, fontWeight: 600, color: pushGranted ? '#166534' : '#1e40af' }}>
-              {pushGranted ? '🔔 Notificações push ativas' : '🔕 Notificações push inativas'}
-            </span>
-            <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              {pushGranted
-                ? 'Você receberá alertas mesmo com o app fechado.'
-                : 'Ative para receber alertas de serviços e avisos.'}
-            </p>
-          </div>
-          <button onClick={pushGranted ? disablePush : enablePush} disabled={subscribing}
-            style={{ ...s.pushBtn, background: pushGranted ? '#dcfce7' : '#1d4ed8', color: pushGranted ? '#166534' : '#fff', border: pushGranted ? '1px solid #86efac' : 'none' }}>
-            {subscribing ? '...' : pushGranted ? 'Desativar' : 'Ativar'}
-          </button>
-        </div>
-      )}
+      <PushBanner />
 
       {/* List */}
       <div style={s.list}>

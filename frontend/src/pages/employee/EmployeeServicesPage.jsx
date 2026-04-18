@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import CameraCapture from '../../components/employee/CameraCapture';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
+import PushBanner from '../../components/employee/PushBanner';
 
 const STATUS_LABEL = {
   pending:          'Pendente',
@@ -141,6 +142,8 @@ export default function EmployeeServicesPage() {
   return (
     <div>
       <h1 style={s.title}>Meus Serviços</h1>
+
+      <PushBanner />
 
       {isLoading ? (
         <p style={s.empty}>Carregando...</p>
