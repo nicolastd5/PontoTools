@@ -257,10 +257,10 @@ async function subscribe(req, res, next) {
       return res.status(400).json({ error: 'Subscription inválida.' });
     }
 
+    await db.query(`DELETE FROM push_subscriptions WHERE endpoint = $1`, [endpoint]);
+    await db.query(`DELETE FROM push_subscriptions WHERE employee_id = $1 AND (endpoint IS NULL OR endpoint = '')`, [req.user.id]);
     await db.query(
-      `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (endpoint) DO UPDATE SET employee_id = $1, p256dh = $3, auth = $4`,
+      `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4)`,
       [req.user.id, endpoint, keys.p256dh, keys.auth]
     );
 
