@@ -9,12 +9,14 @@ import HistoryScreen           from './src/screens/HistoryScreen';
 import ServicesScreen          from './src/screens/ServicesScreen';
 import NotificationsScreen     from './src/screens/NotificationsScreen';
 import api                     from './src/services/api';
+import { useFcmToken }         from './src/hooks/useFcmToken';
 
 type Screen     = 'dashboard' | 'history' | 'services' | 'notifications';
 type AuthScreen = 'login' | 'forgot-password';
 
 function AppContent() {
   const { user, loading }             = useAuth();
+  useFcmToken(!!user);
   const [screen, setScreen]           = useState<Screen>('dashboard');
   const [authScreen, setAuthScreen]   = useState<AuthScreen>('login');
   const [unreadCount, setUnreadCount] = useState(0);
