@@ -33,12 +33,19 @@ export default function EmployeeNotificationsPage() {
   const [pushSupported, setPushSupported] = useState(false);
   const [pushGranted,   setPushGranted]   = useState(false);
   const [subscribing,   setSubscribing]   = useState(false);
+  const [showIosTip,    setShowIosTip]    = useState(false);
 
   const { user } = useAuth();
   useFcmWeb(pushGranted && !!user);
 
   // Check push support and current permission on mount
   useEffect(() => {
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isIos && !isStandalone) {
+      setShowIosTip(true);
+      return;
+    }
     const supported = 'serviceWorker' in navigator && 'PushManager' in window && !!VAPID_PUBLIC_KEY;
     setPushSupported(supported);
     if (supported) {
@@ -129,6 +136,20 @@ export default function EmployeeNotificationsPage() {
           </button>
         )}
       </div>
+
+      {/* iOS install tip */}
+      {showIosTip && (
+        <div style={{ ...s.pushBanner, background: '#fff7ed', border: '1px solid #fed7aa' }}>
+          <div>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#9a3412' }}>
+              📲 Instale o app para receber notificações
+            </span>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              No Safari, toque em <strong>Compartilhar</strong> (ícone ↑) e depois em <strong>"Adicionar à Tela de Início"</strong>. Abra o app pela tela inicial e ative as notificações aqui.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Push banner */}
       {pushSupported && (
