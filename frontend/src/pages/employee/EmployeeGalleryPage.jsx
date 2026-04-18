@@ -65,14 +65,14 @@ export default function EmployeeGalleryPage() {
 
       {/* Submenu */}
       <div style={s.tabs}>
-        <button onClick={() => setTab('clock')}    style={{ ...s.tab, ...(tab === 'clock'    ? s.tabActive : {}) }}>Ponto</button>
+        <button onClick={() => setTab('clock')}    style={{ ...s.tab, ...(tab === 'clock'    ? s.tabActive : {}) }}>Registros</button>
         <button onClick={() => setTab('services')} style={{ ...s.tab, ...(tab === 'services' ? s.tabActive : {}) }}>Serviços</button>
       </div>
 
       {/* Fotos de ponto */}
       {tab === 'clock' && (
         clockLoading ? <p style={s.empty}>Carregando...</p> :
-        clockRecords.length === 0 ? <p style={s.empty}>Nenhuma foto de ponto encontrada.</p> :
+        clockRecords.length === 0 ? <p style={s.empty}>Nenhuma foto de registro encontrada.</p> :
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {clockRecords.filter((r) => r.photo_path).map((record) => {
             loadClockPhoto(record);

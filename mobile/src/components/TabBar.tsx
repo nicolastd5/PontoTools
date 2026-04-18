@@ -11,7 +11,7 @@ interface TabBarProps {
 }
 
 const TABS: { screen: Screen; label: string; icon: string }[] = [
-  { screen: 'dashboard',     label: 'Ponto',     icon: '🕐' },
+  { screen: 'dashboard',     label: 'Registros', icon: '🕐' },
   { screen: 'history',       label: 'Histórico', icon: '📋' },
   { screen: 'services',      label: 'Serviços',  icon: '🔧' },
   { screen: 'notifications', label: 'Avisos',    icon: '🔔' },

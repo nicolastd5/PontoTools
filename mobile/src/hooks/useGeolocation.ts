@@ -34,7 +34,7 @@ async function requestLocationPermission(): Promise<boolean> {
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       {
         title: 'Permissão de Localização',
-        message: 'O app precisa acessar sua localização para registrar o ponto.',
+        message: 'O app precisa acessar sua localização para registrar.',
         buttonPositive: 'Permitir',
         buttonNegative: 'Negar',
       },

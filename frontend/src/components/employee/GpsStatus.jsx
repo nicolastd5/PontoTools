@@ -15,7 +15,7 @@ export default function GpsStatus({ status, distanceMeters, isInsideZone, radius
         <div style={styles.deniedIcon}>📵</div>
         <div style={styles.deniedTitle}>GPS desativado</div>
         <div style={styles.deniedDesc}>
-          Você precisa permitir acesso à localização para registrar o ponto.
+          Você precisa permitir acesso à localização para registrar.
           Acesse as configurações do seu dispositivo e habilite o GPS para este site.
         </div>
       </div>
