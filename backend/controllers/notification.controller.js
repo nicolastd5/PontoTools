@@ -286,6 +286,35 @@ async function unsubscribe(req, res, next) {
   }
 }
 
+// ----------------------------------------------------------------
+// POST /api/notifications/fcm-token
+// Salva ou atualiza o FCM token do device do usuário autenticado
+// ----------------------------------------------------------------
+async function saveFcmToken(req, res, next) {
+  try {
+    const { token } = req.body;
+    if (!token || typeof token !== 'string' || token.trim().length === 0) {
+      return res.status(400).json({ error: 'Token FCM inválido.' });
+    }
+
+    const employeeId = req.user.id;
+    const fcmToken   = token.trim();
+
+    await db.query(
+      `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth, fcm_token)
+       VALUES ($1, $2, '', '', $2)
+       ON CONFLICT (endpoint) DO UPDATE
+         SET employee_id = EXCLUDED.employee_id,
+             fcm_token   = EXCLUDED.fcm_token`,
+      [employeeId, fcmToken]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   list,
   markRead,
@@ -295,4 +324,5 @@ module.exports = {
   send,
   subscribe,
   unsubscribe,
+  saveFcmToken,
 };
