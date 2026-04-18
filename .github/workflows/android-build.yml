@@ -43,6 +43,9 @@ jobs:
             --bundle-output android/app/src/main/assets/index.android.bundle \
             --assets-dest android/app/src/main/res
 
+      - name: Injetar google-services.json
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > mobile/android/app/google-services.json
+
       - name: Tornar gradlew executável
         working-directory: mobile/android
         run: chmod +x gradlew
