@@ -151,12 +151,12 @@ export default function EmployeeServicesPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {services.map((sv) => {
+          {services.map((sv, idx) => {
             return (
               <div key={sv.id} style={s.card} onClick={() => openDetail(sv)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={s.cardTitle}>{sv.title}</div>
+                    <div style={s.cardTitle}>#{idx + 1} {sv.title}</div>
                     {sv.description && <div style={s.cardDesc}>{sv.description.slice(0, 80)}{sv.description.length > 80 ? '…' : ''}</div>}
                   </div>
                   <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />

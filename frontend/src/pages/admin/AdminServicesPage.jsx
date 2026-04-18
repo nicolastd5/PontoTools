@@ -379,19 +379,21 @@ export default function AdminServicesPage() {
                         onChange={(e) => setSelected(e.target.checked ? new Set(services.map((sv) => sv.id)) : new Set())}
                       />
                     </th>
+                    <th style={{ ...s.th, width: 36 }}>#</th>
                     {['Título', 'Funcionário', 'Data', 'Prazo', 'Status', 'Ações'].map((h) => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {services.map((sv) => (
+                  {services.map((sv, idx) => (
                     <tr key={sv.id} style={{ borderBottom: '1px solid #f8fafc', background: selected.has(sv.id) ? '#f0f9ff' : undefined }}>
                       <td style={{ ...s.td, width: 36 }}>
                         <input type="checkbox" checked={selected.has(sv.id)}
                           onChange={(e) => setSelected((prev) => { const next = new Set(prev); e.target.checked ? next.add(sv.id) : next.delete(sv.id); return next; })}
                         />
                       </td>
+                      <td style={{ ...s.td, width: 36, color: '#94a3b8', fontWeight: 600 }}>#{idx + 1}</td>
                       <td style={s.td}>
                         <div style={{ fontWeight: 600, color: '#0f172a' }}>{sv.title}</div>
                         {sv.description && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sv.description.slice(0, 60)}{sv.description.length > 60 ? '…' : ''}</div>}

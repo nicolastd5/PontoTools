@@ -194,10 +194,10 @@ export default function ServicesScreen({
             colors={['#1d4ed8']}
           />
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <TouchableOpacity style={styles.card} onPress={() => openDetail(item)}>
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+              <Text style={styles.cardTitle} numberOfLines={1}>#{index + 1} {item.title}</Text>
               <View style={[styles.badge, { backgroundColor: STATUS_BG[item.status] }]}>
                 <Text style={[styles.badgeText, { color: STATUS_COLOR[item.status] }]}>
                   {STATUS_LABEL[item.status]}
