@@ -300,13 +300,24 @@ async function saveFcmToken(req, res, next) {
     const employeeId = req.user.id;
     const fcmToken   = token.trim();
 
+    // Remove qualquer linha que já tenha este token (evita duplicatas e reassocia se trocou de user)
+    await db.query(
+      `DELETE FROM push_subscriptions WHERE fcm_token = $1`,
+      [fcmToken]
+    );
+
+    // Remove linha FCM antiga do employee (device trocou de token)
+    // Identifica linhas FCM pelo endpoint que começa com 'fcm:'
+    await db.query(
+      `DELETE FROM push_subscriptions WHERE employee_id = $1 AND endpoint LIKE 'fcm:%'`,
+      [employeeId]
+    );
+
+    // Insere nova linha FCM usando 'fcm:<token>' como endpoint único
     await db.query(
       `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth, fcm_token)
-       VALUES ($1, $2, '', '', $2)
-       ON CONFLICT (endpoint) DO UPDATE
-         SET employee_id = EXCLUDED.employee_id,
-             fcm_token   = EXCLUDED.fcm_token`,
-      [employeeId, fcmToken]
+       VALUES ($1, $2, '', '', $3)`,
+      [employeeId, `fcm:${fcmToken}`, fcmToken]
     );
 
     res.json({ ok: true });
