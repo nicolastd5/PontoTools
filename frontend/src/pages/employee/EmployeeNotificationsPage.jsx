@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useFcmWeb } from '../../hooks/useFcmWeb';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -31,6 +33,9 @@ export default function EmployeeNotificationsPage() {
   const [pushSupported, setPushSupported] = useState(false);
   const [pushGranted,   setPushGranted]   = useState(false);
   const [subscribing,   setSubscribing]   = useState(false);
+
+  const { user } = useAuth();
+  useFcmWeb(pushGranted && !!user);
 
   // Check push support and current permission on mount
   useEffect(() => {
