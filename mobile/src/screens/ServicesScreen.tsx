@@ -82,20 +82,23 @@ export default function ServicesScreen({
   unreadCount?: number;
   servicesOnly?: boolean;
 }) {
-  const [services, setServices]       = useState<ServiceOrder[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [refreshing, setRefreshing]   = useState(false);
-  const [detail, setDetail]           = useState<ServiceOrder | null>(null);
-  const [posto, setPosto]             = useState('');
-  const [submitting, setSubmitting]   = useState(false);
+  const [services, setServices]     = useState<ServiceOrder[]>([]);
+  const [loading, setLoading]       = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [detail, setDetail]         = useState<ServiceOrder | null>(null);
+  const [posto, setPosto]           = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // Fotos
-  const [photoUris, setPhotoUris]     = useState<string[]>([]);
-  const [cameraPhase, setCameraPhase] = useState<'before' | 'after' | 'issues' | null>(null);
-  const [lightbox, setLightbox]       = useState<string | null>(null);
-  const [photoUrls, setPhotoUrls]     = useState<Record<number, string>>({});
+  // Fotos capturadas na sessão atual (antes de concluir)
+  const [sessionPhase, setSessionPhase]   = useState<'before' | 'after' | 'issues' | null>(null);
+  const [sessionUris, setSessionUris]     = useState<string[]>([]);
+  const [photoConfirm, setPhotoConfirm]   = useState(false); // modal "mais fotos ou concluir"
 
-  // Modais
+  // Fotos salvas no servidor
+  const [photoUrls, setPhotoUrls]         = useState<Record<number, string>>({});
+  const [lightbox, setLightbox]           = useState<string | null>(null);
+
+  // Modais de texto
   const [problemModal, setProblemModal] = useState(false);
   const [problemText, setProblemText]   = useState('');
   const [issuesModal, setIssuesModal]   = useState(false);
@@ -113,9 +116,10 @@ export default function ServicesScreen({
   React.useEffect(() => { loadServices(false); }, []);
 
   const openDetail = useCallback(async (service: ServiceOrder) => {
-    setPhotoUris([]);
+    setSessionPhase(null);
+    setSessionUris([]);
+    setPhotoConfirm(false);
     setPhotoUrls({});
-    setCameraPhase(null);
     setProblemText('');
     setIssuesText('');
     setProblemModal(false);
@@ -139,7 +143,8 @@ export default function ServicesScreen({
     } catch {}
   }, []);
 
-  const takePhoto = useCallback(async () => {
+  // Abre câmera nativa em tela cheia; ao voltar, exibe modal de confirmação
+  const openCamera = useCallback(async (phase: 'before' | 'after' | 'issues') => {
     const options: CameraOptions = {
       mediaType: 'photo',
       cameraType: 'back',
@@ -149,57 +154,70 @@ export default function ServicesScreen({
       saveToPhotos: false,
     };
     const result = await launchCamera(options);
-    if (result.didCancel || result.errorCode) return;
-    const uri = result.assets?.[0]?.uri;
-    if (uri) setPhotoUris((prev) => [...prev, uri]);
+    if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) return;
+    const uri = result.assets[0].uri!;
+    setSessionPhase(phase);
+    setSessionUris((prev) => [...prev, uri]);
+    setPhotoConfirm(true); // abre modal "mais fotos ou concluir"
   }, []);
 
-  const uploadPhotos = useCallback(async (
-    serviceId: number,
-    phase: 'before' | 'after',
-    uris: string[],
-    employeePosto?: string,
-  ) => {
-    const gps = await getGps();
-    for (const uri of uris) {
-      const form = new FormData();
-      form.append('photo', { uri, type: 'image/jpeg', name: 'photo.jpg' } as any);
-      form.append('phase', phase);
-      if (gps) {
-        form.append('latitude',  String(gps.latitude));
-        form.append('longitude', String(gps.longitude));
-      }
-      if (phase === 'before' && employeePosto?.trim()) {
-        form.append('employee_posto', employeePosto.trim());
-      }
-      await api.post(`/services/${serviceId}/photos`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+  // Tira mais uma foto na mesma fase
+  const addMorePhoto = useCallback(async () => {
+    setPhotoConfirm(false);
+    if (!sessionPhase) return;
+    const options: CameraOptions = {
+      mediaType: 'photo',
+      cameraType: 'back',
+      quality: 0.7,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      saveToPhotos: false,
+    };
+    const result = await launchCamera(options);
+    if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) {
+      setPhotoConfirm(true); // volta ao modal se cancelou
+      return;
     }
-  }, []);
+    const uri = result.assets[0].uri!;
+    setSessionUris((prev) => [...prev, uri]);
+    setPhotoConfirm(true);
+  }, [sessionPhase]);
 
-  // Confirma ação após tirar fotos
-  const handleConfirmPhotos = useCallback(async () => {
-    if (!detail || !cameraPhase) return;
+  // Envia todas as fotos da sessão e atualiza status
+  const submitPhotos = useCallback(async () => {
+    if (!detail || !sessionPhase) return;
+    setPhotoConfirm(false);
     setSubmitting(true);
     try {
-      const phase = cameraPhase === 'issues' ? 'after' : cameraPhase;
+      const phase = sessionPhase === 'issues' ? 'after' : sessionPhase;
+      const gps = await getGps();
 
-      if (photoUris.length > 0) {
-        await uploadPhotos(detail.id, phase, photoUris, posto);
+      for (const uri of sessionUris) {
+        const form = new FormData();
+        form.append('photo', { uri, type: 'image/jpeg', name: 'photo.jpg' } as any);
+        form.append('phase', phase);
+        if (gps) {
+          form.append('latitude',  String(gps.latitude));
+          form.append('longitude', String(gps.longitude));
+        }
+        if (phase === 'before' && posto.trim()) {
+          form.append('employee_posto', posto.trim());
+        }
+        await api.post(`/services/${detail.id}/photos`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       }
 
-      if (cameraPhase === 'issues') {
+      if (sessionPhase === 'issues') {
         await api.patch(`/services/${detail.id}/status`, {
           status: 'done_with_issues',
           issue_description: issuesText,
         });
+        setIssuesText('');
       }
 
-      setCameraPhase(null);
-      setPhotoUris([]);
-      setIssuesModal(false);
-      setIssuesText('');
+      setSessionPhase(null);
+      setSessionUris([]);
       loadServices(false);
       await reloadDetail(detail.id);
     } catch (err: any) {
@@ -207,7 +225,7 @@ export default function ServicesScreen({
     } finally {
       setSubmitting(false);
     }
-  }, [detail, cameraPhase, photoUris, posto, issuesText, uploadPhotos, loadServices, reloadDetail]);
+  }, [detail, sessionPhase, sessionUris, posto, issuesText, loadServices, reloadDetail]);
 
   const handleUpdateStatus = useCallback(async (
     status: 'in_progress' | 'done' | 'done_with_issues' | 'problem',
@@ -230,7 +248,7 @@ export default function ServicesScreen({
     }
   }, [detail, loadServices, reloadDetail]);
 
-  const loadPhotoUrl = useCallback(async (photo: ServicePhoto, serviceId: number) => {
+  const loadPhotoUrl = useCallback((photo: ServicePhoto, serviceId: number) => {
     if (photoUrls[photo.id]) return;
     const url = `${(api.defaults.baseURL ?? '').replace('/api', '')}/api/services/${serviceId}/photos/${photo.id}`;
     setPhotoUrls((prev) => ({ ...prev, [photo.id]: url }));
@@ -244,7 +262,9 @@ export default function ServicesScreen({
   const canIssues  = detail?.status === 'in_progress';
   const canProblem = detail && (detail.status === 'in_progress' || detail.status === 'pending');
 
-  const inCameraMode = cameraPhase !== null && !submitting;
+  const phaseLabel = sessionPhase === 'before' ? 'Foto de Início'
+    : sessionPhase === 'after' ? 'Foto de Conclusão'
+    : 'Foto de Ressalvas';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
@@ -292,12 +312,11 @@ export default function ServicesScreen({
       />
 
       {/* Modal de detalhe */}
-      <Modal visible={detail !== null && !inCameraMode} transparent animationType="slide">
+      <Modal visible={detail !== null && !photoConfirm} transparent animationType="slide">
         <View style={modal.overlay}>
           <View style={modal.box}>
             {detail && (
               <ScrollView showsVerticalScrollIndicator={false}>
-                {/* Cabeçalho */}
                 <View style={modal.header}>
                   <Text style={modal.title} numberOfLines={2}>{detail.title}</Text>
                   <TouchableOpacity onPress={() => setDetail(null)}>
@@ -311,32 +330,22 @@ export default function ServicesScreen({
                   </Text>
                 </View>
 
-                {/* Meta */}
                 <View style={modal.metaRow}>
                   <Text style={modal.metaText}>📅 {fmtDate(detail.scheduled_date)}</Text>
                   {detail.due_time ? <Text style={modal.metaText}>⏰ até {detail.due_time.slice(0, 5)}</Text> : null}
                 </View>
 
-                {/* Timestamps */}
                 {(detail.started_at || detail.finished_at) ? (
                   <View style={modal.tsBox}>
-                    {detail.started_at ? (
-                      <Text style={modal.tsText}>▶ Iniciado em: {new Date(detail.started_at).toLocaleString('pt-BR')}</Text>
-                    ) : null}
-                    {detail.finished_at ? (
-                      <Text style={modal.tsText}>✔ Concluído em: {new Date(detail.finished_at).toLocaleString('pt-BR')}</Text>
-                    ) : null}
+                    {detail.started_at ? <Text style={modal.tsText}>▶ Iniciado em: {new Date(detail.started_at).toLocaleString('pt-BR')}</Text> : null}
+                    {detail.finished_at ? <Text style={modal.tsText}>✔ Concluído em: {new Date(detail.finished_at).toLocaleString('pt-BR')}</Text> : null}
                   </View>
                 ) : null}
 
-                {/* Descrição */}
                 {detail.description ? (
-                  <View style={modal.descBox}>
-                    <Text style={modal.descText}>{detail.description}</Text>
-                  </View>
+                  <View style={modal.descBox}><Text style={modal.descText}>{detail.description}</Text></View>
                 ) : null}
 
-                {/* Ressalvas */}
                 {detail.issue_description ? (
                   <View style={[modal.descBox, { backgroundColor: '#fff7ed', borderColor: '#fed7aa' }]}>
                     <Text style={[modal.descLabel, { color: '#ea580c' }]}>Ressalvas:</Text>
@@ -344,7 +353,6 @@ export default function ServicesScreen({
                   </View>
                 ) : null}
 
-                {/* Problema */}
                 {detail.problem_description ? (
                   <View style={[modal.descBox, { backgroundColor: '#fef2f2', borderColor: '#fca5a5' }]}>
                     <Text style={[modal.descLabel, { color: '#dc2626' }]}>Problema:</Text>
@@ -412,34 +420,30 @@ export default function ServicesScreen({
                   )}
                 </View>
 
-                {/* Ações */}
                 {submitting && <ActivityIndicator color="#1d4ed8" style={{ marginVertical: 16 }} />}
 
                 {!submitting && isActive && (
                   <View style={{ gap: 10 }}>
                     <Text style={modal.actionsLabel}>AÇÕES</Text>
 
-                    {/* Foto de início → muda para in_progress automaticamente */}
                     {detail.status === 'pending' && (
                       <TouchableOpacity
                         style={[modal.actionBtn, { backgroundColor: '#1d4ed8' }]}
-                        onPress={() => { setPhotoUris([]); setCameraPhase('before'); }}
+                        onPress={() => { setSessionUris([]); openCamera('before'); }}
                       >
                         <Text style={modal.actionBtnText}>📷 Enviar Foto de Início</Text>
                       </TouchableOpacity>
                     )}
 
-                    {/* Foto de conclusão → muda para done automaticamente */}
                     {detail.status === 'in_progress' && (
                       <TouchableOpacity
                         style={[modal.actionBtn, { backgroundColor: '#16a34a' }]}
-                        onPress={() => { setPhotoUris([]); setCameraPhase('after'); }}
+                        onPress={() => { setSessionUris([]); openCamera('after'); }}
                       >
                         <Text style={modal.actionBtnText}>📷 Enviar Foto de Conclusão</Text>
                       </TouchableOpacity>
                     )}
 
-                    {/* Concluir com ressalvas */}
                     {canIssues && (
                       <TouchableOpacity
                         style={[modal.actionBtn, { backgroundColor: '#ea580c' }]}
@@ -449,7 +453,6 @@ export default function ServicesScreen({
                       </TouchableOpacity>
                     )}
 
-                    {/* Reportar problema */}
                     {canProblem && (
                       <TouchableOpacity
                         style={[modal.actionBtn, { backgroundColor: '#dc2626' }]}
@@ -466,26 +469,24 @@ export default function ServicesScreen({
         </View>
       </Modal>
 
-      {/* Modal de câmera (foto de início/conclusão) */}
-      <Modal visible={inCameraMode} transparent animationType="slide">
+      {/* Modal "mais fotos ou concluir" — aparece após cada foto */}
+      <Modal visible={photoConfirm} transparent animationType="slide">
         <View style={modal.overlay}>
-          <View style={modal.box}>
-            <Text style={modal.title}>
-              {cameraPhase === 'before' ? 'Foto de Início' : cameraPhase === 'after' ? 'Foto de Conclusão' : 'Foto de Ressalvas'}
-            </Text>
+          <View style={[modal.box, { maxHeight: '70%' }]}>
+            <Text style={modal.title}>{phaseLabel}</Text>
             <Text style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
-              Adicione fotos e toque em Confirmar.
+              {sessionUris.length} foto{sessionUris.length > 1 ? 's' : ''} adicionada{sessionUris.length > 1 ? 's' : ''}. O que deseja fazer?
             </Text>
 
-            {/* Fotos adicionadas */}
-            {photoUris.length > 0 && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                {photoUris.map((uri, i) => (
+            {/* Miniaturas das fotos da sessão */}
+            {sessionUris.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                {sessionUris.map((uri, i) => (
                   <View key={i} style={{ marginRight: 8, position: 'relative' }}>
                     <Image source={{ uri }} style={modal.thumb} />
                     <TouchableOpacity
                       style={modal.removeBtn}
-                      onPress={() => setPhotoUris((prev) => prev.filter((_, idx) => idx !== i))}
+                      onPress={() => setSessionUris((prev) => prev.filter((_, idx) => idx !== i))}
                     >
                       <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✕</Text>
                     </TouchableOpacity>
@@ -494,19 +495,22 @@ export default function ServicesScreen({
               </ScrollView>
             )}
 
-            <TouchableOpacity style={modal.photoBtn} onPress={takePhoto}>
-              <Text style={modal.photoBtnText}>📸 Adicionar Foto</Text>
-            </TouchableOpacity>
-
-            <View style={modal.actions}>
-              <TouchableOpacity
-                style={modal.cancelBtn}
-                onPress={() => { setCameraPhase(null); setPhotoUris([]); }}
-              >
-                <Text style={modal.cancelText}>Cancelar</Text>
+            <View style={{ gap: 10 }}>
+              <TouchableOpacity style={[modal.actionBtn, { backgroundColor: '#475569' }]} onPress={addMorePhoto}>
+                <Text style={modal.actionBtnText}>📸 Adicionar Mais Fotos</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={modal.confirmBtn} onPress={handleConfirmPhotos}>
-                <Text style={modal.confirmText}>Confirmar</Text>
+              <TouchableOpacity
+                style={[modal.actionBtn, { backgroundColor: '#1d4ed8' }]}
+                onPress={submitPhotos}
+                disabled={sessionUris.length === 0}
+              >
+                <Text style={modal.actionBtnText}>✓ Concluir Envio</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[modal.actionBtn, { backgroundColor: '#f1f5f9' }]}
+                onPress={() => { setPhotoConfirm(false); setSessionPhase(null); setSessionUris([]); }}
+              >
+                <Text style={[modal.actionBtnText, { color: '#64748b' }]}>Cancelar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -535,7 +539,7 @@ export default function ServicesScreen({
               <TouchableOpacity
                 style={[modal.actionBtn, { backgroundColor: '#ea580c', opacity: !issuesText.trim() ? 0.5 : 1 }]}
                 disabled={!issuesText.trim()}
-                onPress={() => { setIssuesModal(false); setPhotoUris([]); setCameraPhase('issues'); }}
+                onPress={() => { setIssuesModal(false); setSessionUris([]); openCamera('issues'); }}
               >
                 <Text style={modal.actionBtnText}>📷 Tirar Foto e Concluir</Text>
               </TouchableOpacity>
@@ -596,11 +600,7 @@ export default function ServicesScreen({
           activeOpacity={1}
         >
           {lightbox && (
-            <Image
-              source={{ uri: lightbox }}
-              style={{ width: '95%', height: '80%', borderRadius: 8 }}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: lightbox }} style={{ width: '95%', height: '80%', borderRadius: 8 }} resizeMode="contain" />
           )}
           <TouchableOpacity
             onPress={() => setLightbox(null)}
@@ -649,8 +649,6 @@ const modal = StyleSheet.create({
   actionsLabel:     { fontSize: 11, fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: 4 },
   actionBtn:        { borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 2 },
   actionBtnText:    { color: '#fff', fontWeight: '700', fontSize: 15 },
-  photoBtn:         { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 12 },
-  photoBtnText:     { fontSize: 14, fontWeight: '600', color: '#374151' },
   problemInput:     { borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 10, padding: 12, fontSize: 14, color: '#0f172a', minHeight: 80, textAlignVertical: 'top', marginBottom: 4 },
   actions:          { flexDirection: 'row', gap: 12 },
   cancelBtn:        { flex: 1, padding: 14, borderRadius: 10, borderWidth: 1.5, borderColor: '#e2e8f0', alignItems: 'center' },
