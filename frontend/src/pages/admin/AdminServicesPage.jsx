@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
 
 // Parseia YYYY-MM-DD sem conversão de fuso (evita off-by-one)
+// v2 — parse sem fuso
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
   const [y, m, d] = String(dateStr).slice(0, 10).split('-');
