@@ -37,7 +37,7 @@ async function list(req, res, next) {
     const result = await db.query(
       `SELECT
          so.id, so.title, so.description, so.status,
-         so.scheduled_date, so.due_time, so.problem_description,
+         to_char(so.scheduled_date, 'YYYY-MM-DD') AS scheduled_date, so.due_time, so.problem_description,
          so.template_id,
          so.started_at, so.finished_at,
          so.unit_id,
@@ -145,7 +145,7 @@ async function getOne(req, res, next) {
 
     const result = await db.query(
       `SELECT
-         so.*,
+         so.*, to_char(so.scheduled_date, 'YYYY-MM-DD') AS scheduled_date,
          e.full_name  AS employee_name,
          cb.full_name AS created_by_name,
          u.name       AS unit_name,
