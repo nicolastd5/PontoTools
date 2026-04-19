@@ -277,7 +277,7 @@ async function fire(req, res, next) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
-    const scheduledDate = new Date(tpl.next_run_at).toISOString().slice(0, 10);
+    const scheduledDate = req.body?.scheduled_date || new Date(tpl.next_run_at).toISOString().slice(0, 10);
     const qty = tpl.quantity || 1;
     const serviceIds = [];
     for (let i = 0; i < qty; i++) {

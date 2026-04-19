@@ -93,6 +93,8 @@ export default function AdminServicesPage() {
   const [tplModal, setTplModal]         = useState(false);   // false | 'create' | tpl object
   const [tplForm, setTplForm]           = useState(EMPTY_TEMPLATE);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [fireModal, setFireModal]       = useState(null);    // null | tpl object
+  const [fireDate, setFireDate]         = useState('');
 
   // ── Queries ──
   const { data: services = [], isLoading: svcLoading } = useServices(
@@ -230,10 +232,11 @@ export default function AdminServicesPage() {
   });
 
   const fireTpl = useMutation({
-    mutationFn: (id) => api.post(`/service-templates/${id}/fire`),
+    mutationFn: ({ id, scheduled_date }) => api.post(`/service-templates/${id}/fire`, { scheduled_date }),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-services']);
       success('Serviço criado a partir do template.');
+      setFireModal(null);
     },
     onError: (err) => error(err.response?.data?.error || 'Erro ao disparar template.'),
   });
@@ -479,7 +482,11 @@ export default function AdminServicesPage() {
                           style={{ ...actionBtn, color: tpl.active ? '#d97706' : '#16a34a' }}
                         >{tpl.active ? 'Pausar' : 'Ativar'}</button>
                         <button
-                          onClick={() => { if (window.confirm(`Disparar agora o template "${tpl.title}"?`)) fireTpl.mutate(tpl.id); }}
+                          onClick={() => {
+                            const d = tpl.next_run_at ? String(tpl.next_run_at).slice(0, 10) : '';
+                            setFireDate(d);
+                            setFireModal(tpl);
+                          }}
                           disabled={fireTpl.isLoading}
                           style={{ ...actionBtn, color: '#0891b2', borderColor: '#bae6fd' }}
                         >Disparar</button>
@@ -762,6 +769,42 @@ export default function AdminServicesPage() {
                 <button type="button" onClick={closeTplModal} style={s.outlineBtn} disabled={tplBusy}>Cancelar</button>
                 <button type="submit" style={s.primaryBtn} disabled={tplBusy}>
                   {tplBusy ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: disparar template ── */}
+      {fireModal && (
+        <div style={overlay} onClick={() => setFireModal(null)}>
+          <div style={{ ...modalCard, maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modalTitle}>Disparar Template</h2>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
+              <strong>"{fireModal.title}"</strong> — Para qual data quer que o agendamento apareça para o funcionário?
+            </p>
+            <form
+              onSubmit={(e) => { e.preventDefault(); fireTpl.mutate({ id: fireModal.id, scheduled_date: fireDate }); }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            >
+              <Field label="Data do agendamento *">
+                <input
+                  type="date"
+                  value={fireDate}
+                  onChange={(e) => setFireDate(e.target.value)}
+                  required
+                  style={inputStyle}
+                />
+              </Field>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                <button type="button" onClick={() => setFireModal(null)} style={s.outlineBtn}>Cancelar</button>
+                <button
+                  type="submit"
+                  disabled={fireTpl.isLoading}
+                  style={{ ...s.primaryBtn, background: '#0891b2', opacity: fireTpl.isLoading ? 0.7 : 1 }}
+                >
+                  {fireTpl.isLoading ? 'Disparando...' : 'Disparar'}
                 </button>
               </div>
             </form>
