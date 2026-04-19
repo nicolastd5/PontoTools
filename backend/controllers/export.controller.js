@@ -430,8 +430,9 @@ async function exportServicesPdf(req, res, next) {
         // scheduled_date vem como objeto Date do pg — formata direto sem re-parsear
         const sd = new Date(svc.scheduled_date);
         const scheduledDate = `${String(sd.getUTCDate()).padStart(2,'0')}/${String(sd.getUTCMonth()+1).padStart(2,'0')}/${sd.getUTCFullYear()}`;
-        const startedAt  = svc.started_at  ? new Date(svc.started_at).toLocaleString('pt-BR')  : '—';
-        const finishedAt = svc.finished_at ? new Date(svc.finished_at).toLocaleString('pt-BR') : '—';
+        const fmtTs = (ts) => ts ? new Date(ts).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
+        const startedAt  = fmtTs(svc.started_at);
+        const finishedAt = fmtTs(svc.finished_at);
 
         // Título do serviço
         doc.fontSize(12).font('Helvetica-Bold').fillColor('#0f172a')
