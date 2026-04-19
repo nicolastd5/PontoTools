@@ -66,8 +66,6 @@ export default function HistoryScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="history" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
-
       {/* Filtro de período */}
       <View style={styles.filterRow}>
         <TextInput
@@ -127,6 +125,7 @@ export default function HistoryScreen({
         ListEmptyComponent={loading ? null : <View style={{ alignItems: 'center', marginTop: 60 }}><Text style={{ color: '#94a3b8', fontSize: 15 }}>Nenhum registro encontrado.</Text></View>}
         ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} color="#1d4ed8" /> : null}
       />
+      <TabBar active="history" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
     </SafeAreaView>
   );
 }

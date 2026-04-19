@@ -210,8 +210,6 @@ export default function DashboardScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="dashboard" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
-
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {/* Relógio com segundos */}
         <View style={styles.clockBox}>
@@ -290,6 +288,8 @@ export default function DashboardScreen({
           <Text style={styles.logoutText}>Sair</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <TabBar active="dashboard" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
 
       {/* Modal de confirmação */}
       <Modal visible={confirmModal !== null} transparent animationType="slide">

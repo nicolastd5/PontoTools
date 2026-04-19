@@ -21,15 +21,22 @@ function AppContent() {
   const [authScreen, setAuthScreen]   = useState<AuthScreen>('login');
   const [unreadCount, setUnreadCount] = useState(0);
   const [servicesOnly, setServicesOnly] = useState(false);
+  const [roleLoading, setRoleLoading]   = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Busca servicesOnly e inicia polling de notificações após login
   useEffect(() => {
     if (!user) return;
 
+    setRoleLoading(true);
     api.get('/clock/today')
-      .then(({ data }) => setServicesOnly(data.servicesOnly ?? false))
-      .catch(() => {});
+      .then(({ data }) => {
+        const so = data.servicesOnly ?? false;
+        setServicesOnly(so);
+        if (so) setScreen('services');
+      })
+      .catch(() => {})
+      .finally(() => setRoleLoading(false));
 
     function fetchUnread() {
       api.get('/notifications')
@@ -43,7 +50,7 @@ function AppContent() {
     };
   }, [user]);
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#1d4ed8" />

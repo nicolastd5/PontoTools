@@ -268,8 +268,6 @@ export default function ServicesScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="services" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
-
       <FlatList
         data={services}
         keyExtractor={(item) => String(item.id)}
@@ -591,6 +589,8 @@ export default function ServicesScreen({
           </View>
         </View>
       </Modal>
+
+      <TabBar active="services" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
 
       {/* Lightbox */}
       <Modal visible={lightbox !== null} transparent animationType="fade">

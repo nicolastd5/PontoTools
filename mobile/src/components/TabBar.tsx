@@ -50,7 +50,7 @@ export default function TabBar({ active, onNavigate, unreadCount = 0, servicesOn
 }
 
 const styles = StyleSheet.create({
-  tabBar:     { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingBottom: 4 },
+  tabBar:     { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingBottom: 8 },
   tab:        { flex: 1, alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
   iconWrap:   { position: 'relative' },
   icon:       { fontSize: 20, color: '#94a3b8' },
