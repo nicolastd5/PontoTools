@@ -21,14 +21,13 @@ export default function AdminExportPage() {
 
   // Estado do form PDF
   const [pdfForm, setPdfForm] = useState({ employeeId: '', month: '', year: new Date().getFullYear() });
-  // Estado do form Excel
   const [xlsForm, setXlsForm] = useState({ unitId: '', startDate: '', endDate: '' });
   const [svcForm, setSvcForm] = useState({ filterType: 'employee', employeeId: '', unitId: '', startDate: '', endDate: '' });
+  const [loading, setLoading] = useState({ pdf: false, xls: false, svc: false });
 
   async function exportPdf() {
-    if (!pdfForm.employeeId || !pdfForm.month) {
-      return error('Selecione funcionário e mês.');
-    }
+    if (!pdfForm.employeeId || !pdfForm.month) return error('Selecione funcionário e mês.');
+    setLoading((p) => ({ ...p, pdf: true }));
     try {
       const res = await api.get('/admin/export/pdf', {
         params:       { employeeId: pdfForm.employeeId, month: pdfForm.month, year: pdfForm.year },
@@ -42,13 +41,14 @@ export default function AdminExportPage() {
       URL.revokeObjectURL(url);
     } catch {
       error('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      setLoading((p) => ({ ...p, pdf: false }));
     }
   }
 
   async function exportExcel() {
-    if (!xlsForm.startDate || !xlsForm.endDate) {
-      return error('Selecione o intervalo de datas.');
-    }
+    if (!xlsForm.startDate || !xlsForm.endDate) return error('Selecione o intervalo de datas.');
+    setLoading((p) => ({ ...p, xls: true }));
     try {
       const res = await api.get('/admin/export/excel', {
         params:       { unitId: xlsForm.unitId || undefined, startDate: xlsForm.startDate, endDate: xlsForm.endDate },
@@ -62,19 +62,16 @@ export default function AdminExportPage() {
       URL.revokeObjectURL(url);
     } catch {
       error('Erro ao gerar Excel. Tente novamente.');
+    } finally {
+      setLoading((p) => ({ ...p, xls: false }));
     }
   }
 
   async function exportServicesPdf() {
-    if (!svcForm.startDate || !svcForm.endDate) {
-      return error('Selecione o intervalo de datas.');
-    }
-    if (svcForm.filterType === 'employee' && !svcForm.employeeId) {
-      return error('Selecione o funcionário.');
-    }
-    if (svcForm.filterType === 'unit' && !svcForm.unitId) {
-      return error('Selecione a unidade.');
-    }
+    if (!svcForm.startDate || !svcForm.endDate) return error('Selecione o intervalo de datas.');
+    if (svcForm.filterType === 'employee' && !svcForm.employeeId) return error('Selecione o funcionário.');
+    if (svcForm.filterType === 'unit' && !svcForm.unitId) return error('Selecione a unidade.');
+    setLoading((p) => ({ ...p, svc: true }));
     try {
       const params = { startDate: svcForm.startDate, endDate: svcForm.endDate };
       if (svcForm.filterType === 'employee') params.employeeId = svcForm.employeeId;
@@ -88,7 +85,6 @@ export default function AdminExportPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      // Lê mensagem do blob de erro quando o servidor retorna JSON com status != 2xx
       try {
         const text = await err.response?.data?.text?.();
         const json = JSON.parse(text);
@@ -96,6 +92,8 @@ export default function AdminExportPage() {
       } catch {
         error('Erro ao gerar PDF de serviços. Tente novamente.');
       }
+    } finally {
+      setLoading((p) => ({ ...p, svc: false }));
     }
   }
 
@@ -157,8 +155,8 @@ export default function AdminExportPage() {
               </div>
             </div>
 
-            <button onClick={exportPdf} style={styles.btn}>
-              Gerar PDF
+            <button onClick={exportPdf} disabled={loading.pdf} style={{ ...styles.btn, opacity: loading.pdf ? 0.7 : 1, cursor: loading.pdf ? 'not-allowed' : 'pointer' }}>
+              {loading.pdf ? '⏳ Gerando PDF...' : 'Gerar PDF'}
             </button>
           </div>
         )}
@@ -203,8 +201,8 @@ export default function AdminExportPage() {
               </div>
             </div>
 
-            <button onClick={exportExcel} style={{ ...styles.btn, background: '#16a34a' }}>
-              Gerar Excel
+            <button onClick={exportExcel} disabled={loading.xls} style={{ ...styles.btn, background: '#16a34a', opacity: loading.xls ? 0.7 : 1, cursor: loading.xls ? 'not-allowed' : 'pointer' }}>
+              {loading.xls ? '⏳ Gerando Excel...' : 'Gerar Excel'}
             </button>
           </div>
         )}
@@ -272,8 +270,8 @@ export default function AdminExportPage() {
             </div>
           </div>
 
-          <button onClick={exportServicesPdf} style={{ ...styles.btn, background: '#7c3aed' }}>
-            Gerar PDF de Serviços
+          <button onClick={exportServicesPdf} disabled={loading.svc} style={{ ...styles.btn, background: '#7c3aed', opacity: loading.svc ? 0.7 : 1, cursor: loading.svc ? 'not-allowed' : 'pointer' }}>
+            {loading.svc ? '⏳ Gerando PDF...' : 'Gerar PDF de Serviços'}
           </button>
         </div>
       </div>
