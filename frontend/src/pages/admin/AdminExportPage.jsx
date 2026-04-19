@@ -87,8 +87,15 @@ export default function AdminExportPage() {
       a.download = `servicos_${svcForm.startDate}_${svcForm.endDate}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      error('Erro ao gerar PDF de serviços. Tente novamente.');
+    } catch (err) {
+      // Lê mensagem do blob de erro quando o servidor retorna JSON com status != 2xx
+      try {
+        const text = await err.response?.data?.text?.();
+        const json = JSON.parse(text);
+        error(json.error || 'Erro ao gerar PDF de serviços. Tente novamente.');
+      } catch {
+        error('Erro ao gerar PDF de serviços. Tente novamente.');
+      }
     }
   }
 
