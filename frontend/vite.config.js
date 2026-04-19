@@ -21,6 +21,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         // Cache do shell da aplicação — API sempre vai para a rede
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
