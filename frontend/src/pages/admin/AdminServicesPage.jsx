@@ -388,7 +388,7 @@ export default function AdminServicesPage() {
                       />
                     </th>
                     <th style={{ ...s.th, width: 36 }}>#</th>
-                    {['Título', 'Funcionário', 'Data', 'Prazo', 'Status', 'Ações'].map((h) => (
+                    {['Título', 'Funcionário', 'Conclusão', 'Prazo', 'Status', 'Ações'].map((h) => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
                   </tr>
@@ -417,7 +417,11 @@ export default function AdminServicesPage() {
                           </span>
                         )}
                       </td>
-                      <td style={s.td}>{fmtDate(sv.scheduled_date)}</td>
+                      <td style={s.td}>
+                        {sv.finished_at
+                          ? new Date(sv.finished_at).toLocaleDateString('pt-BR')
+                          : fmtDate(sv.scheduled_date)}
+                      </td>
                       <td style={s.td}>{sv.due_time ? sv.due_time.slice(0, 5) : '—'}</td>
                       <td style={s.td}><ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} /></td>
                       <td style={s.td}>
