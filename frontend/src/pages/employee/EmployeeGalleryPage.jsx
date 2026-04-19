@@ -116,7 +116,7 @@ export default function EmployeeGalleryPage() {
                 <div style={{ marginBottom: photos.length ? 10 : 0 }}>
                   <div style={s.cardLabel}>{sv.title}</div>
                   <div style={s.cardMeta}>
-                    {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')} · {STATUS_LABEL[sv.status]}
+                    {(() => { const [y,m,d] = sv.scheduled_date.slice(0,10).split('-'); return `${d}/${m}/${y}`; })()} · {STATUS_LABEL[sv.status]}
                   </div>
                 </div>
                 {photos.length === 0 && <div style={s.noPhoto}>Sem fotos registradas</div>}

@@ -165,7 +165,7 @@ export default function EmployeeServicesPage() {
                   <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />
                 </div>
                 <div style={s.cardMeta}>
-                  <span>📅 {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')}</span>
+                  <span>📅 {(() => { const [y,m,d] = sv.scheduled_date.slice(0,10).split('-'); return `${d}/${m}/${y}`; })()}</span>
                   {sv.due_time && <span>⏰ até {sv.due_time.slice(0, 5)}</span>}
                 </div>
               </div>
@@ -187,7 +187,7 @@ export default function EmployeeServicesPage() {
             </div>
 
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <span>📅 {new Date(detail.scheduled_date).toLocaleDateString('pt-BR')}</span>
+              <span>📅 {(() => { const [y,m,d] = detail.scheduled_date.slice(0,10).split('-'); return `${d}/${m}/${y}`; })()}</span>
               {detail.due_time && <span>⏰ até {detail.due_time.slice(0, 5)}</span>}
             </div>
             {(detail.started_at || detail.finished_at) && (
