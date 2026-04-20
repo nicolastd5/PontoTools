@@ -11,6 +11,17 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+// Decide se o cliente é um navegador (usa cookie HttpOnly) ou um app nativo
+// (recebe refreshToken no JSON). O header X-Client-Type é a fonte primária;
+// a ausência de Origin é usada como fallback para requisições server-to-server.
+function isBrowserClient(req) {
+  const clientType = (req.headers['x-client-type'] || '').toString().toLowerCase();
+  if (clientType === 'mobile' || clientType === 'native') return false;
+  if (clientType === 'web' || clientType === 'browser')   return true;
+  // Fallback: browsers XHR normalmente enviam Origin; apps nativos normalmente não.
+  return !!req.headers.origin;
+}
+
 // ----------------------------------------------------------------
 // POST /api/auth/login
 // ----------------------------------------------------------------
@@ -77,7 +88,7 @@ async function login(req, res, next) {
 
     // Só retorna refreshToken no body para clientes não-browser (mobile)
     // Browsers usam o cookie HttpOnly definido acima
-    const isBrowser = !!req.headers.origin;
+    const isBrowser = isBrowserClient(req);
 
     const responseBody = {
       accessToken,
@@ -173,7 +184,7 @@ async function refresh(req, res, next) {
       expires:  expiresAt,
     });
 
-    const isBrowser = !!req.headers.origin;
+    const isBrowser = isBrowserClient(req);
     const responseBody = { accessToken };
     if (!isBrowser) {
       responseBody.refreshToken = newRefreshRaw;
@@ -279,7 +290,7 @@ async function updateProfile(req, res, next) {
     }
 
     if (newPassword) {
-      if (newPassword.length < 6) return res.status(400).json({ error: 'Nova senha mínima de 6 caracteres.' });
+      if (newPassword.length < 8) return res.status(400).json({ error: 'Nova senha mínima de 8 caracteres.' });
       const hash = await bcrypt.hash(newPassword, 12);
       params.push(hash);
       updates.push(`password_hash = $${params.length}`);
@@ -359,8 +370,8 @@ async function resetPassword(req, res, next) {
     if (!token || !newPassword) {
       return res.status(400).json({ error: 'Token e nova senha são obrigatórios.' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres.' });
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'A nova senha deve ter pelo menos 8 caracteres.' });
     }
 
     const tokenHash = hashToken(token);

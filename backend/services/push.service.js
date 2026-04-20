@@ -97,12 +97,12 @@ async function checkTemplates() {
       if (tpl.fire_weekdays != null) {
         const todayBit = 1 << new Date().getDay();
         if (!(tpl.fire_weekdays & todayBit)) {
-          // Dia não permitido: avança next_run_at mas não cria OS
+          // Dia não permitido: avança next_run_at em 1 dia (não pula o intervalo inteiro)
           await db.query(
             `UPDATE service_templates
-             SET next_run_at = next_run_at + ($1 || ' days')::interval, updated_at = NOW()
-             WHERE id = $2`,
-            [tpl.interval_days, tpl.id]
+             SET next_run_at = next_run_at + INTERVAL '1 day', updated_at = NOW()
+             WHERE id = $1`,
+            [tpl.id]
           );
           continue;
         }

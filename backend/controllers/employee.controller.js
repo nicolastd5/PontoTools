@@ -374,8 +374,8 @@ async function resetPasswordByAdmin(req, res, next) {
     const { newPassword } = req.body;
     const id = parseInt(req.params.id, 10);
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres.' });
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'Senha deve ter pelo menos 8 caracteres.' });
     }
 
     const hash = await bcrypt.hash(newPassword, 12);

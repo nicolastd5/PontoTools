@@ -54,6 +54,7 @@ app.use(cors({
     }
   },
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Client-Type'],
 }));
 
 // ----------------------------------------------------------------
