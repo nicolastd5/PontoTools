@@ -1,158 +1,106 @@
-import { useState }  from 'react';
-import { useQuery }  from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
-import api           from '../../services/api';
-import StatusBadge   from '../../components/shared/StatusBadge';
+import { ptBR } from 'date-fns/locale';
+import api         from '../../services/api';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const LABELS = {
   entry: 'Entrada', exit: 'Saída',
   break_start: 'Início intervalo', break_end: 'Fim intervalo',
 };
 
-export default function EmployeeHistoryPage() {
-  const [page, setPage]           = useState(1);
-  const [startDate, setStartDate] = useState('');
-  const [endDate,   setEndDate]   = useState('');
+function getTypeColor(type, theme) {
+  return { entry: theme.success, break_start: theme.warning, break_end: theme.info, exit: theme.danger }[type] || theme.textMuted;
+}
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['clock-history', page, startDate, endDate],
-    queryFn:  () => api.get('/clock/history', {
-      params: { page, limit: 20, startDate: startDate || undefined, endDate: endDate || undefined },
-    }).then((r) => r.data),
-    keepPreviousData: true,
+function groupByDate(records) {
+  const groups = {};
+  records.forEach((r) => {
+    const tz      = r.timezone || 'America/Sao_Paulo';
+    const dateKey = formatInTimeZone(new Date(r.clocked_at_utc), tz, 'yyyy-MM-dd');
+    if (!groups[dateKey]) {
+      const todayKey = formatInTimeZone(new Date(), tz, 'yyyy-MM-dd');
+      const label    = dateKey === todayKey
+        ? 'HOJE'
+        : formatInTimeZone(new Date(r.clocked_at_utc), tz, "dd MMM", { locale: ptBR }).toUpperCase();
+      groups[dateKey] = { label, records: [] };
+    }
+    groups[dateKey].records.push(r);
   });
+  return Object.values(groups);
+}
 
-  const records = data?.records || [];
+export default function EmployeeHistoryPage() {
+  const { theme }             = useTheme();
+  const [records, setRecords] = useState([]);
+  const [page, setPage]       = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const fetchPage = useCallback(async (pageNum, reset = false) => {
+    if (loading && !reset) return;
+    setLoading(true);
+    try {
+      const { data } = await api.get('/clock/history', { params: { page: pageNum, limit: 20 } });
+      setRecords((prev) => reset ? data.records : [...prev, ...data.records]);
+      setPage(pageNum);
+      setHasMore(pageNum < data.pagination.totalPages);
+    } catch {}
+    finally { setLoading(false); }
+  }, [loading]);
+
+  useEffect(() => { fetchPage(1, true); }, []);
+
+  const groups = groupByDate(records);
 
   return (
     <div>
-      <h2 style={styles.title}>Meu Histórico</h2>
+      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: theme.accent, textTransform: 'uppercase', marginBottom: 2 }}>Meus registros</p>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: theme.textPrimary, marginBottom: 20 }}>Histórico</h1>
 
-      {/* Filtro de período */}
-      <div style={styles.filters}>
-        <input
-          type="date" value={startDate}
-          onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-          style={styles.input}
-        />
-        <span style={{ color: '#94a3b8', fontSize: 13 }}>até</span>
-        <input
-          type="date" value={endDate}
-          onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-          style={styles.input}
-        />
-        {(startDate || endDate) && (
-          <button onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }} style={styles.clearBtn}>
-            ✕
-          </button>
-        )}
-      </div>
-
-      {isLoading ? (
-        <div style={styles.loading}>Carregando...</div>
-      ) : records.length === 0 ? (
-        <div style={styles.empty}>Nenhum registro encontrado.</div>
+      {loading && records.length === 0 ? (
+        <p style={{ textAlign: 'center', color: theme.textMuted, padding: 32 }}>Carregando...</p>
+      ) : groups.length === 0 ? (
+        <p style={{ textAlign: 'center', color: theme.textMuted, padding: 32 }}>Nenhum registro encontrado.</p>
       ) : (
         <>
-          <div style={styles.list}>
-            {records.map((r) => (
-              <div key={r.id} style={styles.card}>
-                <div style={styles.cardLeft}>
-                  <div style={styles.clockType}>{LABELS[r.clock_type] || r.clock_type}</div>
-                  <div style={styles.date}>
-                    {formatInTimeZone(
-                      new Date(r.clocked_at_utc),
-                      r.timezone || 'America/Sao_Paulo',
-                      'dd/MM/yyyy'
-                    )}
-                  </div>
-                </div>
-                <div style={styles.cardCenter}>
-                  <div style={styles.time}>
-                    {formatInTimeZone(
-                      new Date(r.clocked_at_utc),
-                      r.timezone || 'America/Sao_Paulo',
-                      'HH:mm'
-                    )}
-                  </div>
-                  <div style={styles.distance}>
-                    {Math.round(r.distance_meters)}m
-                  </div>
-                </div>
-                <div style={styles.cardRight}>
-                  <StatusBadge isInsideZone={r.is_inside_zone} />
-                </div>
+          {groups.map((g, gi) => (
+            <div key={gi} style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: theme.textMuted, letterSpacing: 1, textTransform: 'uppercase', paddingBottom: 6, marginBottom: 4, borderBottom: `1px solid ${theme.border}` }}>
+                {g.label}
               </div>
-            ))}
-          </div>
-
-          {/* Paginação */}
-          {data?.pagination?.totalPages > 1 && (
-            <div style={styles.pagination}>
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                style={{ ...styles.pageBtn, opacity: page <= 1 ? 0.4 : 1 }}
-              >← Anterior</button>
-              <span style={styles.pageInfo}>
-                {page} / {data.pagination.totalPages}
-              </span>
-              <button
-                disabled={page >= data.pagination.totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                style={{ ...styles.pageBtn, opacity: page >= data.pagination.totalPages ? 0.4 : 1 }}
-              >Próxima →</button>
+              {g.records.map((r, ri) => {
+                const tz   = r.timezone || 'America/Sao_Paulo';
+                const time = formatInTimeZone(new Date(r.clocked_at_utc), tz, 'HH:mm');
+                return (
+                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: ri < g.records.length - 1 ? `1px solid ${theme.border}` : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: getTypeColor(r.clock_type, theme), flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: theme.textPrimary, fontWeight: 500 }}>{LABELS[r.clock_type] || r.clock_type}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {!r.is_inside_zone && (
+                        <span style={{ background: theme.danger + '22', border: `1px solid ${theme.danger}55`, color: theme.danger, fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4 }}>Fora</span>
+                      )}
+                      <span style={{ fontSize: 13, color: theme.textSecondary, fontVariantNumeric: 'tabular-nums' }}>{time}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          ))}
+
+          {hasMore && (
+            <button
+              onClick={() => fetchPage(page + 1)}
+              disabled={loading}
+              style={{ width: '100%', padding: '12px', background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 10, color: theme.accent, fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', marginBottom: 8 }}
+            >
+              {loading ? 'Carregando...' : 'Carregar mais'}
+            </button>
           )}
         </>
       )}
     </div>
   );
 }
-
-const styles = {
-  title:   { fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 16 },
-  filters: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
-  input: {
-    padding:      '8px 10px',
-    border:       '1.5px solid #e2e8f0',
-    borderRadius: 8, fontSize: 13, color: '#374151', outline: 'none',
-    flex:         1, minWidth: 130,
-  },
-  clearBtn: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    color: '#94a3b8', fontSize: 16, padding: '4px',
-  },
-  loading: { textAlign: 'center', padding: 32, color: '#94a3b8' },
-  empty:   { textAlign: 'center', padding: 32, color: '#94a3b8' },
-  list:    { display: 'flex', flexDirection: 'column', gap: 8 },
-  card: {
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    background:     '#fff',
-    borderRadius:   10,
-    padding:        '12px 14px',
-    border:         '1px solid #e2e8f0',
-  },
-  cardLeft:   { flex: 1 },
-  clockType:  { fontSize: 14, fontWeight: 600, color: '#0f172a' },
-  date:       { fontSize: 12, color: '#94a3b8', marginTop: 2 },
-  cardCenter: { textAlign: 'center', padding: '0 12px' },
-  time:       { fontSize: 18, fontWeight: 800, color: '#1d4ed8' },
-  distance:   { fontSize: 11, color: '#94a3b8' },
-  cardRight:  {},
-  pagination: {
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            16,
-    marginTop:      16,
-  },
-  pageBtn: {
-    padding: '7px 14px', background: '#fff',
-    border: '1px solid #e2e8f0', borderRadius: 8,
-    fontSize: 13, cursor: 'pointer', color: '#374151',
-  },
-  pageInfo: { fontSize: 13, color: '#64748b' },
-};
