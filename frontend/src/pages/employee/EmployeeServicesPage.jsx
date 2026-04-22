@@ -224,7 +224,7 @@ export default function EmployeeServicesPage() {
 
             {/* Campo Posto */}
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Posto</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>Posto *</label>
               {detail.employee_posto && detail.status !== 'pending' ? (
                 <div style={{ ...descBox, marginBottom: 0 }}>{detail.employee_posto}</div>
               ) : (
@@ -232,6 +232,7 @@ export default function EmployeeServicesPage() {
                   value={posto}
                   onChange={(e) => setPosto(e.target.value)}
                   placeholder="Informe o posto de trabalho"
+                  required
                   style={inputStyle}
                 />
               )}
@@ -244,7 +245,15 @@ export default function EmployeeServicesPage() {
 
                 {/* Foto antes — inicia automaticamente */}
                 {detail.status === 'pending' && (
-                  <button onClick={() => openCamera('before')} style={{ ...primaryBtn, background: '#1d4ed8' }}>
+                  <button
+                    onClick={() => {
+                      if (!posto.trim()) {
+                        error('Preencha o campo Posto para iniciar o serviço.');
+                        return;
+                      }
+                      openCamera('before');
+                    }}
+                    style={{ ...primaryBtn, background: '#1d4ed8' }}>
                     📷 Enviar Foto de Início
                   </button>
                 )}

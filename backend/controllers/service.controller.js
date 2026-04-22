@@ -264,7 +264,7 @@ async function addPhoto(req, res, next) {
     }
 
     const current = await db.query(
-      `SELECT so.assigned_employee_id, so.status, u.contract_id
+      `SELECT so.assigned_employee_id, so.status, so.employee_posto, u.contract_id
        FROM service_orders so
        JOIN units u ON u.id = so.unit_id
        WHERE so.id = $1`,
@@ -298,12 +298,18 @@ async function addPhoto(req, res, next) {
     const svc = current.rows[0];
     if (phase === 'before' && svc.status === 'pending') {
       const postoRaw = typeof req.body.employee_posto === 'string' ? req.body.employee_posto.trim() : null;
+      const postoFinal = postoRaw || (typeof svc.employee_posto === 'string' ? svc.employee_posto.trim() : null);
+      if (!postoFinal) {
+        return res.status(400).json({ error: 'Posto obrigatório para iniciar o serviço.' });
+      }
       await db.query(
         `UPDATE service_orders
-         SET status = 'in_progress', started_at = COALESCE(started_at, NOW()), updated_at = NOW()
-             ${postoRaw ? ', employee_posto = $2' : ''}
+         SET status = 'in_progress',
+             started_at = COALESCE(started_at, NOW()),
+             employee_posto = $2,
+             updated_at = NOW()
          WHERE id = $1`,
-        postoRaw ? [id, postoRaw] : [id]
+        [id, postoFinal]
       );
     } else if (phase === 'after' && svc.status === 'in_progress') {
       await db.query(

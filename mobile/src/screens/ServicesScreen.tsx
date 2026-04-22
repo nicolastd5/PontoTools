@@ -186,6 +186,10 @@ export default function ServicesScreen({
   // Envia todas as fotos da sessão e atualiza status
   const submitPhotos = useCallback(async () => {
     if (!detail || !sessionPhase) return;
+    if (sessionPhase === 'before' && !posto.trim()) {
+      Alert.alert('Campo obrigatório', 'Preencha o campo Posto para iniciar o serviço.');
+      return;
+    }
     setPhotoConfirm(false);
     setSubmitting(true);
     try {
@@ -402,7 +406,7 @@ export default function ServicesScreen({
 
                 {/* Campo Posto */}
                 <View style={{ marginBottom: 14 }}>
-                  <Text style={modal.fieldLabel}>Posto</Text>
+                  <Text style={modal.fieldLabel}>Posto *</Text>
                   {detail.employee_posto && detail.status !== 'pending' ? (
                     <View style={modal.fieldReadonly}>
                       <Text style={{ fontSize: 14, color: '#374151' }}>{detail.employee_posto}</Text>
@@ -427,7 +431,14 @@ export default function ServicesScreen({
                     {detail.status === 'pending' && (
                       <TouchableOpacity
                         style={[modal.actionBtn, { backgroundColor: '#1d4ed8' }]}
-                        onPress={() => { setSessionUris([]); openCamera('before'); }}
+                        onPress={() => {
+                          if (!posto.trim()) {
+                            Alert.alert('Campo obrigatório', 'Preencha o campo Posto para iniciar o serviço.');
+                            return;
+                          }
+                          setSessionUris([]);
+                          openCamera('before');
+                        }}
                       >
                         <Text style={modal.actionBtnText}>📷 Enviar Foto de Início</Text>
                       </TouchableOpacity>
