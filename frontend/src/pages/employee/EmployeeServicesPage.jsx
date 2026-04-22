@@ -77,19 +77,20 @@ export default function EmployeeServicesPage() {
       return api.post(`/services/${id}/photos`, fd);
     },
     onSuccess: async (_, vars) => {
-      const phase = vars.phase;
+      const { phase, originalPhase } = vars;
       setCameraPhase(null);
       if (detail) {
+        // Após foto de ressalvas, atualiza status antes de recarregar o serviço
+        if (originalPhase === 'issues') {
+          await statusMutation.mutateAsync({ id: vars.id, status: 'done_with_issues', problem_description: issuesText });
+        }
         const res = await api.get(`/services/${detail.id}`);
         setDetail(res.data);
         setPhotoSrc({});
         if (phase === 'before') success('Foto enviada. Serviço iniciado automaticamente.');
+        else if (originalPhase === 'issues') success('Foto enviada. Serviço marcado como concluído com ressalvas.');
         else if (phase === 'after') success('Foto enviada. Serviço marcado como concluído.');
         else success('Foto enviada.');
-        // Após foto de ressalvas, finaliza o status
-        if (phase === 'issues') {
-          await statusMutation.mutateAsync({ id: vars.id, status: 'done_with_issues', issue_description: issuesText });
-        }
       }
       queryClient.invalidateQueries(['my-services']);
     },
@@ -125,7 +126,7 @@ export default function EmployeeServicesPage() {
       return;
     }
     blobs.reduce((promise, blob) =>
-      promise.then(() => photoMutation.mutateAsync({ id: detail.id, phase, blob })),
+      promise.then(() => photoMutation.mutateAsync({ id: detail.id, phase, blob, originalPhase: cameraPhase })),
       Promise.resolve()
     ).catch(() => {});
   }
