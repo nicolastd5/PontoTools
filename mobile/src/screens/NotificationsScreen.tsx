@@ -1,64 +1,54 @@
-// mobile/src/screens/NotificationsScreen.tsx
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  View, Text, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Alert,
 } from 'react-native';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
+import { useTheme } from '../contexts/ThemeContext';
 
-type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
+type Screen = 'dashboard' | 'history' | 'services' | 'notifications' | 'profile';
 
 interface Notification {
-  id: number;
-  title: string;
-  body: string;
-  type: string;
-  read: boolean;
-  created_at: string;
+  id: number; title: string; body: string;
+  type: string; read: boolean; created_at: string;
 }
 
 function fmtRelative(isoDate: string): string {
   const diff = (Date.now() - new Date(isoDate).getTime()) / 1000;
-  if (diff < 60)    return 'agora';
-  if (diff < 3600)  return `há ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`;
+  if (diff < 60)     return 'agora';
+  if (diff < 3600)   return `há ${Math.floor(diff / 60)} min`;
+  if (diff < 86400)  return `há ${Math.floor(diff / 3600)}h`;
   if (diff < 172800) return 'ontem';
   const d = new Date(isoDate);
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
-const POLL_INTERVAL = 30_000; // 30 segundos
+const POLL_INTERVAL = 30_000;
 
 export default function NotificationsScreen({
-  onNavigate,
-  unreadCount = 0,
-  onUnreadChange,
-  servicesOnly = false,
+  onNavigate, unreadCount = 0, onUnreadChange, servicesOnly = false,
 }: {
   onNavigate: (s: Screen) => void;
   unreadCount?: number;
   onUnreadChange?: (count: number) => void;
   servicesOnly?: boolean;
 }) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading]             = useState(false);
-  const [refreshing, setRefreshing]       = useState(false);
-  const prevUnreadRef = useRef<number>(unreadCount);
+  const { theme }                              = useTheme();
+  const [notifications, setNotifications]     = useState<Notification[]>([]);
+  const [loading, setLoading]                 = useState(false);
+  const [refreshing, setRefreshing]           = useState(false);
+  const prevUnreadRef                         = useRef<number>(unreadCount);
 
   const loadNotifications = useCallback(async (reset = false) => {
     if (!reset) setLoading(true);
     try {
       const { data } = await api.get('/notifications');
       setNotifications(data.notifications);
-
-      // Mostra alerta se chegou nova notificação não lida desde a última verificação
       const newUnread: number = data.unread;
       if (newUnread > prevUnreadRef.current) {
         const newest = data.notifications.find((n: Notification) => !n.read);
-        if (newest) {
-          Alert.alert(newest.title, newest.body);
-        }
+        if (newest) Alert.alert(newest.title, newest.body);
       }
       prevUnreadRef.current = newUnread;
       onUnreadChange?.(newUnread);
@@ -68,8 +58,6 @@ export default function NotificationsScreen({
 
   useEffect(() => {
     loadNotifications(false);
-
-    // Polling periódico enquanto a tela estiver montada
     const timer = setInterval(() => loadNotifications(false), POLL_INTERVAL);
     return () => clearInterval(timer);
   }, [loadNotifications]);
@@ -77,9 +65,7 @@ export default function NotificationsScreen({
   const markRead = useCallback(async (id: number) => {
     try {
       await api.patch(`/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
       onUnreadChange?.(Math.max(0, unreadCount - 1));
     } catch {}
   }, [unreadCount, onUnreadChange]);
@@ -92,11 +78,20 @@ export default function NotificationsScreen({
     } catch {}
   }, [onUnreadChange]);
 
+  const TYPE_ICON: Record<string, { icon: string; bg: string }> = {
+    service_assigned: { icon: '🔧', bg: theme.accent + '33' },
+    service_delay:    { icon: '⚠️', bg: theme.warning + '33' },
+    service_problem:  { icon: '❗', bg: theme.danger + '26' },
+    default:          { icon: '📢', bg: theme.textMuted + '26' },
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
       {unreadCount > 0 && (
-        <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
-          <Text style={styles.markAllText}>Marcar todas como lidas ({unreadCount})</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: theme.accent + '18', borderWidth: 1, borderColor: theme.accent + '44', margin: 12, marginBottom: 0, borderRadius: 10, padding: 12, alignItems: 'center' }}
+          onPress={markAllRead}>
+          <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 13 }}>Marcar todas como lidas ({unreadCount})</Text>
         </TouchableOpacity>
       )}
 
@@ -105,50 +100,46 @@ export default function NotificationsScreen({
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ padding: 16 }}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); loadNotifications(true); }}
-            colors={['#1d4ed8']}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(true); }} colors={[theme.accent]} />
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.item, !item.read && styles.itemUnread]}
-            onPress={() => !item.read && markRead(item.id)}
-          >
-            <View style={styles.itemContent}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemBody} numberOfLines={2}>{item.body}</Text>
+        ListHeaderComponent={
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+            <View>
+              <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 2, color: theme.accent, textTransform: 'uppercase', marginBottom: 2 }}>Avisos</Text>
+              <Text style={{ fontSize: 24, fontWeight: '800', color: theme.textPrimary }}>Notificações</Text>
             </View>
-            <View style={styles.itemMeta}>
-              <Text style={styles.itemTime}>{fmtRelative(item.created_at)}</Text>
-              {!item.read && <View style={styles.dot} />}
-            </View>
-          </TouchableOpacity>
+            {unreadCount > 0 && (
+              <View style={{ backgroundColor: theme.success, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, marginTop: 4 }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{unreadCount} nova{unreadCount > 1 ? 's' : ''}</Text>
+              </View>
+            )}
+          </View>
+        }
+        renderItem={({ item }) => {
+          const { icon, bg } = TYPE_ICON[item.type] || TYPE_ICON.default;
+          return (
+            <TouchableOpacity
+              style={{ flexDirection: 'row', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: theme.border }}
+              onPress={() => !item.read && markRead(item.id)}>
+              <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: bg, justifyContent: 'center', alignItems: 'center', flexShrink: 0 }}>
+                <Text style={{ fontSize: 16 }}>{icon}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: item.read ? '500' : '700', color: theme.textPrimary, marginBottom: 2 }}>
+                  {item.title}{!item.read && <Text style={{ color: theme.accent }}> •</Text>}
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 17, marginBottom: 3 }} numberOfLines={2}>{item.body}</Text>
+                <Text style={{ fontSize: 10, color: theme.textMuted }}>{fmtRelative(item.created_at)}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={loading ? null : (
+          <Text style={{ textAlign: 'center', color: theme.textMuted, fontSize: 15, marginTop: 60 }}>Nenhum aviso recebido.</Text>
         )}
-        ListEmptyComponent={
-          loading ? null : (
-            <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ color: '#94a3b8', fontSize: 15 }}>Nenhum aviso recebido.</Text>
-            </View>
-          )
-        }
-        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} color="#1d4ed8" /> : null}
+        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} color={theme.accent} /> : null}
       />
       <TabBar active="notifications" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  markAllBtn:   { backgroundColor: '#eff6ff', padding: 12, margin: 12, marginBottom: 0, borderRadius: 10, alignItems: 'center' },
-  markAllText:  { color: '#1d4ed8', fontWeight: '700', fontSize: 13 },
-  item:         { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center' },
-  itemUnread:   { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
-  itemContent:  { flex: 1, marginRight: 8 },
-  itemTitle:    { fontSize: 14, fontWeight: '700', color: '#0f172a', marginBottom: 3 },
-  itemBody:     { fontSize: 13, color: '#64748b', lineHeight: 18 },
-  itemMeta:     { alignItems: 'flex-end', gap: 6 },
-  itemTime:     { fontSize: 11, color: '#94a3b8' },
-  dot:          { width: 8, height: 8, borderRadius: 4, backgroundColor: '#1d4ed8' },
-});

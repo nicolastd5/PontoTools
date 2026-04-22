@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet,
+  View, Text, FlatList,
   ActivityIndicator, RefreshControl, SafeAreaView,
-  TouchableOpacity, TextInput,
 } from 'react-native';
 import { formatInTimeZone } from 'date-fns-tz';
+import { ptBR } from 'date-fns/locale';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
+import { useTheme } from '../contexts/ThemeContext';
 
-type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
+type Screen = 'dashboard' | 'history' | 'services' | 'notifications' | 'profile';
 
 const LABELS: Record<string, string> = {
   entry: 'Entrada', exit: 'Saída',
@@ -22,123 +23,118 @@ interface ClockRecord {
   timezone: string;
   is_inside_zone: boolean;
   unit_name: string;
-  distance_meters: number;
+}
+
+interface DateGroup { label: string; records: ClockRecord[]; }
+
+function groupByDate(records: ClockRecord[]): DateGroup[] {
+  const groups: Record<string, DateGroup> = {};
+  records.forEach((r) => {
+    const tz      = r.timezone || 'America/Sao_Paulo';
+    const dateKey = formatInTimeZone(new Date(r.clocked_at_utc), tz, 'yyyy-MM-dd');
+    if (!groups[dateKey]) {
+      const todayKey = formatInTimeZone(new Date(), tz, 'yyyy-MM-dd');
+      const label    = dateKey === todayKey
+        ? 'HOJE'
+        : formatInTimeZone(new Date(r.clocked_at_utc), tz, 'dd MMM', { locale: ptBR }).toUpperCase();
+      groups[dateKey] = { label, records: [] };
+    }
+    groups[dateKey].records.push(r);
+  });
+  return Object.values(groups);
 }
 
 export default function HistoryScreen({
-  onNavigate,
-  unreadCount = 0,
-  servicesOnly = false,
+  onNavigate, unreadCount = 0, servicesOnly = false,
 }: {
   onNavigate: (s: Screen) => void;
   unreadCount?: number;
   servicesOnly?: boolean;
 }) {
-  const [records, setRecords]       = useState<ClockRecord[]>([]);
-  const [page, setPage]             = useState(1);
+  const { theme }             = useTheme();
+  const [records, setRecords] = useState<ClockRecord[]>([]);
+  const [page, setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading]       = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [startDate, setStartDate]   = useState('');
-  const [endDate, setEndDate]       = useState('');
+
+  const DOT: Record<string, string> = {
+    entry: theme.success, break_start: theme.warning, break_end: theme.info, exit: theme.danger,
+  };
 
   const fetchRecords = useCallback(async (pageNum: number, reset = false) => {
     if (loading && !reset) return;
     setLoading(true);
     try {
-      const params: Record<string, any> = { page: pageNum, limit: 20 };
-      if (startDate) params.startDate = startDate;
-      if (endDate)   params.endDate   = endDate;
-      const { data } = await api.get('/clock/history', { params });
+      const { data } = await api.get('/clock/history', { params: { page: pageNum, limit: 20 } });
       setRecords((prev) => reset ? data.records : [...prev, ...data.records]);
       setTotalPages(data.pagination.totalPages);
       setPage(pageNum);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
-  }, [loading, startDate, endDate]);
+  }, [loading]);
 
-  useEffect(() => { fetchRecords(1, true); }, [startDate, endDate]);
+  useEffect(() => { fetchRecords(1, true); }, []);
 
-  const clearFilters = useCallback(() => {
-    setStartDate('');
-    setEndDate('');
-  }, []);
+  const groups = groupByDate(records);
+
+  type ListItem = { type: 'header'; label: string } | { type: 'record'; record: ClockRecord };
+  const flatItems: ListItem[] = groups.flatMap((g) => [
+    { type: 'header' as const, label: g.label },
+    ...g.records.map((r) => ({ type: 'record' as const, record: r })),
+  ]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      {/* Filtro de período */}
-      <View style={styles.filterRow}>
-        <TextInput
-          style={styles.dateInput}
-          placeholder="De: AAAA-MM-DD"
-          placeholderTextColor="#94a3b8"
-          value={startDate}
-          onChangeText={setStartDate}
-          maxLength={10}
-          keyboardType="numbers-and-punctuation"
-        />
-        <Text style={{ color: '#94a3b8', fontSize: 13 }}>até</Text>
-        <TextInput
-          style={styles.dateInput}
-          placeholder="Até: AAAA-MM-DD"
-          placeholderTextColor="#94a3b8"
-          value={endDate}
-          onChangeText={setEndDate}
-          maxLength={10}
-          keyboardType="numbers-and-punctuation"
-        />
-        {(startDate || endDate) ? (
-          <TouchableOpacity onPress={clearFilters} style={styles.clearBtn}>
-            <Text style={{ color: '#94a3b8', fontSize: 16 }}>✕</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
       <FlatList
-        data={records}
-        keyExtractor={(item) => String(item.id)}
+        data={flatItems}
+        keyExtractor={(item, i) => item.type === 'header' ? `h-${i}` : String(item.record.id)}
         contentContainerStyle={{ padding: 16 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchRecords(1, true); }} colors={['#1d4ed8']} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchRecords(1, true); }} colors={[theme.accent]} />
+        }
         onEndReached={() => { if (page < totalPages && !loading) fetchRecords(page + 1); }}
         onEndReachedThreshold={0.3}
+        ListHeaderComponent={
+          <>
+            <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 2, color: theme.accent, textTransform: 'uppercase', marginBottom: 2 }}>Meus registros</Text>
+            <Text style={{ fontSize: 24, fontWeight: '800', color: theme.textPrimary, marginBottom: 20 }}>Histórico</Text>
+          </>
+        }
         renderItem={({ item }) => {
-          const tz   = item.timezone || 'America/Sao_Paulo';
-          const date = formatInTimeZone(new Date(item.clocked_at_utc), tz, 'dd/MM/yyyy');
-          const time = formatInTimeZone(new Date(item.clocked_at_utc), tz, 'HH:mm');
+          if (item.type === 'header') {
+            return (
+              <Text style={{ fontSize: 10, fontWeight: '700', color: theme.textMuted, letterSpacing: 1, textTransform: 'uppercase', paddingBottom: 6, marginBottom: 4, borderBottomWidth: 1, borderBottomColor: theme.border, marginTop: 16 }}>
+                {item.label}
+              </Text>
+            );
+          }
+          const r    = item.record;
+          const tz   = r.timezone || 'America/Sao_Paulo';
+          const time = formatInTimeZone(new Date(r.clocked_at_utc), tz, 'HH:mm');
           return (
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowType}>{LABELS[item.clock_type] ?? item.clock_type}</Text>
-                <Text style={styles.rowUnit}>{item.unit_name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: DOT[r.clock_type] || theme.textMuted }} />
+                <Text style={{ fontSize: 13, color: theme.textPrimary, fontWeight: '500' }}>{LABELS[r.clock_type] ?? r.clock_type}</Text>
               </View>
-              <View style={{ alignItems: 'center', paddingHorizontal: 12 }}>
-                <Text style={styles.rowTime}>{time}</Text>
-                <Text style={styles.rowDate}>{date}</Text>
-                {item.distance_meters != null && (
-                  <Text style={styles.rowDist}>{Math.round(item.distance_meters)}m</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {!r.is_inside_zone && (
+                  <View style={{ backgroundColor: theme.danger + '22', borderWidth: 1, borderColor: theme.danger + '55', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>
+                    <Text style={{ color: theme.danger, fontSize: 9, fontWeight: '700' }}>Fora</Text>
+                  </View>
                 )}
+                <Text style={{ fontSize: 13, color: theme.textSecondary, fontVariant: ['tabular-nums'] }}>{time}</Text>
               </View>
-              <View style={[styles.dot, { backgroundColor: item.is_inside_zone ? '#16a34a' : '#dc2626' }]} />
             </View>
           );
         }}
-        ListEmptyComponent={loading ? null : <View style={{ alignItems: 'center', marginTop: 60 }}><Text style={{ color: '#94a3b8', fontSize: 15 }}>Nenhum registro encontrado.</Text></View>}
-        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} color="#1d4ed8" /> : null}
+        ListEmptyComponent={loading ? null : (
+          <Text style={{ textAlign: 'center', color: theme.textMuted, fontSize: 15, marginTop: 60 }}>Nenhum registro encontrado.</Text>
+        )}
+        ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} color={theme.accent} /> : null}
       />
       <TabBar active="history" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  filterRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, flexWrap: 'wrap' },
-  dateInput:  { flex: 1, minWidth: 120, borderWidth: 1.5, borderColor: '#e2e8f0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, fontSize: 13, color: '#374151', backgroundColor: '#fff' },
-  clearBtn:   { padding: 4 },
-  row:        { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
-  rowType:    { fontSize: 15, fontWeight: '700', color: '#0f172a' },
-  rowUnit:    { fontSize: 12, color: '#64748b', marginTop: 2 },
-  rowDate:    { fontSize: 12, color: '#94a3b8' },
-  rowTime:    { fontSize: 18, fontWeight: 'bold', color: '#1d4ed8' },
-  rowDist:    { fontSize: 11, color: '#94a3b8' },
-  dot:        { width: 8, height: 8, borderRadius: 4 },
-});

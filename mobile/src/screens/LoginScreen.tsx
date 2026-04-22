@@ -5,9 +5,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 
-interface Props {
-  onForgotPassword: () => void;
-}
+interface Props { onForgotPassword: () => void; }
 
 export default function LoginScreen({ onForgotPassword }: Props) {
   const { login }               = useAuth();
@@ -31,57 +29,51 @@ export default function LoginScreen({ onForgotPassword }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={styles.card}>
-        <View style={styles.logoBox}>
-          <Text style={styles.logoLetter}>P</Text>
-        </View>
-        <Text style={styles.title}>Gerenciador de Serviços</Text>
-        <Text style={styles.subtitle}>Acesse com suas credenciais</Text>
+    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={s.inner}>
+        <View style={s.logo}><Text style={s.logoText}>P</Text></View>
+        <Text style={s.title}>Gerenciador de Serviços</Text>
+        <Text style={s.subtitle}>Entre com sua conta</Text>
 
         <TextInput
-          style={styles.input}
-          placeholder="seu.email@empresa.com"
-          placeholderTextColor="#94a3b8"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={email}
-          onChangeText={setEmail}
+          style={s.input} placeholder="funcionario@empresa.com"
+          placeholderTextColor="#4a5068" keyboardType="email-address"
+          autoCapitalize="none" autoCorrect={false}
+          value={email} onChangeText={setEmail}
         />
         <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          placeholderTextColor="#94a3b8"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          onSubmitEditing={handleLogin}
-          returnKeyType="done"
+          style={s.input} placeholder="••••••••"
+          placeholderTextColor="#4a5068" secureTextEntry
+          value={password} onChangeText={setPassword}
+          onSubmitEditing={handleLogin} returnKeyType="done"
         />
-        <TouchableOpacity style={[styles.btn, loading && styles.btnDisabled]} onPress={handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Entrar</Text>}
+
+        <TouchableOpacity
+          style={[s.btn, loading && { opacity: 0.7 }]}
+          onPress={handleLogin} disabled={loading}>
+          {loading
+            ? <ActivityIndicator color="#0d0f1a" />
+            : <Text style={s.btnText}>Entrar →</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.forgotBtn} onPress={onForgotPassword}>
-          <Text style={styles.forgotText}>Esqueci minha senha</Text>
+        <TouchableOpacity style={s.forgot} onPress={onForgotPassword}>
+          <Text style={s.forgotText}>Esqueceu a senha?</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: '#f1f5f9', justifyContent: 'center', padding: 24 },
-  card:        { backgroundColor: '#fff', borderRadius: 16, padding: 28, elevation: 4 },
-  logoBox:     { width: 56, height: 56, borderRadius: 14, backgroundColor: '#1d4ed8', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 16 },
-  logoLetter:  { color: '#fff', fontSize: 28, fontWeight: 'bold' },
-  title:       { fontSize: 22, fontWeight: 'bold', color: '#0f172a', textAlign: 'center' },
-  subtitle:    { fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 24, marginTop: 4 },
-  input:       { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 14, fontSize: 15, color: '#0f172a', marginBottom: 12 },
-  btn:         { backgroundColor: '#1d4ed8', borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 8 },
-  btnDisabled: { opacity: 0.6 },
-  btnText:     { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  forgotBtn:   { marginTop: 16, alignItems: 'center' },
-  forgotText:  { color: '#1d4ed8', fontSize: 14, fontWeight: '500' },
+const s = StyleSheet.create({
+  root:       { flex: 1, backgroundColor: '#0d0f1a', justifyContent: 'center', padding: 24 },
+  inner:      { alignItems: 'center' },
+  logo:       { width: 56, height: 56, borderRadius: 14, backgroundColor: '#6c5ce7', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  logoText:   { color: '#fff', fontSize: 26, fontWeight: 'bold' },
+  title:      { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
+  subtitle:   { fontSize: 13, color: '#8b92a9', marginBottom: 32 },
+  input:      { width: '100%', padding: 13, backgroundColor: '#1e2235', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 10, fontSize: 14, color: '#fff', marginBottom: 12 },
+  btn:        { width: '100%', backgroundColor: '#fff', borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 4 },
+  btnText:    { color: '#0d0f1a', fontWeight: '700', fontSize: 16 },
+  forgot:     { marginTop: 20 },
+  forgotText: { color: '#6c5ce7', fontSize: 13, fontWeight: '500' },
 });
