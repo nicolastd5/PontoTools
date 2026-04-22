@@ -28,7 +28,7 @@ export default function LoginPage() {
     <div style={s.root}>
       <div style={s.inner}>
         <div style={s.logo}>P</div>
-        <h1 style={s.title}>PontoTools</h1>
+        <h1 style={s.title}>Gerenciador de Serviços</h1>
         <p style={s.subtitle}>Entre com sua conta</p>
         <form onSubmit={handleSubmit} style={s.form}>
           <input
