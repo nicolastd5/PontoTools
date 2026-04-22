@@ -89,7 +89,7 @@ export default function HistoryScreen({
       <FlatList
         data={flatItems}
         keyExtractor={(item, i) => item.type === 'header' ? `h-${i}` : String(item.record.id)}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, backgroundColor: theme.bg }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchRecords(1, true); }} colors={[theme.accent]} />
         }

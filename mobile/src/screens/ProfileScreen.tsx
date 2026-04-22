@@ -35,7 +35,7 @@ export default function ProfileScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, backgroundColor: theme.bg }}>
         <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 2, color: theme.accent, textTransform: 'uppercase', marginBottom: 2 }}>Conta</Text>
         <Text style={{ fontSize: 24, fontWeight: '800', color: theme.textPrimary, marginBottom: 24 }}>Meu Perfil</Text>
 

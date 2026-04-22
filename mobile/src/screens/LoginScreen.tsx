@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth }  from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Props { onForgotPassword: () => void; }
 
 export default function LoginScreen({ onForgotPassword }: Props) {
   const { login }               = useAuth();
+  const { theme }               = useTheme();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -29,51 +31,44 @@ export default function LoginScreen({ onForgotPassword }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={s.inner}>
-        <View style={s.logo}><Text style={s.logoText}>P</Text></View>
-        <Text style={s.title}>Gerenciador de Serviços</Text>
-        <Text style={s.subtitle}>Entre com sua conta</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.bg, justifyContent: 'center', padding: 24 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={{ alignItems: 'center' }}>
+        <View style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: theme.accent, justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+          <Text style={{ color: '#fff', fontSize: 26, fontWeight: 'bold' }}>P</Text>
+        </View>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: theme.textPrimary, marginBottom: 4 }}>Gerenciador de Serviços</Text>
+        <Text style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 32 }}>Entre com sua conta</Text>
 
         <TextInput
-          style={s.input} placeholder="funcionario@empresa.com"
-          placeholderTextColor="#4a5068" keyboardType="email-address"
-          autoCapitalize="none" autoCorrect={false}
+          style={{ width: '100%', padding: 13, backgroundColor: theme.elevated, borderWidth: 1, borderColor: theme.border, borderRadius: 10, fontSize: 14, color: theme.textPrimary, marginBottom: 12 }}
+          placeholder="funcionario@empresa.com"
+          placeholderTextColor={theme.textMuted}
+          keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
           value={email} onChangeText={setEmail}
         />
         <TextInput
-          style={s.input} placeholder="••••••••"
-          placeholderTextColor="#4a5068" secureTextEntry
+          style={{ width: '100%', padding: 13, backgroundColor: theme.elevated, borderWidth: 1, borderColor: theme.border, borderRadius: 10, fontSize: 14, color: theme.textPrimary, marginBottom: 12 }}
+          placeholder="••••••••"
+          placeholderTextColor={theme.textMuted}
+          secureTextEntry
           value={password} onChangeText={setPassword}
           onSubmitEditing={handleLogin} returnKeyType="done"
         />
 
         <TouchableOpacity
-          style={[s.btn, loading && { opacity: 0.7 }]}
+          style={{ width: '100%', backgroundColor: theme.accent, borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 4, opacity: loading ? 0.7 : 1 }}
           onPress={handleLogin} disabled={loading}>
           {loading
-            ? <ActivityIndicator color="#0d0f1a" />
-            : <Text style={s.btnText}>Entrar →</Text>}
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Entrar →</Text>}
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.forgot} onPress={onForgotPassword}>
-          <Text style={s.forgotText}>Esqueceu a senha?</Text>
+        <TouchableOpacity style={{ marginTop: 20 }} onPress={onForgotPassword}>
+          <Text style={{ color: theme.accent, fontSize: 13, fontWeight: '500' }}>Esqueceu a senha?</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const s = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: '#0d0f1a', justifyContent: 'center', padding: 24 },
-  inner:      { alignItems: 'center' },
-  logo:       { width: 56, height: 56, borderRadius: 14, backgroundColor: '#6c5ce7', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  logoText:   { color: '#fff', fontSize: 26, fontWeight: 'bold' },
-  title:      { fontSize: 22, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  subtitle:   { fontSize: 13, color: '#8b92a9', marginBottom: 32 },
-  input:      { width: '100%', padding: 13, backgroundColor: '#1e2235', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', borderRadius: 10, fontSize: 14, color: '#fff', marginBottom: 12 },
-  btn:        { width: '100%', backgroundColor: '#fff', borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 4 },
-  btnText:    { color: '#0d0f1a', fontWeight: '700', fontSize: 16 },
-  forgot:     { marginTop: 20 },
-  forgotText: { color: '#6c5ce7', fontSize: 13, fontWeight: '500' },
-});

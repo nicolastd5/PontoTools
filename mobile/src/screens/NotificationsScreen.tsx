@@ -98,7 +98,7 @@ export default function NotificationsScreen({
       <FlatList
         data={notifications}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, backgroundColor: theme.bg }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(true); }} colors={[theme.accent]} />
         }

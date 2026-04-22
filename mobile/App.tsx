@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, StatusBar } from 'react-native';
 import { AuthProvider, useAuth }   from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import LoginScreen             from './src/screens/LoginScreen';
@@ -17,7 +17,7 @@ type AuthScreen = 'login' | 'forgot-password';
 
 function AppContent() {
   const { user, loading }               = useAuth();
-  const { theme }                       = useTheme();
+  const { theme, isDark }               = useTheme();
   useFcmToken(!!user);
   const [screen, setScreen]             = useState<Screen>('dashboard');
   const [authScreen, setAuthScreen]     = useState<AuthScreen>('login');
@@ -50,6 +50,7 @@ function AppContent() {
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg }}>
+        <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
         <ActivityIndicator size="large" color={theme.accent} />
       </View>
     );
@@ -65,6 +66,7 @@ function AppContent() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
       {screen === 'dashboard'     && <DashboardScreen     {...sharedProps} />}
       {screen === 'history'       && <HistoryScreen       {...sharedProps} />}
       {screen === 'services'      && <ServicesScreen      {...sharedProps} />}
