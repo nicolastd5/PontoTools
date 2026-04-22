@@ -8,9 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Ponto Eletrônico',
-        short_name: 'Ponto',
-        description: 'Sistema de registro de ponto com GPS e foto',
+        name: 'Gerenciador de Serviços',
+        short_name: 'GS',
+        description: 'Gerenciador de ordens de serviço',
         theme_color: '#1d4ed8',
         background_color: '#ffffff',
         display: 'standalone',
@@ -21,6 +21,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         // Cache do shell da aplicação — API sempre vai para a rede
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [

@@ -30,8 +30,8 @@ export default function LoginPage() {
       <div style={styles.card}>
         <div style={styles.header}>
           <div style={styles.logoIcon}>P</div>
-          <h1 style={styles.title}>Ponto Eletrônico</h1>
-          <p style={styles.subtitle}>Sistema de Registro de Ponto com GPS</p>
+          <h1 style={styles.title}>Gerenciador de Serviços</h1>
+          <p style={styles.subtitle}>Acesse com suas credenciais</p>
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>

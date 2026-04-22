@@ -65,14 +65,14 @@ export default function EmployeeGalleryPage() {
 
       {/* Submenu */}
       <div style={s.tabs}>
-        <button onClick={() => setTab('clock')}    style={{ ...s.tab, ...(tab === 'clock'    ? s.tabActive : {}) }}>Ponto</button>
+        <button onClick={() => setTab('clock')}    style={{ ...s.tab, ...(tab === 'clock'    ? s.tabActive : {}) }}>Registros</button>
         <button onClick={() => setTab('services')} style={{ ...s.tab, ...(tab === 'services' ? s.tabActive : {}) }}>Serviços</button>
       </div>
 
       {/* Fotos de ponto */}
       {tab === 'clock' && (
         clockLoading ? <p style={s.empty}>Carregando...</p> :
-        clockRecords.length === 0 ? <p style={s.empty}>Nenhuma foto de ponto encontrada.</p> :
+        clockRecords.length === 0 ? <p style={s.empty}>Nenhuma foto de registro encontrada.</p> :
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {clockRecords.filter((r) => r.photo_path).map((record) => {
             loadClockPhoto(record);
@@ -116,7 +116,7 @@ export default function EmployeeGalleryPage() {
                 <div style={{ marginBottom: photos.length ? 10 : 0 }}>
                   <div style={s.cardLabel}>{sv.title}</div>
                   <div style={s.cardMeta}>
-                    {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')} · {STATUS_LABEL[sv.status]}
+                    {(() => { const [y,m,d] = sv.scheduled_date.slice(0,10).split('-'); return `${d}/${m}/${y}`; })()} · {STATUS_LABEL[sv.status]}
                   </div>
                 </div>
                 {photos.length === 0 && <div style={s.noPhoto}>Sem fotos registradas</div>}

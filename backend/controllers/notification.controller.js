@@ -257,10 +257,11 @@ async function subscribe(req, res, next) {
       return res.status(400).json({ error: 'Subscription inválida.' });
     }
 
+    // Remove qualquer registro anterior deste employee (Web Push ou FCM) — um canal por vez
+    await db.query(`DELETE FROM push_subscriptions WHERE employee_id = $1`, [req.user.id]);
+    await db.query(`DELETE FROM push_subscriptions WHERE endpoint = $1`, [endpoint]);
     await db.query(
-      `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (endpoint) DO UPDATE SET employee_id = $1, p256dh = $3, auth = $4`,
+      `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4)`,
       [req.user.id, endpoint, keys.p256dh, keys.auth]
     );
 
@@ -286,6 +287,37 @@ async function unsubscribe(req, res, next) {
   }
 }
 
+// ----------------------------------------------------------------
+// POST /api/notifications/fcm-token
+// Salva ou atualiza o FCM token do device do usuário autenticado
+// ----------------------------------------------------------------
+async function saveFcmToken(req, res, next) {
+  try {
+    const { token } = req.body;
+    if (!token || typeof token !== 'string' || token.trim().length === 0) {
+      return res.status(400).json({ error: 'Token FCM inválido.' });
+    }
+
+    const employeeId = req.user.id;
+    const fcmToken   = token.trim();
+
+    // Remove qualquer registro anterior deste employee (Web Push ou FCM) — um canal por vez
+    await db.query(`DELETE FROM push_subscriptions WHERE employee_id = $1`, [employeeId]);
+    await db.query(`DELETE FROM push_subscriptions WHERE fcm_token = $1`, [fcmToken]);
+
+    // Insere nova linha FCM usando 'fcm:<token>' como endpoint único
+    await db.query(
+      `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth, fcm_token)
+       VALUES ($1, $2, '', '', $3)`,
+      [employeeId, `fcm:${fcmToken}`, fcmToken]
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   list,
   markRead,
@@ -295,4 +327,5 @@ module.exports = {
   send,
   subscribe,
   unsubscribe,
+  saveFcmToken,
 };

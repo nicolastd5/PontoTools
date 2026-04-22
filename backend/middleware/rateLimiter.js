@@ -33,4 +33,19 @@ const clockLimiter = rateLimit({
   keyGenerator: (req) => (req.user?.id ? `user_${req.user.id}` : req.ip),
 });
 
-module.exports = { loginLimiter, clockLimiter };
+/**
+ * Limita tentativas de reset de senha: 5 por IP a cada 15 minutos.
+ * Protege contra brute-force de tokens de recuperação.
+ */
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_RESET_MAX || '5', 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Muitas tentativas. Aguarde 15 minutos e tente novamente.',
+  },
+  keyGenerator: (req) => req.ip,
+});
+
+module.exports = { loginLimiter, clockLimiter, resetPasswordLimiter };

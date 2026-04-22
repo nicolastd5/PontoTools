@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
         <div style={styles.header}>
           <div style={styles.logoIcon}>P</div>
           <h1 style={styles.title}>Recuperar senha</h1>
-          <p style={styles.subtitle}>Ponto Eletrônico</p>
+          <p style={styles.subtitle}>Gerenciador de Serviços</p>
         </div>
 
         {sent ? (

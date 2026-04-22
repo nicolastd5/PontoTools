@@ -9,35 +9,35 @@ import HistoryScreen           from './src/screens/HistoryScreen';
 import ServicesScreen          from './src/screens/ServicesScreen';
 import NotificationsScreen     from './src/screens/NotificationsScreen';
 import api                     from './src/services/api';
+import { useFcmToken }         from './src/hooks/useFcmToken';
 
 type Screen     = 'dashboard' | 'history' | 'services' | 'notifications';
 type AuthScreen = 'login' | 'forgot-password';
 
 function AppContent() {
   const { user, loading }             = useAuth();
+  useFcmToken(!!user);
   const [screen, setScreen]           = useState<Screen>('dashboard');
   const [authScreen, setAuthScreen]   = useState<AuthScreen>('login');
   const [unreadCount, setUnreadCount] = useState(0);
   const [servicesOnly, setServicesOnly] = useState(false);
+  const [roleLoading, setRoleLoading]   = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Detecta services_only e define tela inicial ao logar
-  useEffect(() => {
-    if (!user) { setServicesOnly(false); setScreen('dashboard'); return; }
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    api.get('/clock/today', { params: { timezone: tz } })
-      .then(({ data }) => {
-        if (data.servicesOnly) {
-          setServicesOnly(true);
-          setScreen('services');
-        }
-      })
-      .catch(() => {});
-  }, [user]);
-
-  // Polling de notificações não lidas a cada 30s
+  // Busca servicesOnly e inicia polling de notificações após login
   useEffect(() => {
     if (!user) return;
+
+    setRoleLoading(true);
+    api.get('/clock/today')
+      .then(({ data }) => {
+        const so = data.servicesOnly ?? false;
+        setServicesOnly(so);
+        if (so) setScreen('services');
+      })
+      .catch(() => {})
+      .finally(() => setRoleLoading(false));
+
     function fetchUnread() {
       api.get('/notifications')
         .then(({ data }) => setUnreadCount(data.unread ?? 0))
@@ -50,7 +50,7 @@ function AppContent() {
     };
   }, [user]);
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#1d4ed8" />

@@ -36,7 +36,7 @@ export default function LoginScreen({ onForgotPassword }: Props) {
         <View style={styles.logoBox}>
           <Text style={styles.logoLetter}>P</Text>
         </View>
-        <Text style={styles.title}>Ponto Eletrônico</Text>
+        <Text style={styles.title}>Gerenciador de Serviços</Text>
         <Text style={styles.subtitle}>Acesse com suas credenciais</Text>
 
         <TextInput

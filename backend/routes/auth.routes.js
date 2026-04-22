@@ -4,7 +4,7 @@ const router     = express.Router();
 const controller = require('../controllers/auth.controller');
 const auth       = require('../middleware/auth');
 const validate   = require('../middleware/validate');
-const { loginLimiter } = require('../middleware/rateLimiter');
+const { loginLimiter, resetPasswordLimiter } = require('../middleware/rateLimiter');
 
 // POST /api/auth/login
 router.post('/login',
@@ -42,8 +42,9 @@ router.post('/forgot-password',
 
 // POST /api/auth/reset-password
 router.post('/reset-password',
+  resetPasswordLimiter,
   body('token').notEmpty().withMessage('Token obrigatório.'),
-  body('newPassword').isLength({ min: 6 }).withMessage('Senha deve ter pelo menos 6 caracteres.'),
+  body('newPassword').isLength({ min: 8 }).withMessage('Senha deve ter pelo menos 8 caracteres.'),
   validate,
   controller.resetPassword
 );

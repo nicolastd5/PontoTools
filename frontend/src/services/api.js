@@ -4,6 +4,10 @@ import axios from 'axios';
 const api = axios.create({
   baseURL:        '/api',
   withCredentials: true, // envia cookie do refresh token automaticamente
+  headers: {
+    // Identifica o cliente para o backend manter o refresh token apenas em cookie HttpOnly
+    'X-Client-Type': 'web',
+  },
 });
 
 // Injeta o access token em toda requisição
@@ -51,7 +55,10 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const { data } = await axios.post('/api/auth/refresh', {}, {
+          withCredentials: true,
+          headers: { 'X-Client-Type': 'web' },
+        });
         const newToken = data.accessToken;
 
         localStorage.setItem('accessToken', newToken);

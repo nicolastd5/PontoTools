@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone } from 'date-fns-tz';
+
+const fmtDate = (s) => { if (!s) return '—'; const [y,m,d] = String(s).slice(0,10).split('-'); return `${d}/${m}/${y}`; };
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 
@@ -300,7 +302,7 @@ export default function AdminPhotosPage() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: photos.length ? 10 : 6, gap: 8 }}>
                     <div>
                       <span style={{ fontWeight: 700, color: '#0f172a', fontSize: 14 }}>{sv.title}</span>
-                      <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b' }}>{sv.employee_name} · {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')} · {STATUS_LABEL[sv.status]}</span>
+                      <span style={{ marginLeft: 10, fontSize: 12, color: '#64748b' }}>{sv.employee_name} · {fmtDate(sv.scheduled_date)} · {STATUS_LABEL[sv.status]}</span>
                     </div>
                     <button
                       onClick={() => deleteSvcService(sv)}

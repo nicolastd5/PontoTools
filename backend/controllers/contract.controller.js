@@ -6,26 +6,22 @@ const logger = require('../utils/logger');
 async function list(req, res, next) {
   try {
     const isGestor = req.user.role === 'gestor';
-    const contractFilter = isGestor && req.user.contractId
-      ? `WHERE id = ${parseInt(req.user.contractId, 10)}`
-      : '';
+    const scoped   = isGestor && req.user.contractId;
 
     const contracts = await db.query(
       `SELECT id, name, code, description, active, created_at
        FROM contracts
-       ${contractFilter}
-       ORDER BY name`
+       ${scoped ? 'WHERE id = $1' : ''}
+       ORDER BY name`,
+      scoped ? [req.user.contractId] : []
     );
-
-    const unitContractFilter = isGestor && req.user.contractId
-      ? `WHERE contract_id = ${parseInt(req.user.contractId, 10)}`
-      : '';
 
     const units = await db.query(
       `SELECT id, contract_id, name, code, latitude, longitude, radius_meters, address, active
        FROM units
-       ${unitContractFilter}
-       ORDER BY name`
+       ${scoped ? 'WHERE contract_id = $1' : ''}
+       ORDER BY name`,
+      scoped ? [req.user.contractId] : []
     );
 
     const result = contracts.rows.map((c) => ({

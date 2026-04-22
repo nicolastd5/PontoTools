@@ -1,6 +1,7 @@
 const webpush = require('web-push');
 const db      = require('../config/database');
 const logger  = require('../utils/logger');
+const fcm     = require('./fcm.service');
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL || 'mailto:admin@pontotools.shop',
@@ -24,26 +25,31 @@ async function notify(employeeId, title, body, type = 'manual') {
     [employeeId]
   );
 
-  if (subs.rows.length === 0) return;
-
   const payload = JSON.stringify({ title, body, type });
   let sent = 0;
 
-  // 3. Web Push (browsers)
-  const webResults = await Promise.allSettled(
-    subs.rows.map((sub) =>
-      webpush.sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
-      ).catch(async (err) => {
-        if (err.statusCode === 410) {
-          await db.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
-        }
-        throw err;
-      })
-    )
-  );
+  // 3. Web Push (browsers) e FCM (mobile) em paralelo
+  const [webResults, fcmSent] = await Promise.all([
+    subs.rows.length > 0
+      ? Promise.allSettled(
+          subs.rows.map((sub) =>
+            webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              payload
+            ).catch(async (err) => {
+              if (err.statusCode === 410) {
+                await db.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+              }
+              throw err;
+            })
+          )
+        )
+      : Promise.resolve([]),
+    fcm.sendFcm(employeeId, title, body),
+  ]);
+
   sent += webResults.filter((r) => r.status === 'fulfilled').length;
+  sent += fcmSent;
 
   if (sent > 0) {
     await db.query('UPDATE notifications SET push_sent = TRUE WHERE id = $1', [notifId]);
@@ -91,12 +97,12 @@ async function checkTemplates() {
       if (tpl.fire_weekdays != null) {
         const todayBit = 1 << new Date().getDay();
         if (!(tpl.fire_weekdays & todayBit)) {
-          // Dia não permitido: avança next_run_at mas não cria OS
+          // Dia não permitido: avança next_run_at em 1 dia (não pula o intervalo inteiro)
           await db.query(
             `UPDATE service_templates
-             SET next_run_at = next_run_at + ($1 || ' days')::interval, updated_at = NOW()
-             WHERE id = $2`,
-            [tpl.interval_days, tpl.id]
+             SET next_run_at = next_run_at + INTERVAL '1 day', updated_at = NOW()
+             WHERE id = $1`,
+            [tpl.id]
           );
           continue;
         }

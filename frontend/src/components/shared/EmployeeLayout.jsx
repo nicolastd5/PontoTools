@@ -50,7 +50,7 @@ export default function EmployeeLayout() {
         {!servicesOnly && (
           <NavLink to="/dashboard" style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}>
             <span>🕐</span>
-            <span style={styles.navLabel}>Ponto</span>
+            <span style={styles.navLabel}>Registros</span>
           </NavLink>
         )}
         {!servicesOnly && (

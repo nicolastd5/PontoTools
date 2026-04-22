@@ -57,7 +57,7 @@ export default function EmployeeDashboardPage() {
     }),
     onSuccess: (res) => {
       queryClient.invalidateQueries(['clock-today']);
-      success(`Ponto registrado! ${CLOCK_TYPE_LABELS[res.data.clockType]} às ${
+      success(`Registro efetuado! ${CLOCK_TYPE_LABELS[res.data.clockType]} às ${
         formatInTimeZone(new Date(res.data.clockedAtUtc), TZ, 'HH:mm')
       }`);
     },
@@ -66,7 +66,7 @@ export default function EmployeeDashboardPage() {
       if (data?.blocked && data?.reason === 'outside_zone') {
         warning(`Bloqueado: você está a ${Math.round(data.distanceMeters)}m da unidade (máximo: ${data.radiusMeters}m).`);
       } else {
-        error(data?.error || 'Erro ao registrar ponto. Tente novamente.');
+        error(data?.error || 'Erro ao registrar. Tente novamente.');
       }
     },
   });
@@ -80,7 +80,7 @@ export default function EmployeeDashboardPage() {
   function handleClockClick(clockType) {
     if (requireLocation) {
       if (gpsStatus !== 'granted') {
-        warning('Habilite o GPS para registrar o ponto.');
+        warning('Habilite o GPS para registrar.');
         return;
       }
       if (!isInsideZone) {

@@ -25,7 +25,7 @@ router.post('/',
   body('badge_number').notEmpty().withMessage('Matrícula obrigatória.'),
   body('full_name').notEmpty().withMessage('Nome completo obrigatório.'),
   body('email').isEmail().withMessage('Email inválido.'),
-  body('password').isLength({ min: 6 }).withMessage('Senha mínima de 6 caracteres.'),
+  body('password').isLength({ min: 8 }).withMessage('Senha mínima de 8 caracteres.'),
   validate,
   auditLog('EMPLOYEE_CREATED', 'employee'),
   controller.create
@@ -49,7 +49,7 @@ router.delete('/:id', requireAdmin, auditLog('EMPLOYEE_DELETED', 'employee'), co
 // PATCH /api/employees/:id/reset-password — apenas admin
 router.patch('/:id/reset-password',
   requireAdmin,
-  body('newPassword').isLength({ min: 6 }).withMessage('Senha mínima de 6 caracteres.'),
+  body('newPassword').isLength({ min: 8 }).withMessage('Senha mínima de 8 caracteres.'),
   validate,
   auditLog('EMPLOYEE_PASSWORD_RESET', 'employee'),
   controller.resetPasswordByAdmin

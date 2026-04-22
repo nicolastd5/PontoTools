@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import CameraCapture from '../../components/employee/CameraCapture';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
+import PushBanner from '../../components/employee/PushBanner';
 
 const STATUS_LABEL = {
   pending:          'Pendente',
@@ -143,6 +144,8 @@ export default function EmployeeServicesPage() {
     <div>
       <h1 style={s.title}>Meus Serviços</h1>
 
+      <PushBanner />
+
       {isLoading ? (
         <p style={s.empty}>Carregando...</p>
       ) : services.length === 0 ? (
@@ -152,18 +155,18 @@ export default function EmployeeServicesPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {services.map((sv) => {
+          {services.map((sv, idx) => {
             return (
               <div key={sv.id} style={s.card} onClick={() => openDetail(sv)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    <div style={s.cardTitle}>{sv.title}</div>
+                    <div style={s.cardTitle}>#{idx + 1} {sv.title}</div>
                     {sv.description && <div style={s.cardDesc}>{sv.description.slice(0, 80)}{sv.description.length > 80 ? '…' : ''}</div>}
                   </div>
                   <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />
                 </div>
                 <div style={s.cardMeta}>
-                  <span>📅 {new Date(sv.scheduled_date).toLocaleDateString('pt-BR')}</span>
+                  <span>📅 {(() => { const [y,m,d] = sv.scheduled_date.slice(0,10).split('-'); return `${d}/${m}/${y}`; })()}</span>
                   {sv.due_time && <span>⏰ até {sv.due_time.slice(0, 5)}</span>}
                 </div>
               </div>
@@ -185,7 +188,7 @@ export default function EmployeeServicesPage() {
             </div>
 
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <span>📅 {new Date(detail.scheduled_date).toLocaleDateString('pt-BR')}</span>
+              <span>📅 {(() => { const [y,m,d] = detail.scheduled_date.slice(0,10).split('-'); return `${d}/${m}/${y}`; })()}</span>
               {detail.due_time && <span>⏰ até {detail.due_time.slice(0, 5)}</span>}
             </div>
             {(detail.started_at || detail.finished_at) && (

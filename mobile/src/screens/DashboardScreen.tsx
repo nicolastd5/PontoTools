@@ -94,7 +94,6 @@ export default function DashboardScreen({
         if (r.data.available) setAvailable(r.data.available);
         if (r.data.maxPhotos) setMaxPhotos(r.data.maxPhotos);
         if (r.data.requireLocation !== undefined) setRequireLocation(r.data.requireLocation);
-        if (r.data.servicesOnly) onNavigate('services');
       })
       .catch(() => {});
   }
@@ -108,7 +107,7 @@ export default function DashboardScreen({
   const handleClockPress = useCallback((clockType: ClockType) => {
     if (requireLocation) {
       if (gpsStatus !== 'granted') {
-        Alert.alert('GPS necessário', 'Habilite a localização para registrar o ponto.');
+        Alert.alert('GPS necessário', 'Habilite a localização para registrar.');
         return;
       }
       if (!isInsideZone) {
@@ -194,11 +193,11 @@ export default function DashboardScreen({
       setTodayRecords((prev) => [...prev, newRecord]);
       loadToday();
 
-      Alert.alert('Ponto registrado!', `${LABELS[clockType]} às ${formatInTimeZone(new Date(res.data.clockedAtUtc), tz, 'HH:mm:ss')}`);
+      Alert.alert('Registro efetuado!', `${LABELS[clockType]} às ${formatInTimeZone(new Date(res.data.clockedAtUtc), tz, 'HH:mm:ss')}`);
     } catch (err: any) {
       const data = err?.response?.data;
       if (data?.blocked) Alert.alert('Bloqueado', `Você está a ${Math.round(data.distanceMeters)}m da unidade.`);
-      else Alert.alert('Erro', data?.error || 'Erro ao registrar ponto.');
+      else Alert.alert('Erro', data?.error || 'Erro ao registrar.');
     } finally {
       setLoading(false);
       setGpsSnapshot(null);
@@ -211,8 +210,6 @@ export default function DashboardScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="dashboard" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
-
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         {/* Relógio com segundos */}
         <View style={styles.clockBox}>
@@ -291,6 +288,8 @@ export default function DashboardScreen({
           <Text style={styles.logoutText}>Sair</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <TabBar active="dashboard" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
 
       {/* Modal de confirmação */}
       <Modal visible={confirmModal !== null} transparent animationType="slide">

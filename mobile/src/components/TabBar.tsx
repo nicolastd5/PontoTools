@@ -11,17 +11,15 @@ interface TabBarProps {
   servicesOnly?: boolean;
 }
 
-const ALL_TABS: { screen: Screen; label: string; icon: string }[] = [
-  { screen: 'dashboard',     label: 'Ponto',     icon: '🕐' },
-  { screen: 'history',       label: 'Histórico', icon: '📋' },
+const ALL_TABS: { screen: Screen; label: string; icon: string; clockOnly?: boolean }[] = [
+  { screen: 'dashboard',     label: 'Registros', icon: '🕐', clockOnly: true },
+  { screen: 'history',       label: 'Histórico', icon: '📋', clockOnly: true },
   { screen: 'services',      label: 'Serviços',  icon: '🔧' },
   { screen: 'notifications', label: 'Avisos',    icon: '🔔' },
 ];
 
 export default function TabBar({ active, onNavigate, unreadCount = 0, servicesOnly = false }: TabBarProps) {
-  const TABS = servicesOnly
-    ? ALL_TABS.filter((t) => t.screen === 'services' || t.screen === 'notifications')
-    : ALL_TABS;
+  const TABS = servicesOnly ? ALL_TABS.filter((t) => !t.clockOnly) : ALL_TABS;
   return (
     <View style={styles.tabBar}>
       {TABS.map(({ screen, label, icon }) => {
@@ -52,7 +50,7 @@ export default function TabBar({ active, onNavigate, unreadCount = 0, servicesOn
 }
 
 const styles = StyleSheet.create({
-  tabBar:     { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingBottom: 4 },
+  tabBar:     { flexDirection: 'row', backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingBottom: 8 },
   tab:        { flex: 1, alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
   iconWrap:   { position: 'relative' },
   icon:       { fontSize: 20, color: '#94a3b8' },

@@ -6,6 +6,10 @@ export const BASE_URL = 'https://pontotools.shop';
 const api = axios.create({
   baseURL: BASE_URL + '/api',
   timeout: 15000,
+  headers: {
+    // Identifica o cliente para o backend decidir onde enviar o refresh token
+    'X-Client-Type': 'mobile',
+  },
 });
 
 api.interceptors.request.use(async (config) => {
@@ -43,7 +47,11 @@ api.interceptors.response.use(
       try {
         const refreshToken = await AsyncStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('Sem refresh token');
-        const { data } = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken });
+        const { data } = await axios.post(
+          `${BASE_URL}/api/auth/refresh`,
+          { refreshToken },
+          { headers: { 'X-Client-Type': 'mobile' } },
+        );
         await AsyncStorage.setItem('accessToken', data.accessToken);
         if (data.refreshToken) {
           await AsyncStorage.setItem('refreshToken', data.refreshToken);

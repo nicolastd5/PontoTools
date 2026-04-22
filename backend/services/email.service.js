@@ -5,13 +5,14 @@ const logger     = require('../utils/logger');
 const transporter = nodemailer.createTransport({
   host:   process.env.EMAIL_HOST || 'smtp.office365.com',
   port:   parseInt(process.env.EMAIL_PORT || '587', 10),
-  secure: false, // STARTTLS
+  secure: false, // STARTTLS (nodemailer negocia TLS seguro após STARTTLS)
+  requireTLS: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD,
   },
   tls: {
-    ciphers: 'SSLv3',
+    minVersion: 'TLSv1.2',
   },
 });
 

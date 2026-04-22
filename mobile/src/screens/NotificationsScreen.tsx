@@ -94,8 +94,6 @@ export default function NotificationsScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
-      <TabBar active="notifications" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
-
       {unreadCount > 0 && (
         <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead}>
           <Text style={styles.markAllText}>Marcar todas como lidas ({unreadCount})</Text>
@@ -137,6 +135,7 @@ export default function NotificationsScreen({
         }
         ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} color="#1d4ed8" /> : null}
       />
+      <TabBar active="notifications" onNavigate={onNavigate} unreadCount={unreadCount} servicesOnly={servicesOnly} />
     </View>
   );
 }

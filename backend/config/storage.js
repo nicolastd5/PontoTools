@@ -6,6 +6,24 @@ const path = require('path');
 
 const BASE_DIR = path.resolve(process.env.PHOTOS_BASE_PATH || './storage/photos');
 
+// Resolve um filename relativo garantindo que permanece dentro de BASE_DIR.
+// Bloqueia tentativas de path traversal (../, caminhos absolutos, symlinks-like).
+function resolveSafe(filename) {
+  if (typeof filename !== 'string' || filename.length === 0) {
+    throw new Error('Caminho de arquivo inválido.');
+  }
+  // Rejeita caminhos absolutos e segmentos suspeitos antes de resolver
+  if (path.isAbsolute(filename) || filename.includes('\0')) {
+    throw new Error('Caminho de arquivo inválido.');
+  }
+  const fullPath = path.resolve(BASE_DIR, filename);
+  const rel      = path.relative(BASE_DIR, fullPath);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw new Error('Caminho de arquivo fora do diretório permitido.');
+  }
+  return fullPath;
+}
+
 // ----------------------------------------------------------------
 // Driver local (disco)
 // ----------------------------------------------------------------
@@ -16,7 +34,7 @@ const localDriver = {
    * @param {string} filename - caminho relativo a BASE_DIR (ex: 'CEF10/2025-04-09/123_1744185600.jpg')
    */
   async save(buffer, filename) {
-    const fullPath = path.join(BASE_DIR, filename);
+    const fullPath = resolveSafe(filename);
     // Garante que o diretório pai existe
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.writeFile(fullPath, buffer);
@@ -32,13 +50,14 @@ const localDriver = {
   },
 
   async delete(filePath) {
-    const fullPath = path.join(BASE_DIR, filePath);
+    let fullPath;
+    try { fullPath = resolveSafe(filePath); } catch { return; } // ignora caminhos inválidos
     await fs.unlink(fullPath).catch(() => {}); // ignora se não existir
   },
 
   // Para o driver local, lê o arquivo e retorna o buffer para stream
   async getBuffer(filePath) {
-    const fullPath = path.join(BASE_DIR, filePath);
+    const fullPath = resolveSafe(filePath);
     return fs.readFile(fullPath);
   },
 };

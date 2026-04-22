@@ -5,6 +5,14 @@ import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
 
+// Parseia YYYY-MM-DD sem conversão de fuso (evita off-by-one)
+// v2 — parse sem fuso
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = String(dateStr).slice(0, 10).split('-');
+  return `${d}/${m}/${y}`;
+}
+
 const STATUS_LABEL = {
   pending:          'Pendente',
   in_progress:      'Em andamento',
@@ -85,6 +93,8 @@ export default function AdminServicesPage() {
   const [tplModal, setTplModal]         = useState(false);   // false | 'create' | tpl object
   const [tplForm, setTplForm]           = useState(EMPTY_TEMPLATE);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [fireModal, setFireModal]       = useState(null);    // null | tpl object
+  const [fireDate, setFireDate]         = useState('');
 
   // ── Queries ──
   const { data: services = [], isLoading: svcLoading } = useServices(
@@ -222,10 +232,11 @@ export default function AdminServicesPage() {
   });
 
   const fireTpl = useMutation({
-    mutationFn: (id) => api.post(`/service-templates/${id}/fire`),
+    mutationFn: ({ id, scheduled_date }) => api.post(`/service-templates/${id}/fire`, { scheduled_date }),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-services']);
       success('Serviço criado a partir do template.');
+      setFireModal(null);
     },
     onError: (err) => error(err.response?.data?.error || 'Erro ao disparar template.'),
   });
@@ -379,19 +390,21 @@ export default function AdminServicesPage() {
                         onChange={(e) => setSelected(e.target.checked ? new Set(services.map((sv) => sv.id)) : new Set())}
                       />
                     </th>
-                    {['Título', 'Funcionário', 'Data', 'Prazo', 'Status', 'Ações'].map((h) => (
+                    <th style={{ ...s.th, width: 36 }}>#</th>
+                    {['Título', 'Funcionário', 'Agendamento', 'Conclusão', 'Prazo', 'Status', 'Ações'].map((h) => (
                       <th key={h} style={s.th}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {services.map((sv) => (
+                  {services.map((sv, idx) => (
                     <tr key={sv.id} style={{ borderBottom: '1px solid #f8fafc', background: selected.has(sv.id) ? '#f0f9ff' : undefined }}>
                       <td style={{ ...s.td, width: 36 }}>
                         <input type="checkbox" checked={selected.has(sv.id)}
                           onChange={(e) => setSelected((prev) => { const next = new Set(prev); e.target.checked ? next.add(sv.id) : next.delete(sv.id); return next; })}
                         />
                       </td>
+                      <td style={{ ...s.td, width: 36, color: '#94a3b8', fontWeight: 600 }}>#{idx + 1}</td>
                       <td style={s.td}>
                         <div style={{ fontWeight: 600, color: '#0f172a' }}>{sv.title}</div>
                         {sv.description && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sv.description.slice(0, 60)}{sv.description.length > 60 ? '…' : ''}</div>}
@@ -407,7 +420,10 @@ export default function AdminServicesPage() {
                           </span>
                         )}
                       </td>
-                      <td style={s.td}>{sv.scheduled_date?.slice(0, 10).split('-').reverse().join('/')}</td>
+                      <td style={s.td}>{fmtDate(sv.scheduled_date)}</td>
+                      <td style={s.td}>
+                        {sv.finished_at ? new Date(sv.finished_at).toLocaleDateString('pt-BR') : '—'}
+                      </td>
                       <td style={s.td}>{sv.due_time ? sv.due_time.slice(0, 5) : '—'}</td>
                       <td style={s.td}><ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} /></td>
                       <td style={s.td}>
@@ -466,7 +482,11 @@ export default function AdminServicesPage() {
                           style={{ ...actionBtn, color: tpl.active ? '#d97706' : '#16a34a' }}
                         >{tpl.active ? 'Pausar' : 'Ativar'}</button>
                         <button
-                          onClick={() => { if (window.confirm(`Disparar agora o template "${tpl.title}"?`)) fireTpl.mutate(tpl.id); }}
+                          onClick={() => {
+                            const d = tpl.next_run_at ? String(tpl.next_run_at).slice(0, 10) : '';
+                            setFireDate(d);
+                            setFireModal(tpl);
+                          }}
                           disabled={fireTpl.isLoading}
                           style={{ ...actionBtn, color: '#0891b2', borderColor: '#bae6fd' }}
                         >Disparar</button>
@@ -542,7 +562,7 @@ export default function AdminServicesPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16, fontSize: 13 }}>
               <InfoRow label="Funcionário" value={detailModal.employee_name} />
               <InfoRow label="Unidade" value={detailModal.unit_name} />
-              <InfoRow label="Data" value={detailModal.scheduled_date?.slice(0, 10).split('-').reverse().join('/')} />
+              <InfoRow label="Data" value={fmtDate(detailModal.scheduled_date)} />
               <InfoRow label="Prazo" value={detailModal.due_time?.slice(0, 5) || '—'} />
               <InfoRow label="Iniciado em" value={detailModal.started_at ? new Date(detailModal.started_at).toLocaleString('pt-BR') : '—'} />
               <InfoRow label="Concluído em" value={detailModal.finished_at ? new Date(detailModal.finished_at).toLocaleString('pt-BR') : '—'} />
@@ -749,6 +769,42 @@ export default function AdminServicesPage() {
                 <button type="button" onClick={closeTplModal} style={s.outlineBtn} disabled={tplBusy}>Cancelar</button>
                 <button type="submit" style={s.primaryBtn} disabled={tplBusy}>
                   {tplBusy ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: disparar template ── */}
+      {fireModal && (
+        <div style={overlay} onClick={() => setFireModal(null)}>
+          <div style={{ ...modalCard, maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={modalTitle}>Disparar Template</h2>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
+              <strong>"{fireModal.title}"</strong> — Para qual data quer que o agendamento apareça para o funcionário?
+            </p>
+            <form
+              onSubmit={(e) => { e.preventDefault(); fireTpl.mutate({ id: fireModal.id, scheduled_date: fireDate }); }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            >
+              <Field label="Data do agendamento *">
+                <input
+                  type="date"
+                  value={fireDate}
+                  onChange={(e) => setFireDate(e.target.value)}
+                  required
+                  style={inputStyle}
+                />
+              </Field>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                <button type="button" onClick={() => setFireModal(null)} style={s.outlineBtn}>Cancelar</button>
+                <button
+                  type="submit"
+                  disabled={fireTpl.isLoading}
+                  style={{ ...s.primaryBtn, background: '#0891b2', opacity: fireTpl.isLoading ? 0.7 : 1 }}
+                >
+                  {fireTpl.isLoading ? 'Disparando...' : 'Disparar'}
                 </button>
               </div>
             </form>

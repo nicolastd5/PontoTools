@@ -207,21 +207,30 @@ async function registerClock(req, res, next) {
 async function getHistory(req, res, next) {
   try {
     const { startDate, endDate } = req.query;
-    const page   = parseInt(req.query.page, 10) || 1;
-    const limit  = parseInt(req.query.limit, 10) || 20;
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    const page   = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
-    const params = [req.user.id, limit, offset];
-    let dateFilter = '';
+    // Filtros de data compartilhados entre as duas queries, sempre referenciando $1 = user_id
+    const countParams = [req.user.id];
+    const countFilters = [];
 
     if (startDate) {
-      params.push(startDate);
-      dateFilter += ` AND cr.clocked_at_utc::date >= $${params.length}`;
+      if (!dateRe.test(startDate)) return res.status(400).json({ error: 'startDate inválida (YYYY-MM-DD).' });
+      countParams.push(startDate);
+      countFilters.push(`cr.clocked_at_utc::date >= $${countParams.length}`);
     }
     if (endDate) {
-      params.push(endDate);
-      dateFilter += ` AND cr.clocked_at_utc::date <= $${params.length}`;
+      if (!dateRe.test(endDate)) return res.status(400).json({ error: 'endDate inválida (YYYY-MM-DD).' });
+      countParams.push(endDate);
+      countFilters.push(`cr.clocked_at_utc::date <= $${countParams.length}`);
     }
+
+    const dateFilterSql = countFilters.length ? ` AND ${countFilters.join(' AND ')}` : '';
+    const dataParams = [...countParams, limit, offset];
+    const limitIdx   = dataParams.length - 1;
+    const offsetIdx  = dataParams.length;
 
     const result = await db.query(
       `SELECT
@@ -231,17 +240,17 @@ async function getHistory(req, res, next) {
          u.name AS unit_name
        FROM clock_records cr
        JOIN units u ON u.id = cr.unit_id
-       WHERE cr.employee_id = $1 ${dateFilter}
+       WHERE cr.employee_id = $1 ${dateFilterSql}
        ORDER BY cr.clocked_at_utc DESC
-       LIMIT $2 OFFSET $3`,
-      params
+       LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+      dataParams
     );
 
     const countResult = await db.query(
       `SELECT COUNT(*) AS total
        FROM clock_records cr
-       WHERE cr.employee_id = $1 ${dateFilter}`,
-      [req.user.id, ...params.slice(3)]
+       WHERE cr.employee_id = $1 ${dateFilterSql}`,
+      countParams
     );
 
     const total = parseInt(countResult.rows[0].total, 10);
