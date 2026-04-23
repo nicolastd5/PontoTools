@@ -16,8 +16,8 @@ function firebaseSwPlugin() {
       mode = config.mode;
     },
     closeBundle() {
-      const templatePath = path.resolve(rootDir, 'public/firebase-messaging-sw.js');
-      if (!fs.existsSync(templatePath)) return;
+      const outPath = path.resolve(rootDir, 'dist/firebase-messaging-sw.js');
+      if (!fs.existsSync(outPath)) return;
 
       const env = loadEnv(mode, rootDir, '');
       const replacements = {
@@ -29,12 +29,14 @@ function firebaseSwPlugin() {
         '__VITE_FIREBASE_APP_ID__': env.VITE_FIREBASE_APP_ID || '',
       };
 
-      let content = fs.readFileSync(templatePath, 'utf-8');
+      let content = fs.readFileSync(outPath, 'utf-8');
       for (const [token, value] of Object.entries(replacements)) {
-        content = content.replaceAll(`'${token}'`, JSON.stringify(value));
+        const serialized = JSON.stringify(value);
+        content = content.replaceAll(`'${token}'`, serialized);
+        content = content.replaceAll(`"${token}"`, serialized);
+        content = content.replaceAll(token, value);
       }
 
-      const outPath = path.resolve(rootDir, 'dist/firebase-messaging-sw.js');
       fs.writeFileSync(outPath, content, 'utf-8');
     },
   };
