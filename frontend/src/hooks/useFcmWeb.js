@@ -20,8 +20,25 @@ function getFirebaseMessaging() {
   return getMessaging(app);
 }
 
+async function unregisterLegacyFirebaseSw() {
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    const legacyRegs = registrations.filter((reg) => {
+      const scriptUrl = reg.active?.scriptURL || reg.waiting?.scriptURL || reg.installing?.scriptURL || '';
+      return reg.scope.includes('firebase-cloud-messaging-push-scope')
+        || scriptUrl.includes('/firebase-messaging-sw.js');
+    });
+
+    await Promise.all(legacyRegs.map((reg) => reg.unregister()));
+  } catch {
+    // no-op
+  }
+}
+
 async function registerFcmToken() {
   try {
+    await unregisterLegacyFirebaseSw();
+
     const messaging = getFirebaseMessaging();
     const serviceWorkerRegistration = await navigator.serviceWorker.ready;
     const token = await getToken(messaging, {
