@@ -10,6 +10,7 @@ import Geolocation from '@react-native-community/geolocation';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
 import { useTheme } from '../contexts/ThemeContext';
+import { useGeolocation } from '../hooks/useGeolocation';
 import type { Theme } from '../theme';
 
 type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
@@ -76,7 +77,7 @@ function getGps(): Promise<{ latitude: number; longitude: number } | null> {
     Geolocation.getCurrentPosition(
       (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
       ()    => resolve(null),
-      { timeout: 6000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
     );
   });
 }
@@ -91,6 +92,7 @@ export default function ServicesScreen({
   servicesOnly?: boolean;
 }) {
   const { theme } = useTheme();
+  const { status: gpsStatus }       = useGeolocation(null);
 
   const [services, setServices]     = useState<ServiceOrder[]>([]);
   const [loading, setLoading]       = useState(false);
@@ -150,37 +152,22 @@ export default function ServicesScreen({
     } catch {}
   }, []);
 
-  const [pendingPhase, setPendingPhase] = useState<'before' | 'after' | 'issues' | null>(null);
-
   const openCamera = useCallback(async (phase: 'before' | 'after' | 'issues') => {
-    setPendingPhase(phase);
+    const options: CameraOptions = {
+      mediaType: 'photo',
+      cameraType: 'back',
+      quality: 0.7,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      saveToPhotos: false,
+    };
+    const result = await launchCamera(options);
+    if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) return;
+    const uri = result.assets[0].uri!;
+    setSessionPhase(phase);
+    setSessionUris((prev) => [...prev, uri]);
+    setPhotoConfirm(true);
   }, []);
-
-  // Dispara a câmera após todos os modais fecharem.
-  // pendingPhase !== null mantém o Modal de detalhe oculto enquanto a câmera está ativa;
-  // só é zerado depois que launchCamera retorna para não reabrir o Modal prematuramente.
-  React.useEffect(() => {
-    if (pendingPhase === null) return;
-    const phase = pendingPhase;
-    const timer = setTimeout(async () => {
-      const options: CameraOptions = {
-        mediaType: 'photo',
-        cameraType: 'back',
-        quality: 0.7,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        saveToPhotos: false,
-      };
-      const result = await launchCamera(options);
-      setPendingPhase(null);
-      if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) return;
-      const uri = result.assets[0].uri!;
-      setSessionPhase(phase);
-      setSessionUris((prev) => [...prev, uri]);
-      setPhotoConfirm(true);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [pendingPhase]);
 
   const addMorePhoto = useCallback(() => {
     setPhotoConfirm(false);
@@ -342,7 +329,7 @@ export default function ServicesScreen({
       />
 
       {/* Modal de detalhe */}
-      <Modal visible={detail !== null && !photoConfirm && pendingPhase === null} transparent animationType="slide">
+      <Modal visible={detail !== null && !photoConfirm} transparent animationType="slide">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, maxHeight: '92%' }}>
             {detail && (
@@ -457,9 +444,18 @@ export default function ServicesScreen({
                   <View style={{ gap: 10 }}>
                     <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>AÇÕES</Text>
 
+                    {gpsStatus !== 'granted' && (
+                      <View style={{ borderRadius: 10, padding: 12, backgroundColor: theme.warning + '22', borderWidth: 1, borderColor: theme.warning + '55' }}>
+                        <Text style={{ color: theme.warning, fontWeight: '600', fontSize: 13, textAlign: 'center' }}>
+                          {gpsStatus === 'loading' ? '⏳ Aguardando GPS...' : '⚠️ GPS necessário para ações'}
+                        </Text>
+                      </View>
+                    )}
+
                     {detail.status === 'pending' && (
                       <TouchableOpacity
-                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.accent }}
+                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.accent, opacity: gpsStatus !== 'granted' ? 0.4 : 1 }}
+                        disabled={gpsStatus !== 'granted'}
                         onPress={() => {
                           if (!posto.trim()) {
                             Alert.alert('Campo obrigatório', 'Preencha o campo Posto para iniciar o serviço.');
@@ -475,7 +471,8 @@ export default function ServicesScreen({
 
                     {detail.status === 'in_progress' && (
                       <TouchableOpacity
-                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.success }}
+                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.success, opacity: gpsStatus !== 'granted' ? 0.4 : 1 }}
+                        disabled={gpsStatus !== 'granted'}
                         onPress={() => { setSessionUris([]); openCamera('after'); }}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>📷 Enviar Foto de Conclusão</Text>

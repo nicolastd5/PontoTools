@@ -41,7 +41,6 @@ async function requestLocationPermission(): Promise<boolean> {
     );
     return granted === PermissionsAndroid.RESULTS.GRANTED;
   }
-  // iOS: permissão é pedida automaticamente pelo sistema ao chamar watchPosition
   return true;
 }
 
@@ -63,6 +62,9 @@ export function useGeolocation(unit: Unit | null | undefined) {
         return;
       }
 
+      // Configura GPS com alta precisão + AGPS (GPS + WiFi + rede celular via OS)
+      // enableHighAccuracy=true ativa o FusedLocationProvider no Android,
+      // que combina GPS, WiFi e redes móveis para a melhor precisão possível.
       watchIdRef.current = Geolocation.watchPosition(
         (position) => {
           if (cancelled) return;
@@ -76,11 +78,17 @@ export function useGeolocation(unit: Unit | null | undefined) {
         },
         (err) => {
           if (cancelled) return;
-          // code 1 = PERMISSION_DENIED, code 2 = POSITION_UNAVAILABLE
           setStatus(err.code === 1 ? 'denied' : 'unavailable');
           setCoords(null);
         },
-        { enableHighAccuracy: true, distanceFilter: 5, interval: 5000, fastestInterval: 2000 },
+        {
+          enableHighAccuracy: true,
+          distanceFilter: 3,       // atualiza a cada 3 m de deslocamento
+          interval: 3000,          // Android: poll a cada 3 s
+          fastestInterval: 1000,   // Android: aceita updates de outras apps a cada 1 s
+          timeout: 20000,          // aguarda até 20 s pelo primeiro fix
+          maximumAge: 0,           // nunca usa cache — sempre posição fresca
+        },
       );
     })();
 

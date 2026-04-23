@@ -152,7 +152,8 @@ export default function DashboardScreen({
   }
 
   const gpsOk           = gpsStatus === 'granted';
-  const gpsBlocksButtons = requireLocation && (!gpsOk || !isInsideZone);
+  // GPS sempre obrigatório; zona só validada quando requireLocation=true
+  const gpsBlocksButtons = !gpsOk || (requireLocation && !isInsideZone);
 
   const initials = user?.name
     ? user.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
@@ -192,17 +193,16 @@ export default function DashboardScreen({
 
         {/* Status GPS */}
         <View style={{ borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: theme.border,
-          backgroundColor: !requireLocation ? theme.surface : gpsOk ? (isInsideZone ? theme.success + '18' : theme.danger + '18') : theme.warning + '18' }}>
+          backgroundColor: gpsOk ? (requireLocation && !isInsideZone ? theme.danger + '18' : theme.success + '18') : theme.warning + '18' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: !requireLocation ? theme.textMuted : gpsOk ? (isInsideZone ? theme.success : theme.danger) : theme.warning }} />
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: gpsOk ? (requireLocation && !isInsideZone ? theme.danger : theme.success) : theme.warning }} />
             <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textPrimary, flex: 1 }}>
-              {!requireLocation && gpsStatus === 'granted' && `${Math.round(distanceMeters ?? 0)}m da unidade (localização livre)`}
-              {!requireLocation && gpsStatus !== 'granted' && 'Localização livre — GPS não exigido'}
-              {requireLocation  && gpsStatus === 'loading'     && 'Obtendo localização...'}
-              {requireLocation  && gpsStatus === 'denied'      && 'GPS negado — habilite nas configurações'}
-              {requireLocation  && gpsStatus === 'unavailable' && 'GPS indisponível'}
-              {requireLocation  && gpsStatus === 'granted' && isInsideZone  && `Localização validada · ${Math.round(distanceMeters ?? 0)}m`}
-              {requireLocation  && gpsStatus === 'granted' && !isInsideZone && `Fora da zona — ${Math.round(distanceMeters ?? 0)}m (máx: ${user?.unit?.radiusMeters}m)`}
+              {gpsStatus === 'loading'     && 'Obtendo localização GPS...'}
+              {gpsStatus === 'denied'      && 'GPS negado — habilite nas configurações'}
+              {gpsStatus === 'unavailable' && 'GPS indisponível'}
+              {gpsStatus === 'granted' && !requireLocation && `GPS ativo · ${Math.round(distanceMeters ?? 0)}m da unidade`}
+              {gpsStatus === 'granted' && requireLocation && isInsideZone  && `Localização validada · ${Math.round(distanceMeters ?? 0)}m`}
+              {gpsStatus === 'granted' && requireLocation && !isInsideZone && `Fora da zona — ${Math.round(distanceMeters ?? 0)}m (máx: ${user?.unit?.radiusMeters}m)`}
             </Text>
           </View>
         </View>

@@ -34,7 +34,7 @@ export default function ForgotPasswordScreen({ onBack }: Props) {
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.card}>
         <View style={styles.logoBox}>
-          <Text style={styles.logoLetter}>P</Text>
+          <Text style={styles.logoLetter}>GS</Text>
         </View>
         <Text style={styles.title}>Recuperar senha</Text>
         <Text style={styles.subtitle}>
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   root:        { flex: 1, backgroundColor: '#f1f5f9', justifyContent: 'center', padding: 24 },
   card:        { backgroundColor: '#fff', borderRadius: 16, padding: 28, elevation: 4 },
   logoBox:     { width: 56, height: 56, borderRadius: 14, backgroundColor: '#1d4ed8', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 16 },
-  logoLetter:  { color: '#fff', fontSize: 28, fontWeight: 'bold' },
+  logoLetter:  { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   title:       { fontSize: 22, fontWeight: 'bold', color: '#0f172a', textAlign: 'center' },
   subtitle:    { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24, marginTop: 4, lineHeight: 18 },
   input:       { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 14, fontSize: 15, color: '#0f172a', marginBottom: 16 },

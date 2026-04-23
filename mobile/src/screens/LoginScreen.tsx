@@ -36,7 +36,7 @@ export default function LoginScreen({ onForgotPassword }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={{ alignItems: 'center' }}>
         <View style={{ width: 56, height: 56, borderRadius: 14, backgroundColor: theme.accent, justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: 'bold' }}>P</Text>
+          <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>GS</Text>
         </View>
         <Text style={{ fontSize: 22, fontWeight: '800', color: theme.textPrimary, marginBottom: 4 }}>Gerenciador de Serviços</Text>
         <Text style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 32 }}>Entre com sua conta</Text>
