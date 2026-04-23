@@ -23,7 +23,11 @@ function getFirebaseMessaging() {
 async function registerFcmToken() {
   try {
     const messaging = getFirebaseMessaging();
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    const serviceWorkerRegistration = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration,
+    });
     if (!token) return;
     await api.post('/notifications/fcm-token', { token });
   } catch (err) {

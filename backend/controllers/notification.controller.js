@@ -258,7 +258,14 @@ async function subscribe(req, res, next) {
     }
 
     // Remove qualquer registro anterior deste employee (Web Push ou FCM) — um canal por vez
-    await db.query(`DELETE FROM push_subscriptions WHERE employee_id = $1`, [req.user.id]);
+    await db.query(
+      `DELETE FROM push_subscriptions
+       WHERE employee_id = $1
+         AND endpoint IS NOT NULL
+         AND endpoint <> ''
+         AND endpoint NOT LIKE 'fcm:%'`,
+      [req.user.id]
+    );
     await db.query(`DELETE FROM push_subscriptions WHERE endpoint = $1`, [endpoint]);
     await db.query(
       `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4)`,
@@ -302,14 +309,19 @@ async function saveFcmToken(req, res, next) {
     const fcmToken   = token.trim();
 
     // Remove qualquer registro anterior deste employee (Web Push ou FCM) — um canal por vez
-    await db.query(`DELETE FROM push_subscriptions WHERE employee_id = $1`, [employeeId]);
+    await db.query(
+      `DELETE FROM push_subscriptions
+       WHERE employee_id = $1
+         AND (fcm_token IS NOT NULL OR endpoint IS NULL OR endpoint = '' OR endpoint LIKE 'fcm:%')`,
+      [employeeId]
+    );
     await db.query(`DELETE FROM push_subscriptions WHERE fcm_token = $1`, [fcmToken]);
 
     // Insere nova linha FCM usando 'fcm:<token>' como endpoint único
     await db.query(
       `INSERT INTO push_subscriptions (employee_id, endpoint, p256dh, auth, fcm_token)
-       VALUES ($1, $2, '', '', $3)`,
-      [employeeId, `fcm:${fcmToken}`, fcmToken]
+       VALUES ($1, NULL, NULL, NULL, $2)`,
+      [employeeId, fcmToken]
     );
 
     res.json({ ok: true });

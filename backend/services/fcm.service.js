@@ -40,9 +40,39 @@ async function sendFcm(employeeId, title, body) {
     const response = await getMessaging().sendEachForMulticast({
       tokens,
       notification: { title, body },
+      data: {
+        title: title || '',
+        body: body || '',
+        url: '/notifications',
+      },
       android: {
         priority: 'high',
         notification: { sound: 'default' },
+      },
+      webpush: {
+        headers: {
+          Urgency: 'high',
+          TTL: '2419200', // 28 dias
+        },
+        notification: {
+          title,
+          body,
+          icon: '/icons/icon-192.svg',
+          badge: '/icons/icon-192.svg',
+        },
+        fcmOptions: {
+          link: 'https://pontotools.shop/notifications',
+        },
+      },
+      apns: {
+        headers: {
+          'apns-priority': '10',
+        },
+        payload: {
+          aps: {
+            sound: 'default',
+          },
+        },
       },
     });
 

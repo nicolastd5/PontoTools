@@ -21,7 +21,11 @@ async function notify(employeeId, title, body, type = 'manual') {
   // 2. Busca subscriptions Web Push do funcionário
   const subs = await db.query(
     `SELECT id, endpoint, p256dh, auth
-     FROM push_subscriptions WHERE employee_id = $1 AND endpoint IS NOT NULL`,
+     FROM push_subscriptions
+     WHERE employee_id = $1
+       AND endpoint IS NOT NULL
+       AND endpoint <> ''
+       AND endpoint NOT LIKE 'fcm:%'`,
     [employeeId]
   );
 
