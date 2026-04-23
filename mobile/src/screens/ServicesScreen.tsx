@@ -11,6 +11,7 @@ import TabBar from '../components/TabBar';
 import CameraModal from '../components/CameraModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useGeolocation } from '../hooks/useGeolocation';
+import { useReverseGeocode } from '../hooks/useReverseGeocode';
 import type { Theme } from '../theme';
 
 type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
@@ -92,7 +93,8 @@ export default function ServicesScreen({
   servicesOnly?: boolean;
 }) {
   const { theme } = useTheme();
-  const { status: gpsStatus }       = useGeolocation(null);
+  const { status: gpsStatus, coords } = useGeolocation(null);
+  const address = useReverseGeocode(coords);
 
   const [services, setServices]     = useState<ServiceOrder[]>([]);
   const [loading, setLoading]       = useState(false);
@@ -261,8 +263,34 @@ export default function ServicesScreen({
     : sessionPhase === 'after' ? 'Foto de Conclusão'
     : 'Foto de Ressalvas';
 
+  const gpsColor = gpsStatus === 'granted' ? theme.success
+    : gpsStatus === 'loading'              ? theme.warning
+    : theme.danger;
+
+  const gpsText = gpsStatus === 'loading'     ? 'Obtendo localização GPS...'
+    : gpsStatus === 'denied'                  ? 'GPS negado — habilite nas configurações'
+    : gpsStatus === 'unavailable'             ? 'GPS indisponível'
+    : coords
+      ? `GPS ativo · ${coords.accuracy != null ? `±${Math.round(coords.accuracy)}m` : ''}`
+      : 'GPS ativo';
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      {/* Painel GPS */}
+      <View style={{ marginHorizontal: 16, marginTop: 12, marginBottom: 4, borderRadius: 12, padding: 12, borderWidth: 1, backgroundColor: gpsColor + '18', borderColor: gpsColor + '40' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: gpsColor }} />
+          <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textPrimary, flex: 1 }}>{gpsText}</Text>
+        </View>
+        {address ? (
+          <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4, marginLeft: 16 }} numberOfLines={2}>
+            📍 {address}
+          </Text>
+        ) : gpsStatus === 'granted' ? (
+          <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4, marginLeft: 16 }}>Obtendo endereço...</Text>
+        ) : null}
+      </View>
+
       <FlatList
         data={services}
         keyExtractor={(item) => String(item.id)}

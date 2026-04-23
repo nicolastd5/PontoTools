@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import { useReverseGeocode } from '../../hooks/useReverseGeocode';
 import CameraCapture from '../../components/employee/CameraCapture';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
 import PushBanner from '../../components/employee/PushBanner';
@@ -32,7 +33,8 @@ export default function EmployeeServicesPage() {
 
   // GPS contínuo — já começa a monitorar assim que a página abre, então quando
   // o usuário tira a foto as coordenadas já estão disponíveis (sem novo fix na hora).
-  const { coords } = useGeolocation(user?.unit);
+  const { status: gpsStatus, coords } = useGeolocation(user?.unit);
+  const address = useReverseGeocode(coords);
 
   const { data: services = [], isLoading } = useMyServices();
 
@@ -142,11 +144,40 @@ export default function EmployeeServicesPage() {
   const canIssues  = detail && detail.status === 'in_progress';
   const canProblem = detail && (detail.status === 'in_progress' || detail.status === 'pending');
 
+  const gpsColor = gpsStatus === 'granted' ? theme.success
+    : gpsStatus === 'loading'              ? theme.warning
+    : theme.danger;
+
+  const gpsText = gpsStatus === 'loading'     ? 'Obtendo localização GPS...'
+    : gpsStatus === 'denied'                  ? 'GPS negado — habilite nas configurações do navegador'
+    : gpsStatus === 'unavailable'             ? 'GPS indisponível'
+    : coords
+      ? `GPS ativo · ${coords.accuracy != null ? `±${Math.round(coords.accuracy)}m de precisão` : ''}`
+      : 'GPS ativo';
+
   return (
     <div>
       <h1 style={{ ...s.title, color: theme.textPrimary }}>Meus Serviços</h1>
 
       <PushBanner />
+
+      {/* Painel GPS */}
+      <div style={{
+        display: 'flex', flexDirection: 'column', gap: 4,
+        padding: '10px 14px', borderRadius: 10, marginBottom: 16,
+        border: `1px solid ${gpsColor}55`,
+        background: `${gpsColor}18`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: gpsColor, flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: theme.textPrimary }}>{gpsText}</span>
+        </div>
+        {address ? (
+          <span style={{ fontSize: 12, color: theme.textSecondary, paddingLeft: 16 }}>📍 {address}</span>
+        ) : gpsStatus === 'granted' ? (
+          <span style={{ fontSize: 12, color: theme.textMuted, paddingLeft: 16 }}>Obtendo endereço...</span>
+        ) : null}
+      </div>
 
       {isLoading ? (
         <p style={s.empty}>Carregando...</p>
