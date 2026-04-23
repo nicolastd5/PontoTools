@@ -66,33 +66,32 @@ export default function PushBanner() {
   }
 
   if (!pushSupported) return null;
+  if (pushGranted) return null;
 
   return (
-    <div style={{ ...bannerStyle, background: pushGranted ? '#f0fdf4' : '#eff6ff', border: `1px solid ${pushGranted ? '#86efac' : '#bfdbfe'}` }}>
+    <div style={{ ...bannerStyle, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
       <div>
-        <span style={{ fontSize: 14, fontWeight: 600, color: pushGranted ? '#166534' : '#1e40af' }}>
-          {pushGranted ? 'Notificacoes ativas' : 'Notificacoes inativas'}
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#1e40af' }}>
+          Notificacoes inativas
         </span>
         <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-          {pushGranted
-            ? 'Voce recebera alertas mesmo com o app fechado.'
-            : pushDenied
-              ? 'Permissao bloqueada no navegador. Reative nas configuracoes do site.'
-              : 'Ative para receber alertas de servicos e avisos.'}
+          {pushDenied
+            ? 'Permissao bloqueada no navegador. Reative nas configuracoes do site.'
+            : 'Ative para receber alertas de servicos e avisos.'}
         </p>
       </div>
 
       <button
         onClick={enablePush}
-        disabled={subscribing || pushGranted || pushDenied}
+        disabled={subscribing || pushDenied}
         style={{
           ...btnStyle,
-          background: pushGranted ? '#dcfce7' : pushDenied ? '#e5e7eb' : '#1d4ed8',
-          color: pushGranted ? '#166534' : pushDenied ? '#6b7280' : '#fff',
-          border: pushGranted ? '1px solid #86efac' : pushDenied ? '1px solid #d1d5db' : 'none',
+          background: pushDenied ? '#e5e7eb' : '#1d4ed8',
+          color: pushDenied ? '#6b7280' : '#fff',
+          border: pushDenied ? '1px solid #d1d5db' : 'none',
         }}
       >
-        {subscribing ? '...' : pushGranted ? 'Ativo' : pushDenied ? 'Bloqueado' : 'Ativar'}
+        {subscribing ? '...' : pushDenied ? 'Bloqueado' : 'Ativar'}
       </button>
     </div>
   );

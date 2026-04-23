@@ -124,23 +124,21 @@ export default function EmployeeNotificationsPage() {
         </button>
       )}
 
-      {pushSupported && (
+      {pushSupported && !pushGranted && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 20, gap: 12 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: theme.textPrimary }}>
-              {pushGranted ? 'Notificacoes push ativas' : 'Notificacoes push inativas'}
+              Notificacoes push inativas
             </div>
             <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
-              {pushGranted
-                ? 'Voce recebera alertas mesmo com o app fechado.'
-                : pushDenied
-                  ? 'Permissao bloqueada no navegador. Reative nas configuracoes do site.'
-                  : 'Ative para receber alertas de servicos.'}
+              {pushDenied
+                ? 'Permissao bloqueada no navegador. Reative nas configuracoes do site.'
+                : 'Ative para receber alertas de servicos.'}
             </div>
           </div>
           <button
             onClick={enablePush}
-            disabled={subscribing || pushGranted || pushDenied}
+            disabled={subscribing || pushDenied}
             style={{
               padding: '7px 14px',
               borderRadius: 8,
@@ -148,12 +146,12 @@ export default function EmployeeNotificationsPage() {
               fontWeight: 600,
               cursor: 'pointer',
               border: 'none',
-              background: pushGranted ? theme.elevated : pushDenied ? '#e5e7eb' : theme.accent,
-              color: pushGranted ? theme.textSecondary : pushDenied ? '#6b7280' : '#fff',
+              background: pushDenied ? '#e5e7eb' : theme.accent,
+              color: pushDenied ? '#6b7280' : '#fff',
               whiteSpace: 'nowrap',
             }}
           >
-            {subscribing ? '...' : pushGranted ? 'Ativo' : pushDenied ? 'Bloqueado' : 'Ativar'}
+            {subscribing ? '...' : pushDenied ? 'Bloqueado' : 'Ativar'}
           </button>
         </div>
       )}

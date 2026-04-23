@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import CameraCapture from '../../components/employee/CameraCapture';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
@@ -27,6 +28,7 @@ export default function EmployeeServicesPage() {
   const queryClient = useQueryClient();
   const { success, error } = useToast();
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   // GPS contínuo — já começa a monitorar assim que a página abre, então quando
   // o usuário tira a foto as coordenadas já estão disponíveis (sem novo fix na hora).
@@ -142,7 +144,7 @@ export default function EmployeeServicesPage() {
 
   return (
     <div>
-      <h1 style={s.title}>Meus Serviços</h1>
+      <h1 style={{ ...s.title, color: theme.textPrimary }}>Meus Serviços</h1>
 
       <PushBanner />
 
