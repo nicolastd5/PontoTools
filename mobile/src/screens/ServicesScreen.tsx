@@ -5,10 +5,10 @@ import {
   Modal, ScrollView, Alert, ActivityIndicator,
   RefreshControl, TextInput, Image,
 } from 'react-native';
-import { launchCamera, type CameraOptions } from 'react-native-image-picker';
 import Geolocation from '@react-native-community/geolocation';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
+import CameraModal from '../components/CameraModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import type { Theme } from '../theme';
@@ -104,7 +104,7 @@ export default function ServicesScreen({
   const [sessionPhase, setSessionPhase]   = useState<'before' | 'after' | 'issues' | null>(null);
   const [sessionUris, setSessionUris]     = useState<string[]>([]);
   const [photoConfirm, setPhotoConfirm]   = useState(false);
-  const [cameraActive, setCameraActive]   = useState(false);
+  const [cameraPhase, setCameraPhase]     = useState<'before' | 'after' | 'issues' | null>(null);
 
   const [photoUrls, setPhotoUrls]         = useState<Record<number, string>>({});
   const [lightbox, setLightbox]           = useState<string | null>(null);
@@ -153,46 +153,28 @@ export default function ServicesScreen({
     } catch {}
   }, []);
 
-  const openCamera = useCallback(async (phase: 'before' | 'after' | 'issues') => {
-    setCameraActive(true);
-    await new Promise<void>((r) => setTimeout(r, 350));
-    const options: CameraOptions = {
-      mediaType: 'photo',
-      cameraType: 'back',
-      quality: 0.7,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      saveToPhotos: false,
-    };
-    const result = await launchCamera(options);
-    setCameraActive(false);
-    if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) return;
-    const uri = result.assets[0].uri!;
-    setSessionPhase(phase);
-    setSessionUris((prev) => [...prev, uri]);
-    setPhotoConfirm(true);
+  const openCamera = useCallback((phase: 'before' | 'after' | 'issues') => {
+    setPhotoConfirm(false);
+    setCameraPhase(phase);
   }, []);
 
-  const addMorePhoto = useCallback(async () => {
-    setPhotoConfirm(false);
-    if (!sessionPhase) return;
-    await new Promise<void>((r) => setTimeout(r, 350));
-    const options: CameraOptions = {
-      mediaType: 'photo',
-      cameraType: 'back',
-      quality: 0.7,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      saveToPhotos: false,
-    };
-    const result = await launchCamera(options);
-    if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) {
-      setPhotoConfirm(true);
-      return;
-    }
-    const uri = result.assets[0].uri!;
+  const handleCameraCapture = useCallback((uri: string) => {
+    const phase = cameraPhase!;
+    setCameraPhase(null);
+    setSessionPhase((prev) => prev ?? phase);
     setSessionUris((prev) => [...prev, uri]);
     setPhotoConfirm(true);
+  }, [cameraPhase]);
+
+  const handleCameraCancel = useCallback(() => {
+    setCameraPhase(null);
+    if (sessionUris.length > 0) setPhotoConfirm(true);
+  }, [sessionUris]);
+
+  const addMorePhoto = useCallback(() => {
+    setPhotoConfirm(false);
+    if (!sessionPhase) return;
+    setCameraPhase(sessionPhase);
   }, [sessionPhase]);
 
   const submitPhotos = useCallback(async () => {
@@ -332,7 +314,7 @@ export default function ServicesScreen({
       />
 
       {/* Modal de detalhe */}
-      <Modal visible={detail !== null && !photoConfirm && !cameraActive} transparent animationType="slide">
+      <Modal visible={detail !== null && !photoConfirm && cameraPhase === null} transparent animationType="slide">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: theme.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 36, maxHeight: '92%' }}>
             {detail && (
@@ -579,7 +561,7 @@ export default function ServicesScreen({
               <TouchableOpacity
                 style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: '#ea580c', opacity: !issuesText.trim() ? 0.5 : 1 }}
                 disabled={!issuesText.trim()}
-                onPress={() => { setIssuesModal(false); setSessionUris([]); openCamera('issues'); }}
+                onPress={() => { setIssuesModal(false); setSessionUris([]); setCameraPhase('issues'); }}
               >
                 <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>📷 Tirar Foto e Concluir</Text>
               </TouchableOpacity>
@@ -655,6 +637,13 @@ export default function ServicesScreen({
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Câmera ao vivo */}
+      <CameraModal
+        visible={cameraPhase !== null}
+        onCapture={handleCameraCapture}
+        onCancel={handleCameraCancel}
+      />
     </View>
   );
 }

@@ -5,12 +5,12 @@ import {
   TextInput, Modal, Image,
 } from 'react-native';
 import { formatInTimeZone } from 'date-fns-tz';
-import { launchCamera, type CameraOptions } from 'react-native-image-picker';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
+import CameraModal from '../components/CameraModal';
 
 type Screen = 'dashboard' | 'history' | 'services' | 'notifications' | 'profile';
 
@@ -73,7 +73,7 @@ export default function DashboardScreen({
   const [observation, setObservation]   = useState('');
   const [photoUris, setPhotoUris]       = useState<string[]>([]);
   const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('front');
-  const [takingPhoto, setTakingPhoto]   = useState(false);
+  const [cameraOpen, setCameraOpen]     = useState(false);
   const [gpsSnapshot, setGpsSnapshot]   = useState<GpsSnapshot | null>(null);
 
   function loadToday() {
@@ -103,21 +103,19 @@ export default function DashboardScreen({
     setConfirmModal(clockType);
   }, [gpsStatus, isInsideZone, coords, distanceMeters, user, requireLocation]);
 
-  const handleTakePhoto = useCallback(async (facing: 'front' | 'back') => {
-    setTakingPhoto(true);
-    try {
-      const options: CameraOptions = { mediaType: 'photo', cameraType: facing, quality: 0.7, maxWidth: 1024, maxHeight: 1024, includeBase64: false, saveToPhotos: false };
-      const result = await launchCamera(options);
-      if (result.didCancel || result.errorCode) return;
-      const asset = result.assets?.[0];
-      if (asset?.uri) setPhotoUris((prev) => [...prev, asset.uri!]);
-    } finally { setTakingPhoto(false); }
+  const handleOpenCamera = useCallback((facing: 'front' | 'back') => {
+    setCameraFacing(facing);
+    setCameraOpen(true);
   }, []);
 
-  const handleSwitchAndShoot = useCallback(async (nextFacing: 'front' | 'back') => {
-    setCameraFacing(nextFacing);
-    await handleTakePhoto(nextFacing);
-  }, [handleTakePhoto]);
+  const handleCameraCapture = useCallback((uri: string) => {
+    setCameraOpen(false);
+    setPhotoUris((prev) => [...prev, uri]);
+  }, []);
+
+  const handleCameraCancel = useCallback(() => {
+    setCameraOpen(false);
+  }, []);
 
   async function submitClock() {
     if (!confirmModal) return;
@@ -290,12 +288,12 @@ export default function DashboardScreen({
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
               <TouchableOpacity
                 style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: cameraFacing === 'front' ? theme.accent : theme.border, backgroundColor: cameraFacing === 'front' ? theme.accent + '18' : theme.elevated, alignItems: 'center' }}
-                onPress={() => handleSwitchAndShoot('front')} disabled={takingPhoto || photoUris.length >= maxPhotos}>
+                onPress={() => handleOpenCamera('front')} disabled={photoUris.length >= maxPhotos}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: theme.textPrimary }}>🤳 Frontal</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, borderColor: cameraFacing === 'back' ? theme.accent : theme.border, backgroundColor: cameraFacing === 'back' ? theme.accent + '18' : theme.elevated, alignItems: 'center' }}
-                onPress={() => handleSwitchAndShoot('back')} disabled={takingPhoto || photoUris.length >= maxPhotos}>
+                onPress={() => handleOpenCamera('back')} disabled={photoUris.length >= maxPhotos}>
                 <Text style={{ fontSize: 14, fontWeight: '600', color: theme.textPrimary }}>📸 Traseira</Text>
               </TouchableOpacity>
             </View>
@@ -329,6 +327,13 @@ export default function DashboardScreen({
           </View>
         </View>
       </Modal>
+
+      <CameraModal
+        visible={cameraOpen}
+        facing={cameraFacing}
+        onCapture={handleCameraCapture}
+        onCancel={handleCameraCancel}
+      />
     </SafeAreaView>
   );
 }

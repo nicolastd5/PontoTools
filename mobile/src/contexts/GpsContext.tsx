@@ -18,18 +18,30 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
+    function onPosition(position: { coords: { latitude: number; longitude: number; accuracy: number } }) {
+      if (cancelled) return;
+      const { latitude, longitude, accuracy } = position.coords;
+      setCoords({ latitude, longitude, accuracy });
+      setStatus('granted');
+    }
+
+    function onError(err: { code: number }) {
+      if (cancelled) return;
+      setStatus(err.code === 1 ? 'denied' : 'unavailable');
+      setCoords(null);
+    }
+
+    // Fix rápido: aceita posição em cache de até 30s para mostrar GPS imediatamente
+    Geolocation.getCurrentPosition(
+      onPosition,
+      () => {},
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+
+    // Watch contínuo para atualizações em tempo real
     watchIdRef.current = Geolocation.watchPosition(
-      (position) => {
-        if (cancelled) return;
-        const { latitude, longitude, accuracy } = position.coords;
-        setCoords({ latitude, longitude, accuracy });
-        setStatus('granted');
-      },
-      (err) => {
-        if (cancelled) return;
-        setStatus(err.code === 1 ? 'denied' : 'unavailable');
-        setCoords(null);
-      },
+      onPosition,
+      onError,
       {
         enableHighAccuracy: true,
         distanceFilter: 3,
