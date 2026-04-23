@@ -202,7 +202,9 @@ export default function ServicesScreen({
         if (phase === 'before' && posto.trim()) {
           form.append('employee_posto', posto.trim());
         }
-        await api.post(`/services/${detail.id}/photos`, form);
+        await api.post(`/services/${detail.id}/photos`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       }
 
       if (sessionPhase === 'issues') {
@@ -271,7 +273,7 @@ export default function ServicesScreen({
     : gpsStatus === 'denied'                  ? 'GPS negado — habilite nas configurações'
     : gpsStatus === 'unavailable'             ? 'GPS indisponível'
     : coords
-      ? `GPS ativo · ${coords.accuracy != null ? `±${Math.round(coords.accuracy)}m` : ''}`
+      ? `GPS ativo${coords.accuracy != null ? ` — prec. ${Math.round(coords.accuracy)}m` : ''}`
       : 'GPS ativo';
 
   return (

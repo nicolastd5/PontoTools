@@ -18,7 +18,6 @@ export function useReverseGeocode(coords) {
 
     fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt-BR`,
-      { headers: { 'User-Agent': 'PontoTools/1.0' } },
     )
       .then((r) => r.json())
       .then((data) => {
