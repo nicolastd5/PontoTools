@@ -63,7 +63,9 @@ jobs:
       - name: Build APK debug (com bundle embutido)
         working-directory: mobile/android
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/gradle-build.log
+          ./gradlew assembleDebug --no-daemon --stacktrace \
+            -PreactNativeArchitectures=arm64-v8a \
+            2>&1 | tee /tmp/gradle-build.log
           exit ${PIPESTATUS[0]}
 
       - name: Upload APK
