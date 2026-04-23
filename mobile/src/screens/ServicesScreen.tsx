@@ -200,9 +200,7 @@ export default function ServicesScreen({
         if (phase === 'before' && posto.trim()) {
           form.append('employee_posto', posto.trim());
         }
-        await api.post(`/services/${detail.id}/photos`, form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        await api.post(`/services/${detail.id}/photos`, form);
       }
 
       if (sessionPhase === 'issues') {
@@ -429,18 +427,18 @@ export default function ServicesScreen({
                   <View style={{ gap: 10 }}>
                     <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted, textTransform: 'uppercase', marginBottom: 4 }}>AÇÕES</Text>
 
-                    {gpsStatus !== 'granted' && (
+                    {(gpsStatus === 'denied' || gpsStatus === 'unavailable') && (
                       <View style={{ borderRadius: 10, padding: 12, backgroundColor: theme.warning + '22', borderWidth: 1, borderColor: theme.warning + '55' }}>
                         <Text style={{ color: theme.warning, fontWeight: '600', fontSize: 13, textAlign: 'center' }}>
-                          {gpsStatus === 'loading' ? '⏳ Aguardando GPS...' : '⚠️ GPS necessário para ações'}
+                          ⚠️ GPS necessário para ações
                         </Text>
                       </View>
                     )}
 
                     {detail.status === 'pending' && (
                       <TouchableOpacity
-                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.accent, opacity: gpsStatus !== 'granted' ? 0.4 : 1 }}
-                        disabled={gpsStatus !== 'granted'}
+                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.accent, opacity: (gpsStatus === 'denied' || gpsStatus === 'unavailable') ? 0.4 : 1 }}
+                        disabled={gpsStatus === 'denied' || gpsStatus === 'unavailable'}
                         onPress={() => {
                           if (!posto.trim()) {
                             Alert.alert('Campo obrigatório', 'Preencha o campo Posto para iniciar o serviço.');
@@ -456,8 +454,8 @@ export default function ServicesScreen({
 
                     {detail.status === 'in_progress' && (
                       <TouchableOpacity
-                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.success, opacity: gpsStatus !== 'granted' ? 0.4 : 1 }}
-                        disabled={gpsStatus !== 'granted'}
+                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.success, opacity: (gpsStatus === 'denied' || gpsStatus === 'unavailable') ? 0.4 : 1 }}
+                        disabled={gpsStatus === 'denied' || gpsStatus === 'unavailable'}
                         onPress={() => { setSessionUris([]); openCamera('after'); }}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>📷 Enviar Foto de Conclusão</Text>
