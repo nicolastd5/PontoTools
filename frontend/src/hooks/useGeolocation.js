@@ -78,7 +78,7 @@ export function useGeolocation(unit) {
       watchIdRef.current = navigator.geolocation.watchPosition(
         handleSuccess,
         handleError,
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
       );
 
       if (refreshId !== null) clearInterval(refreshId);
@@ -88,7 +88,7 @@ export function useGeolocation(unit) {
           () => {},
           { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
         );
-      }, 2 * 60 * 1000);
+      }, 30 * 1000);
     }
 
     navigator.permissions?.query({ name: 'geolocation' }).then((result) => {
