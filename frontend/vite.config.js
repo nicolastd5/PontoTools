@@ -1,6 +1,44 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import fs from 'fs';
+import path from 'path';
+
+function firebaseSwPlugin() {
+  let rootDir = process.cwd();
+  let mode = 'production';
+
+  return {
+    name: 'firebase-sw',
+    apply: 'build',
+    configResolved(config) {
+      rootDir = config.root;
+      mode = config.mode;
+    },
+    closeBundle() {
+      const templatePath = path.resolve(rootDir, 'public/firebase-messaging-sw.js');
+      if (!fs.existsSync(templatePath)) return;
+
+      const env = loadEnv(mode, rootDir, '');
+      const replacements = {
+        '__VITE_FIREBASE_API_KEY__': env.VITE_FIREBASE_API_KEY || '',
+        '__VITE_FIREBASE_AUTH_DOMAIN__': env.VITE_FIREBASE_AUTH_DOMAIN || '',
+        '__VITE_FIREBASE_PROJECT_ID__': env.VITE_FIREBASE_PROJECT_ID || '',
+        '__VITE_FIREBASE_STORAGE_BUCKET__': env.VITE_FIREBASE_STORAGE_BUCKET || '',
+        '__VITE_FIREBASE_MESSAGING_SENDER_ID__': env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+        '__VITE_FIREBASE_APP_ID__': env.VITE_FIREBASE_APP_ID || '',
+      };
+
+      let content = fs.readFileSync(templatePath, 'utf-8');
+      for (const [token, value] of Object.entries(replacements)) {
+        content = content.replaceAll(`'${token}'`, JSON.stringify(value));
+      }
+
+      const outPath = path.resolve(rootDir, 'dist/firebase-messaging-sw.js');
+      fs.writeFileSync(outPath, content, 'utf-8');
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
@@ -23,18 +61,17 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        // Cache do shell da aplicação — API sempre vai para a rede
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
             urlPattern: /^\/api\//,
-            handler: 'NetworkOnly', // nunca usa cache para chamadas de API
+            handler: 'NetworkOnly',
           },
         ],
-        // Injeta handler de Web Push no service worker
         importScripts: ['/sw-push.js'],
       },
     }),
+    firebaseSwPlugin(),
   ],
   server: {
     port: 5173,

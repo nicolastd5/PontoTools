@@ -5,12 +5,12 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import api from '../services/api';
 
 const FIREBASE_CONFIG = {
-  apiKey:            'AIzaSyC6ZcD2wEE5dvQLBpgEG8jLKCBY7H67zmQ',
-  authDomain:        'servicestools-57118.firebaseapp.com',
-  projectId:         'servicestools-57118',
-  storageBucket:     'servicestools-57118.firebasestorage.app',
-  messagingSenderId: '88769605854',
-  appId:             '1:88769605854:web:9febc845d5ee487cfad24f',
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;

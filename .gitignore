@@ -18,6 +18,7 @@ Thumbs.db
 mobile/node_modules
 mobile/android/.gradle
 mobile/android/app/build
+debug.keystore
 
 # Firebase credentials
 backend/firebase-service-account.json
