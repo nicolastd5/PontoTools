@@ -1,11 +1,16 @@
 import { Outlet, NavLink }  from 'react-router-dom';
 import { useQuery }         from '@tanstack/react-query';
 import { useTheme }         from '../../contexts/ThemeContext';
+import { useAuth }          from '../../contexts/AuthContext';
+import { useFcmWeb }        from '../../hooks/useFcmWeb';
 import { Clock, List, Wrench, Bell, User } from 'lucide-react';
 import api from '../../services/api';
 
 export default function EmployeeLayout() {
   const { theme } = useTheme();
+  const { user } = useAuth();
+
+  useFcmWeb(!!user);
 
   const { data: notifData } = useQuery({
     queryKey: ['my-notifications'],
