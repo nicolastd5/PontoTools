@@ -22,8 +22,14 @@ if (hasFirebaseConfig) {
   const messaging = firebase.messaging();
 
   messaging.onBackgroundMessage((payload) => {
-    const title = payload.notification?.title || 'Gerenciador de Serviços';
-    const body = payload.notification?.body || '';
+    // Quando o payload já vem com `notification`, o navegador pode exibir automaticamente.
+    // Evita duplicidade ao não chamar showNotification duas vezes.
+    if (payload?.notification?.title || payload?.notification?.body) {
+      return;
+    }
+
+    const title = payload.data?.title || 'Gerenciador de Serviços';
+    const body = payload.data?.body || '';
 
     self.registration.showNotification(title, {
       body,
