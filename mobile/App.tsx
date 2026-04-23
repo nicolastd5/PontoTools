@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { AuthProvider, useAuth }   from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
+import { GpsProvider }             from './src/contexts/GpsContext';
 import LoginScreen             from './src/screens/LoginScreen';
 import ForgotPasswordScreen    from './src/screens/ForgotPasswordScreen';
 import DashboardScreen         from './src/screens/DashboardScreen';
@@ -138,14 +139,16 @@ function AppContent() {
   const sharedProps = { onNavigate: setScreen, unreadCount, servicesOnly };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
-      {screen === 'dashboard'     && <DashboardScreen     {...sharedProps} />}
-      {screen === 'history'       && <HistoryScreen       {...sharedProps} />}
-      {screen === 'services'      && <ServicesScreen      {...sharedProps} />}
-      {screen === 'notifications' && <NotificationsScreen {...sharedProps} onUnreadChange={setUnreadCount} />}
-      {screen === 'profile'       && <ProfileScreen       {...sharedProps} />}
-    </View>
+    <GpsProvider>
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+        <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
+        {screen === 'dashboard'     && <DashboardScreen     {...sharedProps} />}
+        {screen === 'history'       && <HistoryScreen       {...sharedProps} />}
+        {screen === 'services'      && <ServicesScreen      {...sharedProps} />}
+        {screen === 'notifications' && <NotificationsScreen {...sharedProps} onUnreadChange={setUnreadCount} />}
+        {screen === 'profile'       && <ProfileScreen       {...sharedProps} />}
+      </View>
+    </GpsProvider>
   );
 }
 
