@@ -156,11 +156,12 @@ export default function ServicesScreen({
     setPendingPhase(phase);
   }, []);
 
-  // Dispara a câmera após todos os modais fecharem
+  // Dispara a câmera após todos os modais fecharem.
+  // pendingPhase !== null mantém o Modal de detalhe oculto enquanto a câmera está ativa;
+  // só é zerado depois que launchCamera retorna para não reabrir o Modal prematuramente.
   React.useEffect(() => {
     if (pendingPhase === null) return;
     const phase = pendingPhase;
-    setPendingPhase(null);
     const timer = setTimeout(async () => {
       const options: CameraOptions = {
         mediaType: 'photo',
@@ -171,6 +172,7 @@ export default function ServicesScreen({
         saveToPhotos: false,
       };
       const result = await launchCamera(options);
+      setPendingPhase(null);
       if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) return;
       const uri = result.assets[0].uri!;
       setSessionPhase(phase);
