@@ -99,6 +99,7 @@ export default function ServicesScreen({
   const [services, setServices]     = useState<ServiceOrder[]>([]);
   const [loading, setLoading]       = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab]               = useState<'active' | 'history'>('active');
   const [detail, setDetail]         = useState<ServiceOrder | null>(null);
   const [posto, setPosto]           = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -301,8 +302,33 @@ export default function ServicesScreen({
         ) : null}
       </View>
 
+      {/* Tabs Ativos × Histórico */}
+      <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 8, marginBottom: 4, backgroundColor: theme.elevated, borderRadius: 10, padding: 4, borderWidth: 1, borderColor: theme.border }}>
+        {([
+          { key: 'active',  label: 'Ativos'    },
+          { key: 'history', label: 'Histórico' },
+        ] as const).map((t) => (
+          <TouchableOpacity
+            key={t.key}
+            onPress={() => setTab(t.key)}
+            style={{ flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8, backgroundColor: tab === t.key ? theme.accent : 'transparent' }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: tab === t.key ? '#fff' : theme.textSecondary }}>{t.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
-        data={services}
+        data={(() => {
+          const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+          const closedStatus = ['done', 'done_with_issues', 'problem'];
+          if (tab === 'active') {
+            return services.filter((s) => !closedStatus.includes(s.status));
+          }
+          return services
+            .filter((s) => closedStatus.includes(s.status) && s.finished_at && new Date(s.finished_at).getTime() >= cutoff)
+            .sort((a, b) => new Date(b.finished_at!).getTime() - new Date(a.finished_at!).getTime());
+        })()}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ padding: 16 }}
         refreshControl={
@@ -335,14 +361,21 @@ export default function ServicesScreen({
             <View style={styles.cardMetaRow}>
               <Text style={[styles.cardMeta, { color: theme.textMuted }]}>📅 {fmtDate(item.scheduled_date)}</Text>
               {item.due_time ? <Text style={[styles.cardMeta, { color: theme.textMuted }]}>⏰ até {item.due_time.slice(0, 5)}</Text> : null}
+              {tab === 'history' && item.finished_at ? (
+                <Text style={[styles.cardMeta, { color: theme.textMuted }]}>✔ {new Date(item.finished_at).toLocaleDateString('pt-BR')}</Text>
+              ) : null}
             </View>
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           loading ? null : (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ fontSize: 40, marginBottom: 12 }}>✅</Text>
-              <Text style={{ color: theme.textMuted, fontSize: 15 }}>Nenhum serviço atribuído a você.</Text>
+              <Text style={{ fontSize: 40, marginBottom: 12 }}>{tab === 'active' ? '✅' : '🗂️'}</Text>
+              <Text style={{ color: theme.textMuted, fontSize: 15, textAlign: 'center', paddingHorizontal: 24 }}>
+                {tab === 'active'
+                  ? 'Nenhum serviço atribuído a você.'
+                  : 'Nenhum serviço concluído nos últimos 7 dias.'}
+              </Text>
             </View>
           )
         }

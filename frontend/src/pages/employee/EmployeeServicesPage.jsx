@@ -67,6 +67,7 @@ export default function EmployeeServicesPage() {
   const [detail, setDetail]           = useState(null);
   const [photoSrc, setPhotoSrc]       = useState({});
   const [cameraPhase, setCameraPhase] = useState(null);
+  const [tab, setTab]                 = useState('active');
   const [problemModal, setProblemModal]   = useState(false);
   const [problemText, setProblemText]     = useState('');
   const [issuesModal, setIssuesModal]     = useState(false);
@@ -235,17 +236,57 @@ export default function EmployeeServicesPage() {
         ) : null}
       </div>
 
-      {/* Lista de serviços */}
-      {isLoading ? (
-        <p style={{ color: theme.textMuted, padding: 24 }}>Carregando...</p>
-      ) : services.length === 0 ? (
-        <div style={{ background: theme.surface, borderRadius: 12, border: `1px solid ${theme.border}`, padding: '48px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-          <p style={{ color: theme.textMuted }}>Nenhum serviço atribuído a você.</p>
-        </div>
-      ) : (
-        <div>
-          {services.map((sv, idx) => (
+      {/* Tabs Ativos × Histórico */}
+      <div style={{
+        display: 'flex', gap: 4, padding: 4, marginBottom: 12,
+        background: theme.elevated, borderRadius: 10, border: `1px solid ${theme.border}`,
+      }}>
+        {[
+          { key: 'active',  label: 'Ativos'    },
+          { key: 'history', label: 'Histórico' },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            style={{
+              flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              background: tab === t.key ? theme.accent  : 'transparent',
+              color:      tab === t.key ? '#fff'        : theme.textSecondary,
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {(() => {
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const closedStatus = ['done', 'done_with_issues', 'problem'];
+        const filtered = tab === 'active'
+          ? services.filter((s) => !closedStatus.includes(s.status))
+          : services
+              .filter((s) => closedStatus.includes(s.status) && s.finished_at && new Date(s.finished_at).getTime() >= cutoff)
+              .sort((a, b) => new Date(b.finished_at).getTime() - new Date(a.finished_at).getTime());
+
+        if (isLoading) {
+          return <p style={{ color: theme.textMuted, padding: 24 }}>Carregando...</p>;
+        }
+        if (filtered.length === 0) {
+          return (
+            <div style={{ background: theme.surface, borderRadius: 12, border: `1px solid ${theme.border}`, padding: '48px 24px', textAlign: 'center' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>{tab === 'active' ? '✅' : '🗂️'}</div>
+              <p style={{ color: theme.textMuted }}>
+                {tab === 'active'
+                  ? 'Nenhum serviço atribuído a você.'
+                  : 'Nenhum serviço concluído nos últimos 7 dias.'}
+              </p>
+            </div>
+          );
+        }
+        return (
+          <div>
+            {filtered.map((sv, idx) => (
             <div key={sv.id} style={card} onClick={() => openDetail(sv)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                 <span style={{ fontSize: 15, fontWeight: 700, color: theme.textPrimary, flex: 1, marginRight: 12 }}>
@@ -265,14 +306,18 @@ export default function EmployeeServicesPage() {
                   {sv.description.slice(0, 80)}{sv.description.length > 80 ? '…' : ''}
                 </p>
               )}
-              <div style={{ display: 'flex', gap: 16, fontSize: 12, color: theme.textMuted }}>
+              <div style={{ display: 'flex', gap: 16, fontSize: 12, color: theme.textMuted, flexWrap: 'wrap' }}>
                 <span>📅 {fmtDate(sv.scheduled_date)}</span>
                 {sv.due_time && <span>⏰ até {sv.due_time.slice(0, 5)}</span>}
+                {tab === 'history' && sv.finished_at && (
+                  <span>✔ {new Date(sv.finished_at).toLocaleDateString('pt-BR')}</span>
+                )}
               </div>
             </div>
           ))}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* Modal de detalhe */}
       {detail && !cameraPhase && (
