@@ -78,6 +78,7 @@ export default function AdminServicesPage() {
   const [tab, setTab] = useState('services');
 
   // ── Services state ──
+  const [svcTab, setSvcTab]             = useState('pending');
   const [filters, setFilters]           = useState({ status: '', employeeId: '' });
   const [selected, setSelected]         = useState(new Set());
   const [modal, setModal]               = useState(false);
@@ -314,6 +315,10 @@ export default function AdminServicesPage() {
     return formatInTimeZone(new Date(dt), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
   }
 
+  const pendingServices = services.filter((sv) => sv.status === 'pending');
+  const othersServices  = services.filter((sv) => sv.status !== 'pending');
+  const displayedServices = svcTab === 'pending' ? pendingServices : othersServices;
+
   const allPhotos    = detailModal ? [...(detailModal.photos || [])] : [];
   const beforePhotos = allPhotos.filter((p) => p.phase === 'before');
   const afterPhotos  = allPhotos.filter((p) => p.phase === 'after');
@@ -340,10 +345,46 @@ export default function AdminServicesPage() {
       {/* ── SERVICES TAB ── */}
       {tab === 'services' && (
         <>
+          {/* Sub-abas Pendentes | Demais */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+            {[
+              { key: 'pending', label: 'Pendentes', count: pendingServices.length },
+              { key: 'others',  label: 'Demais',    count: othersServices.length  },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => { setSvcTab(t.key); if (t.key === 'others') setFilters((p) => ({ ...p, status: p.status === 'pending' ? '' : p.status })); }}
+                style={{
+                  padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                  border: '1.5px solid',
+                  borderColor: svcTab === t.key ? '#1d4ed8' : '#e2e8f0',
+                  borderRadius: 8,
+                  background:   svcTab === t.key ? '#eff6ff' : '#f8fafc',
+                  color:        svcTab === t.key ? '#1d4ed8' : '#64748b',
+                  display: 'flex', alignItems: 'center', gap: 7,
+                }}
+              >
+                {t.label}
+                <span style={{
+                  minWidth: 20, height: 20, borderRadius: 999,
+                  background: svcTab === t.key ? '#1d4ed8' : '#e2e8f0',
+                  color:      svcTab === t.key ? '#fff'    : '#64748b',
+                  fontSize: 11, fontWeight: 800,
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 5px',
+                }}>
+                  {t.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div style={s.filters}>
             <select value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} style={s.select}>
               <option value="">Todos os status</option>
-              {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {Object.entries(STATUS_LABEL)
+                .filter(([k]) => svcTab === 'others' ? k !== 'pending' : k === 'pending')
+                .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
             <select value={filters.employeeId} onChange={(e) => setFilters((p) => ({ ...p, employeeId: e.target.value }))} style={s.select}>
               <option value="">Todos os funcionários</option>
@@ -378,16 +419,16 @@ export default function AdminServicesPage() {
           <div style={s.card}>
             {svcLoading ? (
               <p style={s.empty}>Carregando...</p>
-            ) : services.length === 0 ? (
-              <p style={s.empty}>Nenhum serviço encontrado.</p>
+            ) : displayedServices.length === 0 ? (
+              <p style={s.empty}>{svcTab === 'pending' ? 'Nenhum serviço pendente.' : 'Nenhum serviço encontrado.'}</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <th style={{ ...s.th, width: 36 }}>
                       <input type="checkbox"
-                        checked={selected.size === services.length && services.length > 0}
-                        onChange={(e) => setSelected(e.target.checked ? new Set(services.map((sv) => sv.id)) : new Set())}
+                        checked={selected.size === displayedServices.length && displayedServices.length > 0}
+                        onChange={(e) => setSelected(e.target.checked ? new Set(displayedServices.map((sv) => sv.id)) : new Set())}
                       />
                     </th>
                     <th style={{ ...s.th, width: 36 }}>#</th>
@@ -397,7 +438,7 @@ export default function AdminServicesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {services.map((sv, idx) => (
+                  {displayedServices.map((sv, idx) => (
                     <tr key={sv.id} style={{ borderBottom: '1px solid #f8fafc', background: selected.has(sv.id) ? '#f0f9ff' : undefined }}>
                       <td style={{ ...s.td, width: 36 }}>
                         <input type="checkbox" checked={selected.has(sv.id)}
