@@ -339,7 +339,7 @@ export default function AdminServicesPage() {
       {/* Tabs */}
       <div style={s.tabs}>
         <button onClick={() => setTab('services')} style={tab === 'services' ? s.tabActive : s.tab}>Serviços</button>
-        <button onClick={() => setTab('templates')} style={tab === 'templates' ? s.tabActive : s.tab}>Templates recorrentes</button>
+        <button onClick={() => setTab('templates')} style={tab === 'templates' ? s.tabActive : s.tab}>Serviços recorrentes</button>
       </div>
 
       {/* ── SERVICES TAB ── */}
@@ -925,7 +925,7 @@ const overlay    = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
 const modalCard  = { background: '#fff', borderRadius: 12, padding: '28px 24px', width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' };
 const modalTitle = { fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 16, marginTop: 0 };
 const inputStyle = { padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, color: '#1e293b', outline: 'none', width: '100%', boxSizing: 'border-box' };
-const tplTd      = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', verticalAlign: 'middle' };
+const tplTd      = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', verticalAlign: 'middle', color: '#374151' };
 
 const s = {
   header:     { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
