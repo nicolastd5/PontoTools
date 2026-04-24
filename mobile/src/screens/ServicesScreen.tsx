@@ -569,8 +569,7 @@ export default function ServicesScreen({
 
                     {canIssues && (
                       <TouchableOpacity
-                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: '#ea580c', opacity: secsLeft > 0 ? 0.4 : 1 }}
-                        disabled={secsLeft > 0}
+                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: '#ea580c' }}
                         onPress={() => setIssuesModal(true)}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>⚠️ Concluir com Ressalvas</Text>

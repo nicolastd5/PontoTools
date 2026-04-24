@@ -451,8 +451,7 @@ export default function EmployeeServicesPage() {
                 {canIssues && (
                   <button
                     onClick={() => setIssuesModal(true)}
-                    disabled={secsLeft > 0}
-                    style={{ ...primaryBtn, background: '#ea580c', opacity: secsLeft > 0 ? 0.45 : 1, cursor: secsLeft > 0 ? 'not-allowed' : 'pointer' }}>
+                    style={{ ...primaryBtn, background: '#ea580c' }}>
                     ⚠️ Concluir com Ressalvas
                   </button>
                 )}
