@@ -47,7 +47,7 @@ async function sendFcm(employeeId, title, body) {
       },
       android: {
         priority: 'high',
-        notification: { sound: 'default' },
+        notification: { sound: 'default', channelId: 'default' },
       },
       webpush: {
         headers: {
