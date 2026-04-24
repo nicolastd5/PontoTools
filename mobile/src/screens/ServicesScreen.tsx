@@ -221,7 +221,14 @@ export default function ServicesScreen({
       loadServices(false);
       await reloadDetail(detail.id);
     } catch (err: any) {
-      Alert.alert('Erro', err?.response?.data?.error || 'Não foi possível enviar.');
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.error ||
+        (status === 413 ? 'Foto grande demais para envio.' :
+         status === 401 ? 'Sessão expirada, faça login novamente.' :
+         err?.code === 'ECONNABORTED' ? 'Tempo esgotado — verifique sua conexão.' :
+         err?.message || 'Não foi possível enviar.');
+      Alert.alert('Erro', msg);
     } finally {
       setSubmitting(false);
     }

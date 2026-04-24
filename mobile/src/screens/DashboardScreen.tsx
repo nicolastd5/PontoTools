@@ -146,9 +146,19 @@ export default function DashboardScreen({
       loadToday();
       Alert.alert('Registro efetuado!', `${LABELS[clockType]} às ${formatInTimeZone(new Date(res.data.clockedAtUtc), tz, 'HH:mm:ss')}`);
     } catch (err: any) {
-      const data = err?.response?.data;
-      if (data?.blocked) Alert.alert('Bloqueado', `Você está a ${Math.round(data.distanceMeters)}m da unidade.`);
-      else Alert.alert('Erro', data?.error || 'Erro ao registrar.');
+      const data   = err?.response?.data;
+      const status = err?.response?.status;
+      if (data?.blocked) {
+        Alert.alert('Bloqueado', `Você está a ${Math.round(data.distanceMeters)}m da unidade.`);
+      } else {
+        const msg =
+          data?.error ||
+          (status === 413 ? 'Foto grande demais para envio.' :
+           status === 401 ? 'Sessão expirada, faça login novamente.' :
+           err?.code === 'ECONNABORTED' ? 'Tempo esgotado — verifique sua conexão.' :
+           err?.message || 'Erro ao registrar.');
+        Alert.alert('Erro', msg);
+      }
     } finally { setLoading(false); setGpsSnapshot(null); }
   }
 

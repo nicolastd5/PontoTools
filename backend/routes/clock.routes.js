@@ -21,7 +21,7 @@ function isValidTimeZone(timeZone) {
 // O photoStorage.service decide onde gravar
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits:  { fileSize: 15 * 1024 * 1024 }, // 15MB
   fileFilter: (req, file, cb) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
       return cb(new Error('Tipo de arquivo não permitido. Use JPEG ou PNG.'));
