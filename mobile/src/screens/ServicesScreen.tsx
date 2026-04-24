@@ -1,5 +1,5 @@
 // mobile/src/screens/ServicesScreen.tsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Modal, ScrollView, Alert, ActivityIndicator,
@@ -116,6 +116,25 @@ export default function ServicesScreen({
   const [problemText, setProblemText]   = useState('');
   const [issuesModal, setIssuesModal]   = useState(false);
   const [issuesText, setIssuesText]     = useState('');
+  const [now, setNow]                   = useState(() => Date.now());
+  const timerRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (detail?.status === 'in_progress' && detail.started_at) {
+      const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
+      if (Date.now() < unlock) {
+        timerRef.current = setInterval(() => {
+          const remaining = unlock - Date.now();
+          if (remaining <= 0) {
+            clearInterval(timerRef.current!);
+            timerRef.current = null;
+          }
+          setNow(Date.now());
+        }, 1000);
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+      }
+    }
+  }, [detail?.id, detail?.status, detail?.started_at]);
 
   const loadServices = useCallback(async (reset = false) => {
     if (!reset) setLoading(true);
@@ -269,6 +288,13 @@ export default function ServicesScreen({
   const isActive   = detail && (detail.status === 'pending' || detail.status === 'in_progress');
   const canIssues  = detail?.status === 'in_progress';
   const canProblem = detail && (detail.status === 'in_progress' || detail.status === 'pending');
+
+  const secsLeft = (() => {
+    if (!detail?.started_at || detail.status !== 'in_progress') return 0;
+    const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
+    return Math.max(0, Math.ceil((unlock - now) / 1000));
+  })();
+  const timerLabel = `${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}`;
 
   const phaseLabel = sessionPhase === 'before' ? 'Foto de Início'
     : sessionPhase === 'after' ? 'Foto de Conclusão'
@@ -523,10 +549,18 @@ export default function ServicesScreen({
                       </TouchableOpacity>
                     )}
 
+                    {detail.status === 'in_progress' && secsLeft > 0 && (
+                      <View style={{ borderRadius: 10, padding: 14, backgroundColor: theme.warning + '22', borderWidth: 1, borderColor: theme.warning + '55', alignItems: 'center' }}>
+                        <Text style={{ color: theme.warning, fontWeight: '700', fontSize: 14 }}>⏳ Aguarde para concluir</Text>
+                        <Text style={{ color: theme.warning, fontSize: 24, fontWeight: '800', marginTop: 4, fontVariant: ['tabular-nums'] }}>{timerLabel}</Text>
+                        <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 2 }}>Mínimo 5 min após o início</Text>
+                      </View>
+                    )}
+
                     {detail.status === 'in_progress' && (
                       <TouchableOpacity
-                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.success, opacity: (gpsStatus === 'denied' || gpsStatus === 'unavailable') ? 0.4 : 1 }}
-                        disabled={gpsStatus === 'denied' || gpsStatus === 'unavailable'}
+                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: theme.success, opacity: (gpsStatus === 'denied' || gpsStatus === 'unavailable' || secsLeft > 0) ? 0.4 : 1 }}
+                        disabled={gpsStatus === 'denied' || gpsStatus === 'unavailable' || secsLeft > 0}
                         onPress={() => { setSessionUris([]); openCamera('after'); }}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>📷 Enviar Foto de Conclusão</Text>
@@ -535,7 +569,8 @@ export default function ServicesScreen({
 
                     {canIssues && (
                       <TouchableOpacity
-                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: '#ea580c' }}
+                        style={{ borderRadius: 10, padding: 14, alignItems: 'center', backgroundColor: '#ea580c', opacity: secsLeft > 0 ? 0.4 : 1 }}
+                        disabled={secsLeft > 0}
                         onPress={() => setIssuesModal(true)}
                       >
                         <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>⚠️ Concluir com Ressalvas</Text>

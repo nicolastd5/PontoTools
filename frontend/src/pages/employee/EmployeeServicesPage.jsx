@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -74,6 +74,32 @@ export default function EmployeeServicesPage() {
   const [issuesText, setIssuesText]       = useState('');
   const [lightbox, setLightbox]           = useState(null);
   const [posto, setPosto]                 = useState('');
+  const [now, setNow]                     = useState(() => Date.now());
+  const timerRef                          = useRef(null);
+
+  useEffect(() => {
+    if (detail?.status === 'in_progress' && detail.started_at) {
+      const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
+      if (Date.now() < unlock) {
+        timerRef.current = setInterval(() => {
+          const remaining = unlock - Date.now();
+          if (remaining <= 0) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+          setNow(Date.now());
+        }, 1000);
+        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+      }
+    }
+  }, [detail?.id, detail?.status, detail?.started_at]);
+
+  const secsLeft = (() => {
+    if (!detail?.started_at || detail.status !== 'in_progress') return 0;
+    const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
+    return Math.max(0, Math.ceil((unlock - now) / 1000));
+  })();
+  const timerLabel = `${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}`;
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status, problem_description, issue_description }) =>
@@ -396,16 +422,37 @@ export default function EmployeeServicesPage() {
                   </button>
                 )}
 
+                {detail.status === 'in_progress' && secsLeft > 0 && (
+                  <div style={{
+                    padding: '14px 16px', borderRadius: 10, textAlign: 'center',
+                    background: theme.warning + '22', border: `1px solid ${theme.warning}55`,
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: theme.warning, marginBottom: 4 }}>
+                      ⏳ Aguarde para concluir
+                    </div>
+                    <div style={{ fontSize: 32, fontWeight: 800, color: theme.warning, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+                      {timerLabel}
+                    </div>
+                    <div style={{ fontSize: 12, color: theme.textMuted, marginTop: 4 }}>
+                      Mínimo 5 min após o início
+                    </div>
+                  </div>
+                )}
+
                 {detail.status === 'in_progress' && (
-                  <button onClick={() => setCameraPhase('after')}
-                    style={{ ...primaryBtn, background: theme.success }}>
+                  <button
+                    onClick={() => setCameraPhase('after')}
+                    disabled={secsLeft > 0}
+                    style={{ ...primaryBtn, background: theme.success, opacity: secsLeft > 0 ? 0.45 : 1, cursor: secsLeft > 0 ? 'not-allowed' : 'pointer' }}>
                     📷 Enviar Foto de Conclusão
                   </button>
                 )}
 
                 {canIssues && (
-                  <button onClick={() => setIssuesModal(true)}
-                    style={{ ...primaryBtn, background: '#ea580c' }}>
+                  <button
+                    onClick={() => setIssuesModal(true)}
+                    disabled={secsLeft > 0}
+                    style={{ ...primaryBtn, background: '#ea580c', opacity: secsLeft > 0 ? 0.45 : 1, cursor: secsLeft > 0 ? 'not-allowed' : 'pointer' }}>
                     ⚠️ Concluir com Ressalvas
                   </button>
                 )}
