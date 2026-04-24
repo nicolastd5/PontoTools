@@ -68,6 +68,17 @@ export default function EmployeeNotificationsPage() {
     },
   });
 
+  const deleteReadMutation = useMutation({
+    mutationFn: () => api.delete('/notifications/read'),
+    onSuccess: () => {
+      success('Notificações lidas excluídas.');
+      queryClient.invalidateQueries(['my-notifications']);
+    },
+    onError: () => error('Erro ao excluir notificações.'),
+  });
+
+  const hasRead = notifications.some((n) => n.read);
+
   async function enablePush() {
     if (!pushSupported) return;
 
@@ -103,25 +114,39 @@ export default function EmployeeNotificationsPage() {
         )}
       </div>
 
-      {unread > 0 && (
-        <button
-          onClick={() => markAllMutation.mutate()}
-          disabled={markAllMutation.isLoading}
-          style={{
-            width: '100%',
-            padding: '10px',
-            background: theme.accent + '18',
-            border: `1px solid ${theme.accent}44`,
-            borderRadius: 10,
-            color: theme.accent,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-            marginBottom: 16,
-          }}
-        >
-          Marcar todas como lidas
-        </button>
+      {(unread > 0 || hasRead) && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {unread > 0 && (
+            <button
+              onClick={() => markAllMutation.mutate()}
+              disabled={markAllMutation.isLoading}
+              style={{
+                flex: 1, padding: '10px',
+                background: theme.accent + '18',
+                border: `1px solid ${theme.accent}44`,
+                borderRadius: 10, color: theme.accent,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Marcar todas como lidas
+            </button>
+          )}
+          {hasRead && (
+            <button
+              onClick={() => deleteReadMutation.mutate()}
+              disabled={deleteReadMutation.isLoading}
+              style={{
+                flex: 1, padding: '10px',
+                background: theme.danger + '18',
+                border: `1px solid ${theme.danger}44`,
+                borderRadius: 10, color: theme.danger,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Excluir lidas
+            </button>
+          )}
+        </div>
       )}
 
       {pushSupported && !pushGranted && (

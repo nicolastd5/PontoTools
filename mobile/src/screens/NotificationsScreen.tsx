@@ -78,6 +78,28 @@ export default function NotificationsScreen({
     } catch {}
   }, [onUnreadChange]);
 
+  const deleteRead = useCallback(async () => {
+    Alert.alert(
+      'Excluir notificações lidas',
+      'Deseja remover todas as notificações já lidas?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete('/notifications/read');
+              setNotifications((prev) => prev.filter((n) => !n.read));
+            } catch {
+              Alert.alert('Erro', 'Não foi possível excluir as notificações.');
+            }
+          },
+        },
+      ],
+    );
+  }, []);
+
   const TYPE_ICON: Record<string, { icon: string; bg: string }> = {
     service_assigned: { icon: '🔧', bg: theme.accent + '33' },
     service_delay:    { icon: '⚠️', bg: theme.warning + '33' },
@@ -85,14 +107,27 @@ export default function NotificationsScreen({
     default:          { icon: '📢', bg: theme.textMuted + '26' },
   };
 
+  const hasRead = notifications.some((n) => n.read);
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      {unreadCount > 0 && (
-        <TouchableOpacity
-          style={{ backgroundColor: theme.accent + '18', borderWidth: 1, borderColor: theme.accent + '44', margin: 12, marginBottom: 0, borderRadius: 10, padding: 12, alignItems: 'center' }}
-          onPress={markAllRead}>
-          <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 13 }}>Marcar todas como lidas ({unreadCount})</Text>
-        </TouchableOpacity>
+      {(unreadCount > 0 || hasRead) && (
+        <View style={{ flexDirection: 'row', margin: 12, marginBottom: 0, gap: 8 }}>
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: theme.accent + '18', borderWidth: 1, borderColor: theme.accent + '44', borderRadius: 10, padding: 12, alignItems: 'center' }}
+              onPress={markAllRead}>
+              <Text style={{ color: theme.accent, fontWeight: '700', fontSize: 13 }}>Marcar todas como lidas</Text>
+            </TouchableOpacity>
+          )}
+          {hasRead && (
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: theme.danger + '18', borderWidth: 1, borderColor: theme.danger + '44', borderRadius: 10, padding: 12, alignItems: 'center' }}
+              onPress={deleteRead}>
+              <Text style={{ color: theme.danger, fontWeight: '700', fontSize: 13 }}>Excluir lidas</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
 
       <FlatList
