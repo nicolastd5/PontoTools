@@ -68,13 +68,19 @@ export function useGeolocation(unit) {
 
     function startWatch() {
       if (cancelled) return;
-      // Posição imediata com cache tolerante (até 10s de idade) para resposta rápida
+      // 1) Fix instantâneo por rede (baixa precisão) — aparece em ~1-2s
       navigator.geolocation.getCurrentPosition(
         (pos) => { if (!cancelled) handleSuccess(pos); },
-        () => {}, // silencia erro — o watch vai tentar novamente
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
+        () => {},
+        { enableHighAccuracy: false, maximumAge: 60000, timeout: 8000 }
       );
-      // Watch contínuo para atualizações
+      // 2) Em paralelo, fix preciso por GPS — sobrescreve o anterior quando chegar
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { if (!cancelled) handleSuccess(pos); },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      );
+      // 3) Watch contínuo para atualizações em tempo real
       watchIdRef.current = navigator.geolocation.watchPosition(
         handleSuccess,
         handleError,

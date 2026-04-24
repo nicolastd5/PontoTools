@@ -17,27 +17,36 @@ export function useReverseGeocode(coords: Coords | null) {
 
     lastFetchRef.current = { lat, lon };
     let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt-BR`,
-      { headers: { 'User-Agent': 'PontoTools/1.0' } },
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        const a = data.address ?? {};
-        const parts = [
-          a.road ?? a.pedestrian ?? a.footway,
-          a.house_number,
-          a.suburb ?? a.neighbourhood ?? a.quarter,
-          a.city ?? a.town ?? a.village ?? a.municipality,
-          a.state,
-        ].filter(Boolean);
-        setAddress(parts.length ? parts.join(', ') : data.display_name ?? null);
-      })
-      .catch(() => { if (!cancelled) setAddress(null); });
+    const doFetch = (attempt: number): Promise<void> =>
+      fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt-BR&zoom=18`,
+        { signal: controller.signal, headers: { Accept: 'application/json' } },
+      )
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          const a = data.address ?? {};
+          const parts = [
+            a.road ?? a.pedestrian ?? a.footway,
+            a.house_number,
+            a.suburb ?? a.neighbourhood ?? a.quarter,
+            a.city ?? a.town ?? a.village ?? a.municipality,
+            a.state,
+          ].filter(Boolean);
+          setAddress(parts.length ? parts.join(', ') : data.display_name ?? null);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          if (attempt < 1) return doFetch(attempt + 1);
+          setAddress(null);
+        });
 
-    return () => { cancelled = true; };
+    doFetch(0).finally(() => clearTimeout(timeoutId));
+
+    return () => { cancelled = true; clearTimeout(timeoutId); controller.abort(); };
   }, [coords?.latitude, coords?.longitude]);
 
   return address;

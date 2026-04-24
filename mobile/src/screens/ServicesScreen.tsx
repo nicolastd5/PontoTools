@@ -204,6 +204,7 @@ export default function ServicesScreen({
         }
         await api.post(`/services/${detail.id}/photos`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 60000,
         });
       }
 

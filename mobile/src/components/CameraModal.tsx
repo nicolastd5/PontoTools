@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform,
+  ActivityIndicator, Platform, Alert,
 } from 'react-native';
 import {
   Camera,
@@ -34,13 +34,15 @@ export default function CameraModal({ visible, onCapture, onCancel, facing: init
     setCapturing(true);
     try {
       const photo = await cameraRef.current.takePhoto({
-        qualityPrioritization: 'balanced',
+        qualityPrioritization: 'speed',
         flash: 'off',
+        enableShutterSound: false,
       });
-      const uri = Platform.OS === 'android' ? `file://${photo.path}` : photo.path;
+      const rawPath = photo.path.startsWith('file://') ? photo.path : `file://${photo.path}`;
+      const uri = Platform.OS === 'android' ? rawPath : photo.path;
       onCapture(uri);
-    } catch {
-      // silently ignore capture errors
+    } catch (err: any) {
+      Alert.alert('Erro ao capturar foto', err?.message || 'Tente novamente.');
     } finally {
       setCapturing(false);
     }

@@ -138,7 +138,10 @@ export default function DashboardScreen({
         const photoBlob = await (await fetch(dataUri)).blob();
         formData.append('photo', photoBlob, 'photo.jpg');
       }
-      const res = await api.post('/clock', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const res = await api.post('/clock', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000,
+      });
       setTodayRecords((prev) => [...prev, { id: res.data.id, clock_type: res.data.clockType, clocked_at_utc: res.data.clockedAtUtc, timezone: tz, is_inside_zone: res.data.isInsideZone }]);
       loadToday();
       Alert.alert('Registro efetuado!', `${LABELS[clockType]} às ${formatInTimeZone(new Date(res.data.clockedAtUtc), tz, 'HH:mm:ss')}`);

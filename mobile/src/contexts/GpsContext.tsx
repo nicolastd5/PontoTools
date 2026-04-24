@@ -31,14 +31,21 @@ export function GpsProvider({ children }: { children: React.ReactNode }) {
       setCoords(null);
     }
 
-    // Fix rápido: aceita posição em cache de até 30s para mostrar GPS imediatamente
+    // 1) Fix instantâneo por rede (baixa precisão) — aparece em ~1-2s
     Geolocation.getCurrentPosition(
       onPosition,
       () => {},
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 },
     );
 
-    // Watch contínuo para atualizações em tempo real
+    // 2) Em paralelo, fix preciso por GPS — sobrescreve o anterior quando chegar
+    Geolocation.getCurrentPosition(
+      onPosition,
+      () => {},
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
+
+    // 3) Watch contínuo para atualizações em tempo real
     watchIdRef.current = Geolocation.watchPosition(
       onPosition,
       onError,
