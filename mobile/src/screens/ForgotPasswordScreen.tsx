@@ -34,7 +34,7 @@ export default function ForgotPasswordScreen({ onBack }: Props) {
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.card}>
         <View style={styles.logoBox}>
-          <Text style={styles.logoLetter}>GS</Text>
+          <Text style={styles.logoLetter}>P</Text>
         </View>
         <Text style={styles.title}>Recuperar senha</Text>
         <Text style={styles.subtitle}>
@@ -91,19 +91,19 @@ export default function ForgotPasswordScreen({ onBack }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: '#f1f5f9', justifyContent: 'center', padding: 24 },
-  card:        { backgroundColor: '#fff', borderRadius: 16, padding: 28, elevation: 4 },
-  logoBox:     { width: 56, height: 56, borderRadius: 14, backgroundColor: '#1d4ed8', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 16 },
-  logoLetter:  { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  title:       { fontSize: 22, fontWeight: 'bold', color: '#0f172a', textAlign: 'center' },
-  subtitle:    { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24, marginTop: 4, lineHeight: 18 },
-  input:       { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 10, padding: 14, fontSize: 15, color: '#0f172a', marginBottom: 16 },
-  btn:         { backgroundColor: '#1d4ed8', borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 4 },
+  root:        { flex: 1, backgroundColor: '#4f46e5', justifyContent: 'center', padding: 20 },
+  card:        { backgroundColor: '#fff', borderRadius: 20, padding: 32, elevation: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.25, shadowRadius: 40 },
+  logoBox:     { width: 52, height: 52, borderRadius: 14, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 14 },
+  logoLetter:  { color: '#fff', fontSize: 22, fontWeight: '800' },
+  title:       { fontSize: 22, fontWeight: '700', color: '#09090b', textAlign: 'center', letterSpacing: -0.5 },
+  subtitle:    { fontSize: 13, color: '#71717a', textAlign: 'center', marginBottom: 24, marginTop: 4, lineHeight: 18 },
+  input:       { borderWidth: 1.5, borderColor: '#e4e4e7', borderRadius: 8, padding: 12, fontSize: 14, color: '#09090b', backgroundColor: '#fafafa', marginBottom: 16 },
+  btn:         { backgroundColor: '#09090b', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 4 },
   btnDisabled: { opacity: 0.6 },
-  btnText:     { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  btnText:     { color: '#fff', fontWeight: '700', fontSize: 15 },
   backBtn:     { marginTop: 16, alignItems: 'center' },
-  backText:    { color: '#1d4ed8', fontSize: 14, fontWeight: '500' },
+  backText:    { color: '#4f46e5', fontSize: 13, fontWeight: '500' },
   successBox:  { alignItems: 'center' },
-  successIcon: { fontSize: 36, color: '#16a34a', marginBottom: 12 },
+  successIcon: { fontSize: 36, color: '#10b981', marginBottom: 12 },
   successText: { fontSize: 14, color: '#374151', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
 });

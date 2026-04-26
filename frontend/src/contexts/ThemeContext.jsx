@@ -10,9 +10,11 @@ export function ThemeProvider({ children }) {
   const theme = isDark ? darkTheme : lightTheme;
 
   useEffect(() => {
-    document.body.style.background = theme.bg;
-    document.body.style.color = theme.textPrimary;
-  }, [theme.bg, theme.textPrimary]);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    // Limpa overrides inline que possam sobrepor as CSS vars
+    document.body.style.background = '';
+    document.body.style.color = '';
+  }, [isDark]);
 
   function toggleTheme() {
     setIsDark((prev) => {

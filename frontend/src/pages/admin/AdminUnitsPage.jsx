@@ -5,6 +5,28 @@ import { useAuth }   from '../../contexts/AuthContext';
 import { useToast }  from '../../contexts/ToastContext';
 import UnitFormModal from '../../components/admin/UnitFormModal';
 
+function Icon({ d, size = 16, color = 'currentColor', strokeWidth = 1.8 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
+  );
+}
+
+const ICON_MAP_PIN = 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z';
+const ICON_PLUS    = 'M12 5v14M5 12h14';
+const ICON_EDIT    = 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z';
+const ICON_EXT_LINK = 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3';
+
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg,#4f46e5,#7c3aed)',
+  'linear-gradient(135deg,#0ea5e9,#6366f1)',
+  'linear-gradient(135deg,#10b981,#0ea5e9)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#8b5cf6,#ec4899)',
+];
+
 function useContracts() {
   return useQuery({ queryKey: ['contracts'], queryFn: () => api.get('/contracts').then((r) => r.data.contracts) });
 }
@@ -26,7 +48,7 @@ export default function AdminUnitsPage() {
 
   const { data: contracts = [] } = useContracts();
 
-  const [modal, setModal]   = useState(null); // null | { unit?: object }
+  const [modal, setModal] = useState(null);
 
   const createMutation = useMutation({
     mutationFn: (data) => api.post('/units', data),
@@ -58,56 +80,35 @@ export default function AdminUnitsPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <h1 style={styles.title}>Unidades</h1>
-          <p style={styles.subtitle}>Gerencie as unidades e seus pontos de referência GPS.</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-ink)', margin: '0 0 4px', letterSpacing: '-0.03em' }}>
+            Unidades
+          </h1>
+          <p style={{ fontSize: 13, color: 'var(--color-muted)', margin: 0 }}>
+            Gerencie as unidades e seus pontos de referência GPS.
+          </p>
         </div>
-        <button onClick={() => setModal({})} style={styles.newBtn}>+ Novo Posto</button>
+        <button onClick={() => setModal({})} style={inkBtn}>
+          <Icon d={ICON_PLUS} size={14} color="#fff" strokeWidth={2.5} />
+          Novo Posto
+        </button>
       </div>
 
       {isLoading ? (
-        <p style={{ color: '#94a3b8' }}>Carregando...</p>
+        <p style={{ color: 'var(--color-muted)', padding: 24, textAlign: 'center' }}>Carregando...</p>
+      ) : units.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--color-muted)', fontSize: 14 }}>
+          Nenhuma unidade cadastrada.
+        </div>
       ) : (
-        <div style={styles.grid}>
-          {units.map((u) => (
-            <div key={u.id} style={styles.card}>
-              <div style={styles.cardHeader}>
-                <span style={styles.code}>{u.code}</span>
-                <span style={{ ...styles.badge, background: u.active ? '#dcfce7' : '#f1f5f9', color: u.active ? '#166534' : '#64748b' }}>
-                  {u.active ? 'Ativa' : 'Inativa'}
-                </span>
-              </div>
-              <h3 style={styles.name}>{u.name}</h3>
-              {u.address && <p style={styles.address}>{u.address}</p>}
-              <div style={styles.coords}>
-                <div style={styles.coordItem}>
-                  <span style={styles.coordLabel}>Lat</span>
-                  <span style={styles.coordValue}>{parseFloat(u.latitude).toFixed(5)}</span>
-                </div>
-                <div style={styles.coordItem}>
-                  <span style={styles.coordLabel}>Lng</span>
-                  <span style={styles.coordValue}>{parseFloat(u.longitude).toFixed(5)}</span>
-                </div>
-                <div style={styles.coordItem}>
-                  <span style={styles.coordLabel}>Raio</span>
-                  <span style={styles.coordValue}>{u.radius_meters}m</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button onClick={() => setModal({ unit: u })} style={styles.editBtn}>Editar</button>
-                {u.active && (
-                  <button
-                    onClick={() => window.confirm(`Desativar "${u.name}"?`) && deactivateMutation.mutate(u.id)}
-                    style={styles.deactivateBtn}
-                  >
-                    Desativar
-                  </button>
-                )}
-                <a href={`https://maps.google.com/?q=${u.latitude},${u.longitude}`}
-                  target="_blank" rel="noreferrer" style={styles.mapLink}>
-                  Ver no mapa ↗
-                </a>
-              </div>
-            </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          {units.map((u, idx) => (
+            <UnitCard
+              key={u.id}
+              unit={u}
+              gradient={AVATAR_GRADIENTS[idx % 5]}
+              onEdit={() => setModal({ unit: u })}
+              onDeactivate={() => window.confirm(`Desativar "${u.name}"?`) && deactivateMutation.mutate(u.id)}
+            />
           ))}
         </div>
       )}
@@ -125,25 +126,93 @@ export default function AdminUnitsPage() {
   );
 }
 
-const styles = {
-  title:    { fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 6 },
-  subtitle: { fontSize: 13, color: '#64748b', marginBottom: 0 },
-  newBtn: {
-    padding: '10px 18px', background: '#1d4ed8', border: 'none',
-    borderRadius: 8, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-  },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
-  card: { background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '20px' },
-  cardHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  code:    { fontSize: 12, fontWeight: 700, color: '#1d4ed8', background: '#eff6ff', padding: '2px 8px', borderRadius: 4 },
-  badge:   { fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20 },
-  name:    { fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 4 },
-  address: { fontSize: 12, color: '#64748b', marginBottom: 14, lineHeight: 1.5 },
-  coords:  { display: 'flex', gap: 12, marginBottom: 8 },
-  coordItem:   { display: 'flex', flexDirection: 'column', gap: 2 },
-  coordLabel:  { fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' },
-  coordValue:  { fontSize: 12, color: '#374151', fontWeight: 600 },
-  editBtn:     { padding: '6px 14px', background: '#f1f5f9', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' },
-  deactivateBtn: { padding: '6px 14px', background: '#fef2f2', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#dc2626' },
-  mapLink: { fontSize: 12, color: '#1d4ed8', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center' },
+function UnitCard({ unit: u, gradient, onEdit, onDeactivate }) {
+  return (
+    <div style={{
+      background: 'var(--bg-card)', borderRadius: 14, border: '1px solid var(--color-line)',
+      overflow: 'hidden', display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Colored top bar */}
+      <div style={{ height: 4, background: gradient }} />
+
+      <div style={{ padding: '16px 18px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, background: gradient,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Icon d={ICON_MAP_PIN} size={16} color="#fff" strokeWidth={2} />
+            </div>
+            <span style={{
+              fontSize: 11, fontWeight: 700, color: 'var(--color-primary)',
+              background: 'var(--color-primary-soft)', padding: '2px 8px', borderRadius: 4,
+              fontFamily: 'var(--font-mono)',
+            }}>{u.code}</span>
+          </div>
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 999,
+            background: u.active ? 'rgba(16,185,129,0.1)' : 'var(--color-hairline)',
+            color: u.active ? '#059669' : 'var(--color-muted)',
+          }}>
+            {u.active ? 'Ativa' : 'Inativa'}
+          </span>
+        </div>
+
+        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-ink)', margin: '0 0 4px', letterSpacing: '-0.02em' }}>
+          {u.name}
+        </h3>
+        {u.address && (
+          <p style={{ fontSize: 12, color: 'var(--color-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>{u.address}</p>
+        )}
+
+        <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+          {[
+            { label: 'Lat', value: parseFloat(u.latitude).toFixed(5) },
+            { label: 'Lng', value: parseFloat(u.longitude).toFixed(5) },
+            { label: 'Raio', value: `${u.radius_meters}m` },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 10, color: 'var(--color-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
+              <span style={{ fontSize: 12, color: 'var(--color-ink)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, paddingTop: 12, borderTop: '1px solid var(--color-hairline)' }}>
+          <button onClick={onEdit} style={ghostBtn}>
+            <Icon d={ICON_EDIT} size={13} color="var(--color-muted)" />
+            Editar
+          </button>
+          {u.active && (
+            <button onClick={onDeactivate} style={{ ...ghostBtn, color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.2)' }}>
+              Desativar
+            </button>
+          )}
+          <a
+            href={`https://maps.google.com/?q=${u.latitude},${u.longitude}`}
+            target="_blank" rel="noreferrer"
+            style={{ ...ghostBtn, textDecoration: 'none', marginLeft: 'auto', color: 'var(--color-primary)' }}
+          >
+            <Icon d={ICON_EXT_LINK} size={13} color="var(--color-primary)" />
+            Mapa
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const inkBtn = {
+  display: 'flex', alignItems: 'center', gap: 7,
+  padding: '9px 16px', background: 'var(--color-ink)', border: 'none',
+  borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+  letterSpacing: '-0.01em',
+};
+
+const ghostBtn = {
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+  padding: '5px 12px', background: 'none',
+  border: '1.5px solid var(--color-line)', borderRadius: 7,
+  fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--color-muted)',
 };

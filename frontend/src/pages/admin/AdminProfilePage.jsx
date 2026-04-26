@@ -3,6 +3,19 @@ import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg,#4f46e5,#7c3aed)',
+  'linear-gradient(135deg,#0ea5e9,#6366f1)',
+  'linear-gradient(135deg,#10b981,#0ea5e9)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#8b5cf6,#ec4899)',
+];
+
+function avatarGradient(name = '') {
+  const n = [...name].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return AVATAR_GRADIENTS[n % 5];
+}
+
 export default function AdminProfilePage() {
   const { user, logout } = useAuth();
   const { success, error } = useToast();
@@ -17,22 +30,17 @@ export default function AdminProfilePage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-
     if (form.newPassword && form.newPassword !== form.confirmPassword) {
       error('A nova senha e a confirmação não coincidem.');
       return;
     }
-
     setLoading(true);
     try {
       const body = { currentPassword: form.currentPassword };
       if (form.email !== user?.email) body.email = form.email;
       if (form.newPassword) body.newPassword = form.newPassword;
-
       await api.put('/auth/profile', body);
       success('Perfil atualizado! Faça login novamente.');
-
-      // Força novo login pois email/senha pode ter mudado
       setTimeout(() => logout(), 1500);
     } catch (err) {
       error(err.response?.data?.error || 'Erro ao atualizar perfil.');
@@ -41,81 +49,72 @@ export default function AdminProfilePage() {
     }
   }
 
-  return (
-    <div style={styles.page}>
-      <h1 style={styles.title}>Meu Perfil</h1>
-      <p style={styles.subtitle}>Altere seu email ou senha de acesso.</p>
+  const gradient = avatarGradient(user?.name || '');
+  const initial  = (user?.name || '?')[0].toUpperCase();
 
-      <div style={styles.card}>
-        <div style={styles.avatarRow}>
-          <div style={styles.avatar}>{user?.name?.[0]?.toUpperCase()}</div>
+  return (
+    <div style={{ maxWidth: 520 }}>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-ink)', margin: '0 0 4px', letterSpacing: '-0.03em' }}>Meu Perfil</h1>
+      <p style={{ fontSize: 13, color: 'var(--color-muted)', marginBottom: 24 }}>Altere seu email ou senha de acesso.</p>
+
+      <div style={{ background: 'var(--bg-card)', borderRadius: 14, border: '1px solid var(--color-line)', overflow: 'hidden' }}>
+        {/* Avatar header */}
+        <div style={{ padding: '24px 24px 20px', borderBottom: '1px solid var(--color-hairline)', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: 14, background: gradient,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 24, fontWeight: 800, color: '#fff', flexShrink: 0,
+            letterSpacing: '-0.02em',
+          }}>
+            {initial}
+          </div>
           <div>
-            <div style={styles.name}>{user?.name}</div>
-            <div style={styles.role}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-ink)', letterSpacing: '-0.02em' }}>{user?.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 2 }}>
               {user?.role === 'admin' ? 'Administrador Master' : 'Gestor'}
             </div>
+            <div style={{ fontSize: 12, color: 'var(--color-subtle)', marginTop: 1, fontFamily: 'var(--font-mono)' }}>{user?.email}</div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Email</label>
-            <input
-              type="email"
-              value={form.email}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '24px' }}>
+          <Field label="Email">
+            <input type="email" value={form.email}
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
-              style={inputStyle}
-              required
-            />
-          </div>
+              style={inputStyle} required />
+          </Field>
 
-          <hr style={styles.divider} />
+          <div style={{ borderTop: '1px solid var(--color-hairline)', paddingTop: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 14px' }}>Trocar senha</p>
 
-          <p style={styles.sectionLabel}>Trocar senha</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Field label="Senha atual *">
+                <input type="password" value={form.currentPassword}
+                  onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                  placeholder="Obrigatório para qualquer alteração"
+                  style={inputStyle} required />
+              </Field>
 
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Senha atual *</label>
-            <input
-              type="password"
-              value={form.currentPassword}
-              onChange={(e) => setForm((p) => ({ ...p, currentPassword: e.target.value }))}
-              placeholder="Obrigatório para qualquer alteração"
-              style={inputStyle}
-              required
-            />
-          </div>
+              <Field label="Nova senha">
+                <input type="password" value={form.newPassword}
+                  onChange={(e) => setForm((p) => ({ ...p, newPassword: e.target.value }))}
+                  placeholder="Deixe em branco para não alterar"
+                  style={inputStyle}
+                  minLength={form.newPassword ? 6 : undefined} />
+              </Field>
 
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Nova senha</label>
-            <input
-              type="password"
-              value={form.newPassword}
-              onChange={(e) => setForm((p) => ({ ...p, newPassword: e.target.value }))}
-              placeholder="Deixe em branco para não alterar"
-              style={inputStyle}
-              minLength={form.newPassword ? 6 : undefined}
-            />
-          </div>
-
-          {form.newPassword && (
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Confirmar nova senha</label>
-              <input
-                type="password"
-                value={form.confirmPassword}
-                onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))}
-                placeholder="Repita a nova senha"
-                style={inputStyle}
-                required
-              />
+              {form.newPassword && (
+                <Field label="Confirmar nova senha">
+                  <input type="password" value={form.confirmPassword}
+                    onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                    placeholder="Repita a nova senha"
+                    style={inputStyle} required />
+                </Field>
+              )}
             </div>
-          )}
+          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ ...styles.btn, opacity: loading ? 0.7 : 1 }}
-          >
+          <button type="submit" disabled={loading} style={{ ...inkBtn, opacity: loading ? 0.7 : 1, marginTop: 4 }}>
             {loading ? 'Salvando...' : 'Salvar alterações'}
           </button>
         </form>
@@ -124,36 +123,14 @@ export default function AdminProfilePage() {
   );
 }
 
-const fieldStyle = { display: 'flex', flexDirection: 'column', gap: 5 };
-const labelStyle = { fontSize: 13, fontWeight: 600, color: '#374151' };
-const inputStyle = {
-  padding: '10px 12px', border: '1.5px solid #e2e8f0',
-  borderRadius: 8, fontSize: 14, color: '#1e293b', outline: 'none',
-};
+function Field({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</label>
+      {children}
+    </div>
+  );
+}
 
-const styles = {
-  page:     { maxWidth: 520 },
-  title:    { fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 4 },
-  subtitle: { fontSize: 13, color: '#64748b', marginBottom: 24 },
-  card: {
-    background: '#fff', borderRadius: 12,
-    border: '1px solid #e2e8f0', padding: '28px 24px',
-  },
-  avatarRow: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 },
-  avatar: {
-    width: 52, height: 52, borderRadius: '50%',
-    background: '#1d4ed8', color: '#fff',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 22, fontWeight: 800,
-  },
-  name:    { fontSize: 16, fontWeight: 700, color: '#0f172a' },
-  role:    { fontSize: 12, color: '#64748b', marginTop: 2 },
-  form:    { display: 'flex', flexDirection: 'column', gap: 16 },
-  divider: { border: 'none', borderTop: '1px solid #f1f5f9', margin: '4px 0' },
-  sectionLabel: { fontSize: 13, fontWeight: 700, color: '#64748b', margin: 0 },
-  btn: {
-    padding: '11px', background: '#1d4ed8', color: '#fff',
-    border: 'none', borderRadius: 8, fontSize: 15,
-    fontWeight: 600, cursor: 'pointer', marginTop: 4,
-  },
-};
+const inputStyle = { padding: '10px 12px', border: '1.5px solid var(--color-line)', borderRadius: 8, fontSize: 14, color: 'var(--color-ink)', outline: 'none', background: 'var(--bg-card)' };
+const inkBtn     = { padding: '11px 20px', background: 'var(--color-ink)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' };

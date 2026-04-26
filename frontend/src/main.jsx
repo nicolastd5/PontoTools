@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './styles/tokens.css';
 import './version.js';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
