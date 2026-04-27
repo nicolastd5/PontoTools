@@ -99,7 +99,7 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" disabled={loading} style={{
-            padding: 12, background: theme.ink, color: '#fff',
+            padding: 12, background: theme.primary, color: '#fff',
             border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
             opacity: loading ? 0.7 : 1, transition: 'all 0.15s', marginTop: 4,
