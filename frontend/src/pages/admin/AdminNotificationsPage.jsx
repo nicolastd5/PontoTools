@@ -209,11 +209,11 @@ export default function AdminNotificationsPage() {
                     onClick={() => openNotif(n)}
                     style={{
                       borderBottom: '1px solid var(--color-hairline)',
-                      background: n.read ? 'transparent' : 'rgba(79,70,229,0.04)',
+                      background: n.read ? 'transparent' : 'var(--color-primary-soft)',
                       cursor: 'pointer', transition: 'background 0.1s',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(244,244,245,0.5)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(79,70,229,0.04)'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hairline)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = n.read ? 'transparent' : 'var(--color-primary-soft)'; }}
                   >
                     {/* Tipo com ícone em quadrado colorido */}
                     <td style={st.td}>
@@ -441,7 +441,7 @@ const st = {
   primaryBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 13px', border: 'none', borderRadius: 8,
-    fontSize: 13, cursor: 'pointer', color: '#fff', background: '#09090b',
+    fontSize: 13, cursor: 'pointer', color: '#fff', background: 'var(--color-primary)',
     fontWeight: 600, fontFamily: 'var(--font-sans)',
   },
   outlineBtn: {

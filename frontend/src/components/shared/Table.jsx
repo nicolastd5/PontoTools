@@ -2,8 +2,7 @@
 export default function Table({ columns, rows, pagination, onPageChange, emptyMessage = 'Nenhum registro encontrado.' }) {
   return (
     <div>
-      {/* Wrapper scroll horizontal para mobile */}
-      <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+      <div style={{ overflowX: 'auto' }}>
         <table style={styles.table}>
           <thead>
             <tr>
@@ -21,10 +20,10 @@ export default function Table({ columns, rows, pagination, onPageChange, emptyMe
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr key={row.id ?? i} style={i % 2 === 0 ? {} : { background: '#f8fafc' }}>
+                <tr key={row.id ?? i} style={i % 2 !== 0 ? { background: 'var(--color-hairline)' } : {}}>
                   {columns.map((col) => (
                     <td key={col.key} style={styles.td}>
-                      {col.render ? col.render(row[col.key], row) : row[col.key] ?? '—'}
+                      {col.render ? col.render(row[col.key], row, i) : row[col.key] ?? '—'}
                     </td>
                   ))}
                 </tr>
@@ -34,7 +33,6 @@ export default function Table({ columns, rows, pagination, onPageChange, emptyMe
         </table>
       </div>
 
-      {/* Paginação */}
       {pagination && pagination.totalPages > 1 && (
         <div style={styles.pagination}>
           <span style={styles.pageInfo}>
@@ -60,27 +58,27 @@ export default function Table({ columns, rows, pagination, onPageChange, emptyMe
 }
 
 const styles = {
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', fontSize: 13 },
+  table: { width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)', fontSize: 13 },
   th: {
-    padding:     '11px 14px',
-    textAlign:   'left',
-    fontSize:    12,
-    fontWeight:  600,
-    color:       '#64748b',
-    background:  '#f8fafc',
-    borderBottom: '1px solid #e2e8f0',
-    whiteSpace:  'nowrap',
+    padding:      '11px 14px',
+    textAlign:    'left',
+    fontSize:     12,
+    fontWeight:   600,
+    color:        'var(--color-muted)',
+    background:   'var(--color-surface)',
+    borderBottom: '1px solid var(--border-default)',
+    whiteSpace:   'nowrap',
   },
   td: {
-    padding:     '10px 14px',
-    borderBottom: '1px solid #f1f5f9',
-    color:       '#374151',
+    padding:      '10px 14px',
+    borderBottom: '1px solid var(--border-light)',
+    color:        'var(--text-primary)',
     verticalAlign: 'middle',
   },
   empty: {
     padding:   '40px 20px',
     textAlign: 'center',
-    color:     '#94a3b8',
+    color:     'var(--color-subtle)',
     fontSize:  14,
   },
   pagination: {
@@ -91,16 +89,16 @@ const styles = {
     flexWrap:       'wrap',
     gap:            8,
   },
-  pageInfo: { fontSize: 13, color: '#64748b' },
+  pageInfo:    { fontSize: 13, color: 'var(--color-muted)' },
   pageButtons: { display: 'flex', gap: 8 },
   pageBtn: {
     padding:      '6px 14px',
-    background:   '#fff',
-    border:       '1px solid #e2e8f0',
+    background:   'var(--bg-card)',
+    border:       '1px solid var(--border-default)',
     borderRadius: 6,
     fontSize:     13,
     cursor:       'pointer',
-    color:        '#374151',
+    color:        'var(--text-primary)',
     transition:   'all 0.15s',
   },
 };

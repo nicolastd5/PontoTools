@@ -349,11 +349,11 @@ export default function AdminServicesPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--color-primary-soft)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: 10, marginBottom: 12, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', marginRight: 4 }}>{selected.size} selecionado(s)</span>
               {[
-                { label: 'Em andamento', status: 'in_progress', bg: '#dbeafe', color: '#1e40af', border: '#bfdbfe' },
-                { label: 'Concluído',    status: 'done',        bg: '#dcfce7', color: '#166534', border: '#bbf7d0' },
-                { label: 'c/ Ressalvas', status: 'done_with_issues', bg: '#ffedd5', color: '#c2410c', border: '#fed7aa' },
-                { label: 'Problema',     status: 'problem',     bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
-                { label: 'Reabrir',      status: 'pending',     bg: 'var(--color-hairline)', color: 'var(--color-muted)', border: 'var(--color-line)' },
+                { label: 'Em andamento', status: 'in_progress',      bg: 'var(--color-primary-soft)', color: 'var(--color-primary)', border: 'var(--color-primary)' },
+                { label: 'Concluído',    status: 'done',             bg: 'var(--color-ok-soft)',      color: 'var(--color-ok)',      border: 'var(--color-ok)'      },
+                { label: 'c/ Ressalvas', status: 'done_with_issues', bg: 'var(--color-warn-soft)',    color: 'var(--color-warn)',    border: 'var(--color-warn)'    },
+                { label: 'Problema',     status: 'problem',          bg: 'var(--color-danger-soft)',  color: 'var(--color-danger)',  border: 'var(--color-danger)'  },
+                { label: 'Reabrir',      status: 'pending',          bg: 'var(--color-hairline)',     color: 'var(--color-muted)',   border: 'var(--color-line)'    },
               ].map(({ label, status, bg, color, border }) => (
                 <button key={status} onClick={() => bulkStatus.mutate({ ids: [...selected], status })} disabled={bulkStatus.isLoading}
                   style={{ padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', borderRadius: 7, background: bg, color, border: `1px solid ${border}` }}>
@@ -362,7 +362,7 @@ export default function AdminServicesPage() {
               ))}
               <button onClick={() => { if (window.confirm(`Excluir ${selected.size} serviço(s)?`)) bulkDelete.mutate([...selected]); }}
                 disabled={bulkDelete.isLoading}
-                style={{ padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', borderRadius: 7, background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }}>
+                style={{ padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', borderRadius: 7, background: 'var(--color-danger-soft)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
                 Excluir
               </button>
               <button onClick={() => setSelected(new Set())} style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: 12, cursor: 'pointer', color: 'var(--color-muted)' }}>Cancelar</button>
@@ -589,18 +589,18 @@ export default function AdminServicesPage() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {detailModal.status !== 'in_progress' && (
                       <button onClick={() => updateStatus.mutate({ id: detailModal.id, status: 'in_progress' })} disabled={updateStatus.isLoading}
-                        style={{ ...statusBtn, background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe' }}>
-                        <Icon d={ICON_REFRESH} size={12} color="#1e40af" /> Em andamento
+                        style={{ ...statusBtn, background: 'var(--color-primary-soft)', color: 'var(--color-primary)', border: '1px solid var(--color-primary)' }}>
+                        <Icon d={ICON_REFRESH} size={12} color="var(--color-primary)" /> Em andamento
                       </button>
                     )}
                     <button onClick={() => updateStatus.mutate({ id: detailModal.id, status: 'done' })} disabled={updateStatus.isLoading}
-                      style={{ ...statusBtn, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' }}>
-                      <Icon d={ICON_CHECK} size={12} color="#166534" /> Concluído
+                      style={{ ...statusBtn, background: 'var(--color-ok-soft)', color: 'var(--color-ok)', border: '1px solid var(--color-ok)' }}>
+                      <Icon d={ICON_CHECK} size={12} color="var(--color-ok)" /> Concluído
                     </button>
                     {detailModal.status !== 'problem' && (
                       <button onClick={() => updateStatus.mutate({ id: detailModal.id, status: 'problem' })} disabled={updateStatus.isLoading}
-                        style={{ ...statusBtn, background: 'rgba(239,68,68,0.1)', color: '#991b1b', border: '1px solid rgba(239,68,68,0.2)' }}>
-                        <Icon d={ICON_WARN} size={12} color="#991b1b" /> Problema
+                        style={{ ...statusBtn, background: 'var(--color-danger-soft)', color: 'var(--color-danger)', border: '1px solid var(--color-danger)' }}>
+                        <Icon d={ICON_WARN} size={12} color="var(--color-danger)" /> Problema
                       </button>
                     )}
                   </div>
@@ -609,8 +609,8 @@ export default function AdminServicesPage() {
               {['done', 'done_with_issues'].includes(detailModal.status) && (
                 <div style={{ marginBottom: 12 }}>
                   <button onClick={() => updateStatus.mutate({ id: detailModal.id, status: 'in_progress' })} disabled={updateStatus.isLoading}
-                    style={{ ...statusBtn, background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe' }}>
-                    <Icon d={ICON_REFRESH} size={12} color="#1e40af" /> Reabrir serviço
+                    style={{ ...statusBtn, background: 'var(--color-primary-soft)', color: 'var(--color-primary)', border: '1px solid var(--color-primary)' }}>
+                    <Icon d={ICON_REFRESH} size={12} color="var(--color-primary)" /> Reabrir serviço
                   </button>
                 </div>
               )}
@@ -775,7 +775,7 @@ export default function AdminServicesPage() {
               <ModalFooter>
                 <button type="button" onClick={() => setFireModal(null)} style={outlineBtn}>Cancelar</button>
                 <button type="submit" disabled={fireTpl.isLoading}
-                  style={{ ...inkBtn, background: '#0891b2', opacity: fireTpl.isLoading ? 0.7 : 1 }}>
+                  style={{ ...inkBtn, background: 'var(--color-info)', opacity: fireTpl.isLoading ? 0.7 : 1 }}>
                   {fireTpl.isLoading ? 'Disparando...' : 'Disparar'}
                 </button>
               </ModalFooter>

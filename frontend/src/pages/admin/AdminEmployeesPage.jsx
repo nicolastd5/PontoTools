@@ -429,7 +429,7 @@ const st = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '7px 13px', border: 'none',
     borderRadius: 8, fontSize: 13, cursor: 'pointer',
-    color: '#fff', background: '#09090b', fontWeight: 600,
+    color: '#fff', background: 'var(--color-primary)', fontWeight: 600,
     fontFamily: 'var(--font-sans)',
   },
   warnBtn: {
