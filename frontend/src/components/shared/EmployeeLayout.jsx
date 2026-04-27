@@ -40,8 +40,8 @@ export default function EmployeeLayout() {
     : allTabs;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: theme.bg, maxWidth: 480, margin: '0 auto' }}>
-      <main style={{ flex: 1, padding: '20px 16px', paddingBottom: 80 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: theme.bg, width: '100%', maxWidth: 480, margin: '0 auto' }}>
+      <main style={{ flex: 1, padding: '24px 20px', paddingBottom: 'calc(72px + env(safe-area-inset-bottom))' }}>
         <Outlet />
       </main>
 
@@ -51,6 +51,7 @@ export default function EmployeeLayout() {
         background: theme.card,
         borderTop: `1px solid ${theme.line}`,
         boxShadow: '0 -4px 16px rgba(0,0,0,0.15)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
         {tabs.map(({ to, label, Icon: TabIcon, badge }) => (
           <NavLink key={to} to={to} style={({ isActive }) => ({
