@@ -133,4 +133,4 @@ function Field({ label, children }) {
 }
 
 const inputStyle = { padding: '10px 12px', border: '1.5px solid var(--color-line)', borderRadius: 8, fontSize: 14, color: 'var(--color-ink)', outline: 'none', background: 'var(--bg-card)' };
-const inkBtn     = { padding: '11px 20px', background: 'var(--color-ink)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' };
+const inkBtn     = { padding: '11px 20px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', width: '100%' };

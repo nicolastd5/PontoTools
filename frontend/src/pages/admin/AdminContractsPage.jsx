@@ -276,7 +276,7 @@ function Field({ label, children }) {
 const overlay    = { position: 'fixed', inset: 0, background: 'rgba(9,9,11,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 };
 const modalCard  = { background: 'var(--bg-card)', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 460, boxShadow: '0 24px 64px -12px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' };
 const inputStyle = { padding: '9px 12px', border: '1.5px solid var(--color-line)', borderRadius: 8, fontSize: 14, color: 'var(--color-ink)', outline: 'none', background: 'var(--bg-card)' };
-const inkBtn     = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', background: 'var(--color-ink)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
+const inkBtn     = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px', background: 'var(--color-primary)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
 const outlineBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', border: '1.5px solid var(--color-line)', borderRadius: 8, fontSize: 13, cursor: 'pointer', color: 'var(--color-ink)', background: 'var(--bg-card)', fontWeight: 600 };
 const ghostBtn   = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', background: 'none', border: '1.5px solid var(--color-line)', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: 'var(--color-muted)' };
 const iconCloseBtn = { background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center' };

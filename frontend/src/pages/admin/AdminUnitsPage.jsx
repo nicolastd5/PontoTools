@@ -205,7 +205,7 @@ function UnitCard({ unit: u, gradient, onEdit, onDeactivate }) {
 
 const inkBtn = {
   display: 'flex', alignItems: 'center', gap: 7,
-  padding: '9px 16px', background: 'var(--color-ink)', border: 'none',
+  padding: '9px 16px', background: 'var(--color-primary)', border: 'none',
   borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer',
   letterSpacing: '-0.01em',
 };

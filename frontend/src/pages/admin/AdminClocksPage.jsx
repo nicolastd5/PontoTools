@@ -409,7 +409,7 @@ const st = {
   subtitle:  { fontSize: 12, color: 'var(--color-muted)', marginTop: 2 },
   exportBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 7,
-    padding: '8px 14px', background: 'var(--color-ink, #09090b)',
+    padding: '8px 14px', background: 'var(--color-primary)',
     color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)',
     fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-sans)',
     transition: 'opacity 0.15s',
