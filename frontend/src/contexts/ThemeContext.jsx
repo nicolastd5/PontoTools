@@ -25,9 +25,10 @@ export function ThemeProvider({ children }) {
   const theme = isDark ? buildTheme(darkTheme) : buildTheme(lightTheme);
 
   useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     document.body.style.background = theme.bg;
     document.body.style.color      = theme.ink;
-  }, [theme.bg, theme.ink]);
+  }, [isDark, theme.bg, theme.ink]);
 
   function toggleTheme() {
     setIsDark((prev) => {
