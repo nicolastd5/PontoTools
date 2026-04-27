@@ -55,8 +55,7 @@ export default function EmployeeHistoryPage() {
 
   return (
     <div>
-      <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.08em', color: theme.subtle, textTransform: 'uppercase', marginBottom: 4 }}>Meus registros</p>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: theme.ink, letterSpacing: '-0.03em', marginBottom: 20 }}>Histórico</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: theme.textPrimary, marginBottom: 16 }}>Histórico</h1>
 
       {loading && records.length === 0 ? (
         <p style={{ textAlign: 'center', color: theme.muted, padding: 32 }}>Carregando...</p>

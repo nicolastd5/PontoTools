@@ -99,25 +99,22 @@ export default function EmployeeNotificationsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
-          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', color: theme.subtle, textTransform: 'uppercase', marginBottom: 6 }}>Avisos</p>
-          <h1 style={{ fontSize: 30, fontWeight: 700, color: theme.ink, letterSpacing: '-0.03em' }}>Notificações</h1>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: theme.textPrimary }}>Notificações</h1>
         {unread > 0 && (
-          <span style={{ background: theme.primary, color: '#fff', fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 999, marginTop: 6 }}>
+          <span style={{ background: theme.primary, color: '#fff', fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 999 }}>
             {unread} nova{unread > 1 ? 's' : ''}
           </span>
         )}
       </div>
 
       {(unread > 0 || hasRead) && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {unread > 0 && (
             <button
               onClick={() => markAllMutation.mutate()}
               disabled={markAllMutation.isLoading}
-              style={{ flex: 1, padding: '12px', background: theme.primarySoft, border: `1px solid ${theme.primary}44`, borderRadius: 12, color: theme.primary, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              style={{ flex: 1, padding: '10px', background: theme.primarySoft, border: `1px solid ${theme.primary}44`, borderRadius: 10, color: theme.primary, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
               Marcar todas como lidas
             </button>
@@ -126,7 +123,7 @@ export default function EmployeeNotificationsPage() {
             <button
               onClick={() => deleteReadMutation.mutate()}
               disabled={deleteReadMutation.isLoading}
-              style={{ flex: 1, padding: '12px', background: theme.dangerSoft, border: `1px solid ${theme.danger}44`, borderRadius: 12, color: theme.danger, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+              style={{ flex: 1, padding: '10px', background: theme.dangerSoft, border: `1px solid ${theme.danger}44`, borderRadius: 10, color: theme.danger, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
               Excluir lidas
             </button>
@@ -135,17 +132,17 @@ export default function EmployeeNotificationsPage() {
       )}
 
       {pushSupported && !pushGranted && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: theme.card, border: `1px solid ${theme.line}`, borderRadius: 14, padding: '14px 16px', marginBottom: 22, gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 12, padding: '10px 14px', marginBottom: 16, gap: 12 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: theme.ink }}>Notificações push inativas</div>
-            <div style={{ fontSize: 12, color: theme.muted, marginTop: 3 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: theme.textPrimary }}>Notificações push inativas</div>
+            <div style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>
               {pushDenied ? 'Permissão bloqueada. Reative nas configurações.' : 'Ative para receber alertas de serviços.'}
             </div>
           </div>
           <button
             onClick={enablePush}
             disabled={subscribing || pushDenied}
-            style={{ padding: '9px 16px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: pushDenied ? theme.surface : theme.primary, color: pushDenied ? theme.muted : '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', background: pushDenied ? theme.elevated : theme.accent, color: pushDenied ? theme.textMuted : '#fff', whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             {subscribing ? '...' : pushDenied ? 'Bloqueado' : 'Ativar'}
           </button>
@@ -153,13 +150,13 @@ export default function EmployeeNotificationsPage() {
       )}
 
       {isLoading ? (
-        <p style={{ textAlign: 'center', color: theme.muted, padding: 40 }}>Carregando...</p>
+        <p style={{ color: theme.textMuted, padding: 24 }}>Carregando...</p>
       ) : notifications.length === 0 ? (
-        <div style={{ background: theme.card, border: `1px dashed ${theme.line}`, borderRadius: 16, padding: '64px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 14, color: theme.muted }}>Nenhuma notificação ainda.</div>
+        <div style={{ background: theme.surface, borderRadius: 12, border: `1px solid ${theme.border}`, padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: theme.textMuted }}>Nenhuma notificação ainda.</div>
         </div>
       ) : (
-        <div style={{ background: theme.card, borderRadius: 16, border: `1px solid ${theme.line}`, overflow: 'hidden' }}>
+        <div style={{ background: theme.surface, borderRadius: 12, border: `1px solid ${theme.border}`, overflow: 'hidden' }}>
           {notifications.map((n, i) => {
             const { icon } = getIcon(n.type);
             return (
@@ -167,22 +164,22 @@ export default function EmployeeNotificationsPage() {
                 key={n.id}
                 onClick={() => !n.read && markReadMutation.mutate(n.id)}
                 style={{
-                  display: 'flex', gap: 14, padding: '16px 20px',
-                  borderBottom: i < notifications.length - 1 ? `1px solid ${theme.hairline}` : 'none',
+                  display: 'flex', gap: 12, padding: '14px 18px',
+                  borderBottom: i < notifications.length - 1 ? `1px solid ${theme.border}` : 'none',
                   cursor: n.read ? 'default' : 'pointer',
-                  background: n.read ? theme.card : theme.primarySoft + '40',
+                  background: n.read ? 'transparent' : theme.primarySoft + '40',
                 }}
               >
-                <div style={{ width: 42, height: 42, borderRadius: 10, background: theme.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: theme.elevated, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                   {icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: n.read ? 500 : 600, color: theme.ink, marginBottom: 3, letterSpacing: '-0.01em' }}>
+                  <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: theme.textPrimary, marginBottom: 2 }}>
                     {n.title}
-                    {!n.read && <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: theme.primary, marginLeft: 7, verticalAlign: 'middle' }} />}
+                    {!n.read && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: theme.accent, marginLeft: 6, verticalAlign: 'middle' }} />}
                   </div>
-                  <div style={{ fontSize: 13, color: theme.muted, lineHeight: 1.45, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{n.body}</div>
-                  <div style={{ fontSize: 11, color: theme.subtle }}>{fmtDate(n.created_at)} atrás</div>
+                  <div style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 1.4, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{n.body}</div>
+                  <div style={{ fontSize: 11, color: theme.textMuted }}>{fmtDate(n.created_at)} atrás</div>
                 </div>
               </div>
             );
