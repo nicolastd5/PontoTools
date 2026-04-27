@@ -1,7 +1,6 @@
 .admin-root {
   display: flex;
   min-height: 100vh;
-  background: var(--bg-page);
 }
 
 /* Overlay mobile */
@@ -9,15 +8,15 @@
   display: none;
   position: fixed;
   inset: 0;
-  background: var(--bg-overlay);
+  background: rgba(0, 0, 0, 0.5);
   z-index: 40;
+  backdrop-filter: blur(2px);
 }
 
 /* Sidebar */
 .admin-sidebar {
-  width: 240px;
+  width: 236px;
   min-height: 100vh;
-  background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -25,12 +24,13 @@
   left: 0;
   bottom: 0;
   z-index: 50;
-  transition: transform 0.25s ease;
+  transition: transform 0.25s;
+  overflow-y: auto;
 }
 
 /* Conteúdo principal */
 .admin-main {
-  margin-left: 240px;
+  margin-left: 236px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -42,19 +42,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 24px;
   height: 56px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border-default);
   position: sticky;
   top: 0;
   z-index: 30;
-}
-
-[data-theme="dark"] .admin-mobile-header {
-  background: rgba(17, 17, 19, 0.85);
+  backdrop-filter: blur(8px);
 }
 
 /* Em desktop, esconde botão hamburguer e título (sidebar já está visível) */
@@ -63,8 +56,13 @@
   display: none;
 }
 
+/* Breadcrumb visível só em desktop */
+.admin-header-breadcrumb {
+  display: flex;
+}
+
 .admin-content {
-  padding: var(--space-9);
+  padding: 24px;
   flex: 1;
 }
 
@@ -91,7 +89,11 @@
     display: block;
   }
 
+  .admin-header-breadcrumb {
+    display: none;
+  }
+
   .admin-content {
-    padding: var(--space-7);
+    padding: 16px;
   }
 }

@@ -45,22 +45,33 @@ export default function EmployeeLayout() {
         <Outlet />
       </main>
 
-      <nav style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, display: 'flex', background: theme.surface, borderTop: `1px solid ${theme.border}`, boxShadow: '0 -4px 16px rgba(0,0,0,0.2)' }}>
-        {tabs.map(({ to, label, Icon, badge }) => (
+      <nav style={{
+        position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '100%', maxWidth: 480, display: 'flex',
+        background: theme.card,
+        borderTop: `1px solid ${theme.line}`,
+        boxShadow: '0 -4px 16px rgba(0,0,0,0.15)',
+      }}>
+        {tabs.map(({ to, label, Icon: TabIcon, badge }) => (
           <NavLink key={to} to={to} style={({ isActive }) => ({
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
             padding: '10px 0', textDecoration: 'none',
-            color: isActive ? theme.accent : theme.textMuted,
+            color: isActive ? theme.primary : theme.subtle,
           })}>
             <span style={{ position: 'relative', display: 'inline-flex' }}>
-              <Icon size={20} strokeWidth={1.75} />
+              <TabIcon size={20} strokeWidth={1.75} />
               {badge > 0 && (
-                <span style={{ position: 'absolute', top: -4, right: -6, background: theme.danger, color: '#fff', borderRadius: 10, fontSize: 9, fontWeight: 700, padding: '1px 4px', lineHeight: 1.4 }}>
+                <span style={{
+                  position: 'absolute', top: -4, right: -6,
+                  background: theme.danger, color: '#fff',
+                  borderRadius: 10, fontSize: 9, fontWeight: 700,
+                  padding: '1px 4px', lineHeight: 1.4,
+                }}>
                   {badge > 9 ? '9+' : badge}
                 </span>
               )}
             </span>
-            <span style={{ fontSize: 10, fontWeight: 600 }}>{label}</span>
+            <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '-0.01em' }}>{label}</span>
           </NavLink>
         ))}
       </nav>

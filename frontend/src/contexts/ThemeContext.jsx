@@ -3,18 +3,31 @@ import { darkTheme, lightTheme } from '../theme';
 
 const ThemeContext = createContext(null);
 
+function buildTheme(base) {
+  return {
+    ...base,
+    // aliases de compatibilidade com nomes antigos usados em páginas de admin
+    textPrimary:   base.ink,
+    textSecondary: base.muted,
+    textMuted:     base.subtle,
+    accent:        base.primary,
+    border:        base.line,
+    elevated:      base.surface,
+    success:       base.ok,
+    warning:       base.warn,
+  };
+}
+
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(
     () => localStorage.getItem('theme') !== 'light'
   );
-  const theme = isDark ? darkTheme : lightTheme;
+  const theme = isDark ? buildTheme(darkTheme) : buildTheme(lightTheme);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    // Limpa overrides inline que possam sobrepor as CSS vars
-    document.body.style.background = '';
-    document.body.style.color = '';
-  }, [isDark]);
+    document.body.style.background = theme.bg;
+    document.body.style.color      = theme.ink;
+  }, [theme.bg, theme.ink]);
 
   function toggleTheme() {
     setIsDark((prev) => {
