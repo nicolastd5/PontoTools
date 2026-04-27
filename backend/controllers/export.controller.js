@@ -396,6 +396,52 @@ async function exportServicesPdf(req, res, next) {
       photosByService[p.service_order_id].push(p);
     });
 
+    // Pré-geocodifica todas as coordenadas únicas respeitando o limite do Nominatim (1 req/s).
+    // Agrupa por chave arredondada para evitar requisições duplicadas ao mesmo local.
+    const gpsPhotosByService = {};
+    for (const svc of result.rows) {
+      const photos = photosByService[svc.id] || [];
+      const gpsPhoto = photos.find((p) => p.phase === 'before' && p.latitude != null && p.longitude != null)
+                    || photos.find((p) => p.latitude != null && p.longitude != null);
+      if (gpsPhoto) gpsPhotosByService[svc.id] = gpsPhoto;
+    }
+    const uniqueGpsPhotos = Object.values(gpsPhotosByService).filter((p, i, arr) => {
+      const key = `${Number(p.latitude).toFixed(4)},${Number(p.longitude).toFixed(4)}`;
+      return arr.findIndex((q) => `${Number(q.latitude).toFixed(4)},${Number(q.longitude).toFixed(4)}` === key) === i;
+    });
+    // Throttle: 1 req/s conforme política do Nominatim
+    const geocodeMap = {};
+    for (let i = 0; i < uniqueGpsPhotos.length; i++) {
+      const p = uniqueGpsPhotos[i];
+      const key = `${Number(p.latitude).toFixed(4)},${Number(p.longitude).toFixed(4)}`;
+      if (geocodeMap[key] === undefined) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 1050));
+        geocodeMap[key] = await reverseGeocode(p.latitude, p.longitude);
+      }
+    }
+
+    // Pré-carrega todos os buffers de fotos em paralelo (até 2 por fase por serviço)
+    const photoBufferCache = {};
+    const bufferFetches = [];
+    for (const svc of result.rows) {
+      const photos = photosByService[svc.id] || [];
+      const toLoad = [
+        ...photos.filter((p) => p.phase === 'before').slice(0, 2),
+        ...photos.filter((p) => p.phase === 'after').slice(0, 2),
+      ];
+      for (const p of toLoad) {
+        if (photoBufferCache[p.photo_path] === undefined) {
+          photoBufferCache[p.photo_path] = null; // reserva slot
+          bufferFetches.push(
+            storage.getBuffer(p.photo_path)
+              .then((buf) => { photoBufferCache[p.photo_path] = buf; })
+              .catch(() => { photoBufferCache[p.photo_path] = null; })
+          );
+        }
+      }
+    }
+    await Promise.all(bufferFetches);
+
     const STATUS_LABEL = {
       pending:          'Pendente',
       in_progress:      'Em andamento',
@@ -448,12 +494,12 @@ async function exportServicesPdf(req, res, next) {
         doc.fillColor('#000');
         doc.moveDown(0.2);
 
-        // Endereço GPS da foto de início (before)
+        // Endereço GPS da foto de início (before) — já pré-geocodificado
         const photos = photosByService[svc.id] || [];
-        const gpsPhoto = photos.find((p) => p.phase === 'before' && p.latitude != null && p.longitude != null)
-                      || photos.find((p) => p.latitude != null && p.longitude != null);
+        const gpsPhoto = gpsPhotosByService[svc.id];
         if (gpsPhoto) {
-          const gpsAddress = await reverseGeocode(gpsPhoto.latitude, gpsPhoto.longitude);
+          const gpsKey = `${Number(gpsPhoto.latitude).toFixed(4)},${Number(gpsPhoto.longitude).toFixed(4)}`;
+          const gpsAddress = geocodeMap[gpsKey];
           if (gpsAddress) {
             doc.fontSize(9).font('Helvetica-Bold').fillColor('#374151')
                .text('Endereço: ', { continued: true })
@@ -497,7 +543,7 @@ async function exportServicesPdf(req, res, next) {
         const imgGap   = 15;
         const maxPerRow = 2;
 
-        async function renderPhotoRow(label, photoList) {
+        function renderPhotoRow(label, photoList) {
           if (!photoList.length) return;
           if (doc.y > 650) doc.addPage();
 
@@ -506,12 +552,8 @@ async function exportServicesPdf(req, res, next) {
           doc.fillColor('#000');
           doc.moveDown(0.2);
 
-          // Carrega buffers em paralelo
-          const buffers = await Promise.all(
-            photoList.slice(0, maxPerRow).map((p) =>
-              storage.getBuffer(p.photo_path).catch(() => null)
-            )
-          );
+          // Usa buffers pré-carregados
+          const buffers = photoList.slice(0, maxPerRow).map((p) => photoBufferCache[p.photo_path] || null);
 
           const rowY = doc.y;
           let maxBottom = rowY;
@@ -528,8 +570,8 @@ async function exportServicesPdf(req, res, next) {
           doc.moveDown(0.3);
         }
 
-        await renderPhotoRow('Fotos — Antes:', beforePhotos);
-        await renderPhotoRow('Fotos — Depois:', afterPhotos);
+        renderPhotoRow('Fotos — Antes:', beforePhotos);
+        renderPhotoRow('Fotos — Depois:', afterPhotos);
 
         doc.moveDown(0.4);
         doc.moveTo(40, doc.y).lineTo(555, doc.y).strokeColor('#e2e8f0').stroke();
