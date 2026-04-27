@@ -23,7 +23,7 @@ function statusColor(status, theme) {
     case 'pending':          return theme.textSecondary;
     case 'in_progress':      return theme.warning;
     case 'done':             return theme.success;
-    case 'done_with_issues': return '#ea580c';
+    case 'done_with_issues': return theme.warn;
     case 'problem':          return theme.danger;
     default:                 return theme.textMuted;
   }
@@ -34,7 +34,7 @@ function statusBg(status, theme) {
     case 'pending':          return theme.elevated;
     case 'in_progress':      return theme.warning + '22';
     case 'done':             return theme.success + '22';
-    case 'done_with_issues': return '#ea580c22';
+    case 'done_with_issues': return theme.warn + '22';
     case 'problem':          return theme.danger + '22';
     default:                 return theme.elevated;
   }
@@ -384,7 +384,7 @@ export default function EmployeeServicesPage() {
             {detail.description && <div style={descBox}>{detail.description}</div>}
 
             {detail.issue_description && (
-              <div style={{ ...descBox, background: '#ea580c15', border: '1px solid #ea580c40', color: '#ea580c' }}>
+              <div style={{ ...descBox, background: theme.warnSoft, border: `1px solid ${theme.warn}40`, color: theme.warn }}>
                 <strong>Ressalvas:</strong> {detail.issue_description}
               </div>
             )}
@@ -451,7 +451,7 @@ export default function EmployeeServicesPage() {
                 {canIssues && (
                   <button
                     onClick={() => setIssuesModal(true)}
-                    style={{ ...primaryBtn, background: '#ea580c' }}>
+                    style={{ ...primaryBtn, background: theme.warn }}>
                     ⚠️ Concluir com Ressalvas
                   </button>
                 )}
@@ -490,7 +490,7 @@ export default function EmployeeServicesPage() {
               </button>
               <button onClick={() => { setIssuesModal(false); statusMutation.mutate({ id: detail.id, status: 'done_with_issues', issue_description: issuesText }); }}
                 disabled={!issuesText.trim() || statusMutation.isLoading}
-                style={{ ...outlineBtn, width: '100%', borderColor: '#ea580c', color: '#ea580c', opacity: !issuesText.trim() ? 0.5 : 1 }}>
+                style={{ ...outlineBtn, width: '100%', borderColor: theme.warn, color: theme.warn, opacity: !issuesText.trim() ? 0.5 : 1 }}>
                 Concluir Sem Foto
               </button>
               <button onClick={() => setIssuesModal(false)} style={{ ...outlineBtn, width: '100%' }}>Cancelar</button>

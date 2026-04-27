@@ -1,33 +1,9 @@
 // Cards de estatísticas do topo do dashboard
 const CARDS = [
-  {
-    key:   'totalClocks',
-    label: 'Batidas hoje',
-    icon:  '🕐',
-    color: '#1d4ed8',
-    bg:    '#eff6ff',
-  },
-  {
-    key:   'activeToday',
-    label: 'Funcionários presentes',
-    icon:  '✅',
-    color: '#16a34a',
-    bg:    '#f0fdf4',
-  },
-  {
-    key:   'absentToday',
-    label: 'Sem registro hoje',
-    icon:  '⚠️',
-    color: '#d97706',
-    bg:    '#fffbeb',
-  },
-  {
-    key:   'totalBlocked',
-    label: 'Bloqueios hoje',
-    icon:  '⛔',
-    color: '#dc2626',
-    bg:    '#fef2f2',
-  },
+  { key: 'totalClocks',    label: 'Batidas hoje',           icon: '🕐', color: 'var(--color-primary)',  bg: 'var(--color-primary-soft)' },
+  { key: 'activeToday',    label: 'Funcionários presentes', icon: '✅', color: 'var(--color-ok)',       bg: 'var(--color-ok-soft)'      },
+  { key: 'absentToday',    label: 'Sem registro hoje',      icon: '⚠️', color: 'var(--color-warn)',     bg: 'var(--color-warn-soft)'    },
+  { key: 'totalBlocked',   label: 'Bloqueios hoje',         icon: '⛔', color: 'var(--color-danger)',   bg: 'var(--color-danger-soft)'  },
 ];
 
 export default function DashboardStats({ summary, loading }) {
@@ -35,7 +11,7 @@ export default function DashboardStats({ summary, loading }) {
     return (
       <div style={styles.grid}>
         {CARDS.map((c) => (
-          <div key={c.key} style={{ ...styles.card, background: '#f8fafc' }}>
+          <div key={c.key} style={{ ...styles.card, background: 'var(--color-surface)' }}>
             <div style={styles.skeleton} />
           </div>
         ))}
@@ -46,10 +22,10 @@ export default function DashboardStats({ summary, loading }) {
   return (
     <div style={styles.grid}>
       {CARDS.map((card) => (
-        <div key={card.key} style={{ ...styles.card, background: card.bg, borderColor: card.color + '20' }}>
+        <div key={card.key} style={{ ...styles.card, background: card.bg }}>
           <div style={styles.cardHeader}>
             <span style={styles.icon}>{card.icon}</span>
-            <span style={{ ...styles.label, color: card.color + 'cc' }}>{card.label}</span>
+            <span style={{ ...styles.label, color: card.color }}>{card.label}</span>
           </div>
           <div style={{ ...styles.value, color: card.color }}>
             {summary?.[card.key] ?? 0}
@@ -77,7 +53,7 @@ const styles = {
   label: { fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' },
   value: { fontSize: 32, fontWeight: 800, lineHeight: 1 },
   skeleton: {
-    height: 60, background: '#e2e8f0', borderRadius: 8,
+    height: 60, background: 'var(--color-line)', borderRadius: 8,
     animation: 'pulse 1.5s ease-in-out infinite',
   },
 };

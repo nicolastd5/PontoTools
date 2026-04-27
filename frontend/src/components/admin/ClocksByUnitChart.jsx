@@ -9,9 +9,9 @@ export default function ClocksByUnitChart({ data = [] }) {
       <h3 style={styles.title}>Batidas por Unidade — Hoje</h3>
       <div style={styles.chart}>
         {data.map((unit) => {
-          const total      = parseInt(unit.total_clocks, 10);
-          const outside    = parseInt(unit.outside_zone, 10);
-          const pct        = Math.round((total / max) * 100);
+          const total   = parseInt(unit.total_clocks, 10);
+          const outside = parseInt(unit.outside_zone, 10);
+          const pct     = Math.round((total / max) * 100);
 
           return (
             <div key={unit.id} style={styles.row}>
@@ -20,17 +20,11 @@ export default function ClocksByUnitChart({ data = [] }) {
               </div>
               <div style={styles.barContainer}>
                 <div style={{ ...styles.bar, width: `${pct}%` }}>
-                  {total > 0 && (
-                    <span style={styles.barLabel}>{total}</span>
-                  )}
+                  {total > 0 && <span style={styles.barLabel}>{total}</span>}
                 </div>
-                {outside > 0 && (
-                  <span style={styles.outsideTag}>{outside} fora</span>
-                )}
+                {outside > 0 && <span style={styles.outsideTag}>{outside} fora</span>}
               </div>
-              <div style={styles.employees}>
-                {unit.unique_employees} func.
-              </div>
+              <div style={styles.employees}>{unit.unique_employees} func.</div>
             </div>
           );
         })}
@@ -41,57 +35,46 @@ export default function ClocksByUnitChart({ data = [] }) {
 
 const styles = {
   container: {
-    background:   '#fff',
+    background:   'var(--bg-card)',
     borderRadius: 12,
     padding:      '20px 24px',
-    border:       '1px solid #e2e8f0',
+    border:       '1px solid var(--border-default)',
     marginBottom: 24,
   },
-  title: { fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 18 },
-  chart: { display: 'flex', flexDirection: 'column', gap: 12 },
-  row:   { display: 'flex', alignItems: 'center', gap: 12 },
+  title:        { fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 18 },
+  chart:        { display: 'flex', flexDirection: 'column', gap: 12 },
+  row:          { display: 'flex', alignItems: 'center', gap: 12 },
   unitLabel: {
-    width:       56,
-    fontSize:    12,
-    fontWeight:  700,
-    color:       '#475569',
-    flexShrink:  0,
-    overflow:    'hidden',
-    textOverflow:'ellipsis',
-    whiteSpace:  'nowrap',
+    width:        56,
+    fontSize:     12,
+    fontWeight:   700,
+    color:        'var(--color-muted)',
+    flexShrink:   0,
+    overflow:     'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace:   'nowrap',
   },
   barContainer: {
-    flex:       1,
-    display:    'flex',
-    alignItems: 'center',
-    gap:        8,
-    background: '#f1f5f9',
+    flex:         1,
+    display:      'flex',
+    alignItems:   'center',
+    gap:          8,
+    background:   'var(--color-surface)',
     borderRadius: 6,
-    height:     28,
-    position:   'relative',
-    overflow:   'hidden',
+    height:       28,
+    position:     'relative',
+    overflow:     'hidden',
   },
   bar: {
     minWidth:     4,
     height:       '100%',
-    background:   'linear-gradient(90deg, #1d4ed8, #3b82f6)',
+    background:   'linear-gradient(90deg, var(--color-primary-dark), var(--color-primary))',
     borderRadius: 6,
     display:      'flex',
     alignItems:   'center',
     transition:   'width 0.4s ease',
   },
-  barLabel: {
-    paddingLeft: 8,
-    color:       '#fff',
-    fontSize:    12,
-    fontWeight:  700,
-  },
-  outsideTag: {
-    position:   'absolute',
-    right:      8,
-    fontSize:   11,
-    color:      '#dc2626',
-    fontWeight: 600,
-  },
-  employees: { fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', width: 56, textAlign: 'right' },
+  barLabel:   { paddingLeft: 8, color: '#fff', fontSize: 12, fontWeight: 700 },
+  outsideTag: { position: 'absolute', right: 8, fontSize: 11, color: 'var(--color-danger)', fontWeight: 600 },
+  employees:  { fontSize: 11, color: 'var(--color-subtle)', whiteSpace: 'nowrap', width: 56, textAlign: 'right' },
 };

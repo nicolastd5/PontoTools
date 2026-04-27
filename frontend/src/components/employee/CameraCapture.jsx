@@ -148,7 +148,7 @@ const s = {
     zIndex: 1000,
   },
   modal: {
-    width: '100%', maxWidth: 640,
+    width: '100%', maxWidth: 480,
     display: 'flex', flexDirection: 'column',
     background: '#000',
   },
@@ -218,15 +218,15 @@ const s = {
     background: '#111',
   },
   cancelBtn: {
-    flex: 1, padding: '14px', background: '#374151', border: 'none',
+    flex: 1, padding: '14px', background: 'rgba(255,255,255,0.12)', border: 'none',
     borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#fff',
   },
   captureBtn: {
-    flex: 2, padding: '14px', background: '#1d4ed8', border: 'none',
+    flex: 2, padding: '14px', background: '#4f46e5', border: 'none',
     borderRadius: 12, fontSize: 15, fontWeight: 700, color: '#fff',
   },
   confirmBtn: {
-    flex: 2, padding: '14px', background: '#16a34a', border: 'none',
+    flex: 2, padding: '14px', background: '#10b981', border: 'none',
     borderRadius: 12, fontSize: 15, fontWeight: 700, color: '#fff', cursor: 'pointer',
   },
   // ── erro ──

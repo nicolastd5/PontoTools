@@ -13,8 +13,8 @@ function elapsed(fromUtc, toUtc) {
 }
 
 export default function TodayServicesTable({ services = [], loading }) {
-  if (loading) return <p style={{ color: '#94a3b8', fontSize: 13 }}>Carregando serviços...</p>;
-  if (!services.length) return <p style={{ color: '#94a3b8', fontSize: 13 }}>Nenhum serviço registrado hoje.</p>;
+  if (loading) return <p style={{ color: 'var(--color-subtle)', fontSize: 13 }}>Carregando serviços...</p>;
+  if (!services.length) return <p style={{ color: 'var(--color-subtle)', fontSize: 13 }}>Nenhum serviço registrado hoje.</p>;
 
   const active    = services.filter((s) => s.entry_time && !s.exit_time);
   const completed = services.filter((s) => s.entry_time && s.exit_time);
@@ -44,7 +44,7 @@ export default function TodayServicesTable({ services = [], loading }) {
                       <td style={styles.td}>{localTime(s.entry_time, s.entry_timezone)}</td>
                       <td style={styles.td}>{elapsed(s.entry_time)}</td>
                       <td style={styles.td}>
-                        <span style={{ color: s.all_inside_zone ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                        <span style={{ color: s.all_inside_zone ? 'var(--color-ok)' : 'var(--color-danger)', fontWeight: 600 }}>
                           {s.all_inside_zone ? '✓' : '✗'}
                         </span>
                       </td>
@@ -79,7 +79,7 @@ export default function TodayServicesTable({ services = [], loading }) {
                       <td style={styles.td}>{localTime(s.exit_time, s.exit_timezone)}</td>
                       <td style={styles.td}>{elapsed(s.entry_time, s.exit_time)}</td>
                       <td style={styles.td}>
-                        <span style={{ color: s.all_inside_zone ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                        <span style={{ color: s.all_inside_zone ? 'var(--color-ok)' : 'var(--color-danger)', fontWeight: 600 }}>
                           {s.all_inside_zone ? '✓' : '✗'}
                         </span>
                       </td>
@@ -97,21 +97,21 @@ export default function TodayServicesTable({ services = [], loading }) {
 
 const styles = {
   container: {
-    background: '#fff', borderRadius: 12,
-    border: '1px solid #e2e8f0', marginTop: 24,
+    background: 'var(--bg-card)', borderRadius: 12,
+    border: '1px solid var(--border-default)', marginTop: 24,
   },
   title: {
-    fontSize: 15, fontWeight: 700, color: '#0f172a',
-    padding: '18px 20px', borderBottom: '1px solid #f1f5f9',
+    fontSize: 15, fontWeight: 700, color: 'var(--text-primary)',
+    padding: '18px 20px', borderBottom: '1px solid var(--border-light)',
     margin: 0,
   },
-  sectionLabel: { fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 },
+  sectionLabel: { fontSize: 12, fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: 8 },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: {
     padding: '10px 14px', textAlign: 'left',
-    fontSize: 11, fontWeight: 700, color: '#64748b',
-    background: '#f8fafc', borderBottom: '1px solid #e2e8f0',
+    fontSize: 11, fontWeight: 700, color: 'var(--color-muted)',
+    background: 'var(--color-surface)', borderBottom: '1px solid var(--border-default)',
     textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap',
   },
-  td: { padding: '8px 10px', borderBottom: '1px solid #f8fafc', color: '#374151' },
+  td: { padding: '8px 10px', borderBottom: '1px solid var(--border-light)', color: 'var(--text-primary)' },
 };
