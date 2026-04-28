@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { registerFcmToken } from '../../hooks/useFcmWeb';
 
 const FIREBASE_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
@@ -86,6 +87,7 @@ export default function EmployeeNotificationsPage() {
       setPushGranted(permission === 'granted');
       setPushDenied(permission === 'denied');
       if (permission === 'granted') {
+        await registerFcmToken();
         success('Notificações push ativadas!');
       } else if (permission === 'denied') {
         error('Permissão bloqueada. Reative nas configurações do navegador.');
@@ -179,7 +181,7 @@ export default function EmployeeNotificationsPage() {
                     {!n.read && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 3, background: theme.accent, marginLeft: 6, verticalAlign: 'middle' }} />}
                   </div>
                   <div style={{ fontSize: 12, color: theme.textSecondary, lineHeight: 1.4, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{n.body}</div>
-                  <div style={{ fontSize: 11, color: theme.textMuted }}>{fmtDate(n.created_at)} atrás</div>
+                  <div style={{ fontSize: 11, color: theme.textMuted }}>{fmtDate(n.created_at)}</div>
                 </div>
               </div>
             );

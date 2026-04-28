@@ -35,7 +35,7 @@ async function unregisterLegacyFirebaseSw() {
   }
 }
 
-async function registerFcmToken() {
+export async function registerFcmToken() {
   try {
     await unregisterLegacyFirebaseSw();
 

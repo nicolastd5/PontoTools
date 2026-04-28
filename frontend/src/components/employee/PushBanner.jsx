@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { registerFcmToken } from '../../hooks/useFcmWeb';
 
 const FIREBASE_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
@@ -34,6 +35,7 @@ export default function PushBanner() {
       const permission = await Notification.requestPermission();
       setPushGranted(permission === 'granted');
       setPushDenied(permission === 'denied');
+      if (permission === 'granted') await registerFcmToken();
     } catch {
       // no-op
     } finally {
