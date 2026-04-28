@@ -109,8 +109,8 @@ async function checkTemplates() {
 
     for (const tpl of result.rows) {
       // Verifica restrição de dia da semana (fire_weekdays bitmask: bit0=Dom...bit6=Sáb)
-      if (tpl.fire_weekdays != null) {
-        const todayBit = 1 << new Date().getDay();
+      if (tpl.fire_weekdays) {
+        const todayBit = 1 << new Date().getUTCDay();
         if (!(tpl.fire_weekdays & todayBit)) {
           // Dia não permitido: avança next_run_at em 1 dia (não pula o intervalo inteiro)
           await db.query(
@@ -152,7 +152,7 @@ async function checkTemplates() {
         }
 
         let nextRun;
-        if (tpl.fire_weekdays != null) {
+        if (tpl.fire_weekdays) {
           const next = nextWeekday(new Date(tpl.next_run_at), tpl.fire_weekdays);
           nextRun = next ? next.toISOString() : null;
         } else {
