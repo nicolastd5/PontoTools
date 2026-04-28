@@ -3,6 +3,17 @@ const db      = require('../config/database');
 const logger  = require('../utils/logger');
 const fcm     = require('./fcm.service');
 
+function nextWeekday(fromDate, bitmask) {
+  if (!bitmask) return null;
+  const d = new Date(fromDate);
+  for (let i = 1; i <= 7; i++) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const bit = 1 << d.getUTCDay();
+    if (bitmask & bit) return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  }
+  return null;
+}
+
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL || 'mailto:admin@pontotools.shop',
   process.env.VAPID_PUBLIC_KEY  || '',
@@ -186,4 +197,4 @@ function startCron() {
   checkTemplates();
 }
 
-module.exports = { notify, startCron };
+module.exports = { notify, startCron, nextWeekday };
