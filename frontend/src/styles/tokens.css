@@ -173,6 +173,19 @@
   padding: 0;
 }
 
+/* Calendário nativo acompanha o tema da página */
+:root input[type="date"],
+:root input[type="month"],
+:root input[type="time"] {
+  color-scheme: light;
+}
+
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="month"],
+[data-theme="dark"] input[type="time"] {
+  color-scheme: dark;
+}
+
 html, body, #root {
   height: 100%;
 }
