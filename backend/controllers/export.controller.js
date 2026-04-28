@@ -645,6 +645,34 @@ async function exportServicesExcel(req, res, next) {
       return res.status(404).json({ error: 'Nenhum serviço encontrado para o período.' });
     }
 
+    // Busca coordenadas GPS da foto "before" de cada serviço
+    const serviceIds = result.rows.map((r) => r.id);
+    const gpsResult  = await db.query(
+      `SELECT DISTINCT ON (service_order_id) service_order_id, latitude, longitude
+       FROM service_photos
+       WHERE service_order_id = ANY($1) AND phase = 'before'
+         AND latitude IS NOT NULL AND longitude IS NOT NULL
+       ORDER BY service_order_id, created_at ASC`,
+      [serviceIds]
+    );
+    const gpsByService = {};
+    gpsResult.rows.forEach((r) => { gpsByService[r.service_order_id] = r; });
+
+    // Geocoding reverso com throttle 1 req/s (mesmo cache da função reverseGeocode)
+    const geocodeMap = {};
+    const uniqueGps  = Object.values(gpsByService).filter((p, i, arr) => {
+      const key = `${Number(p.latitude).toFixed(4)},${Number(p.longitude).toFixed(4)}`;
+      return arr.findIndex((q) => `${Number(q.latitude).toFixed(4)},${Number(q.longitude).toFixed(4)}` === key) === i;
+    });
+    for (let i = 0; i < uniqueGps.length; i++) {
+      const p   = uniqueGps[i];
+      const key = `${Number(p.latitude).toFixed(4)},${Number(p.longitude).toFixed(4)}`;
+      if (geocodeMap[key] === undefined) {
+        if (i > 0) await new Promise((r) => setTimeout(r, 1050));
+        geocodeMap[key] = await reverseGeocode(p.latitude, p.longitude);
+      }
+    }
+
     const STATUS_LABEL = {
       pending:          'Pendente',
       in_progress:      'Em andamento',
@@ -653,7 +681,6 @@ async function exportServicesExcel(req, res, next) {
       problem:          'Problema',
     };
 
-    const fmtQueryDate = (s) => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
     const fmtTs = (ts) => ts ? new Date(ts).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
     const fmtDate = (d) => {
       const dt = new Date(d);
@@ -669,9 +696,8 @@ async function exportServicesExcel(req, res, next) {
       { header: 'Status',          key: 'status',              width: 22 },
       { header: 'Funcionário',     key: 'full_name',           width: 28 },
       { header: 'Matrícula',       key: 'badge_number',        width: 14 },
-      { header: 'Unidade',         key: 'unit_name',           width: 24 },
-      { header: 'Endereço',        key: 'unit_address',        width: 36 },
-      { header: 'Posto',           key: 'employee_posto',      width: 22 },
+      { header: 'Posto',           key: 'employee_posto',      width: 28 },
+      { header: 'Endereço GPS',    key: 'gps_address',         width: 44 },
       { header: 'Data Agendada',   key: 'scheduled_date',      width: 16 },
       { header: 'Hora Prevista',   key: 'due_time',            width: 14 },
       { header: 'Início',          key: 'started_at',          width: 22 },
@@ -686,15 +712,18 @@ async function exportServicesExcel(req, res, next) {
     sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7C3AED' } };
 
     result.rows.forEach((r) => {
+      const gps        = gpsByService[r.id];
+      const gpsKey     = gps ? `${Number(gps.latitude).toFixed(4)},${Number(gps.longitude).toFixed(4)}` : null;
+      const gpsAddress = gpsKey ? (geocodeMap[gpsKey] || '—') : '—';
+
       sheet.addRow({
         id:                  r.id,
         title:               r.title,
         status:              STATUS_LABEL[r.status] || r.status,
         full_name:           r.full_name || '—',
         badge_number:        r.badge_number || '—',
-        unit_name:           r.unit_name,
-        unit_address:        r.unit_address || '—',
         employee_posto:      r.employee_posto || '—',
+        gps_address:         gpsAddress,
         scheduled_date:      fmtDate(r.scheduled_date),
         due_time:            r.due_time ? r.due_time.slice(0, 5) : '—',
         started_at:          fmtTs(r.started_at),
