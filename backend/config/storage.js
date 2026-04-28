@@ -79,7 +79,7 @@ const s3Driver = {
     return filename;
   },
 
-  async getUrl(key) {
+  getUrl(key) {
     const AWS = require('aws-sdk');
     const s3  = new AWS.S3();
     return s3.getSignedUrlPromise('getObject', {
