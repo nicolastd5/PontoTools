@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone } from 'date-fns-tz';
 import api from '../../services/api';
@@ -811,10 +811,12 @@ export default function AdminServicesPage() {
 /* ── Sub-components ── */
 
 function Overlay({ children, onClose }) {
+  const mouseDownTarget = useRef(null);
   return (
     <div
       style={{ position: 'fixed', inset: 0, background: 'rgba(9,9,11,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}
-      onClick={onClose}
+      onMouseDown={(e) => { mouseDownTarget.current = e.target; }}
+      onMouseUp={(e) => { if (mouseDownTarget.current === e.currentTarget && e.target === e.currentTarget) onClose(); }}
     >
       {children}
     </div>
