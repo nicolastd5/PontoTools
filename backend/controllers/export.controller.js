@@ -595,4 +595,349 @@ async function exportServicesPdf(req, res, next) {
   }
 }
 
-module.exports = { exportPdf, exportExcel, exportServicesPdf };
+// ----------------------------------------------------------------
+// GET /api/admin/export/services/excel
+// Ordens de serviço em Excel — sem fotos
+// ----------------------------------------------------------------
+async function exportServicesExcel(req, res, next) {
+  try {
+    const { employeeId, unitId, startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Parâmetros obrigatórios: startDate, endDate.' });
+    }
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRe.test(startDate) || !dateRe.test(endDate)) {
+      return res.status(400).json({ error: 'Formato de data inválido. Use YYYY-MM-DD.' });
+    }
+    if (!employeeId && !unitId) {
+      return res.status(400).json({ error: 'Informe employeeId ou unitId.' });
+    }
+
+    const params  = [startDate, endDate];
+    const filters = [];
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      filters.push(`u.contract_id = $${params.push(req.user.contractId)}`);
+    }
+    if (employeeId) filters.push(`so.assigned_employee_id = $${params.push(parseInt(employeeId, 10))}`);
+    if (unitId)     filters.push(`so.unit_id = $${params.push(parseInt(unitId, 10))}`);
+
+    const result = await db.query(
+      `SELECT
+         so.id, so.title, so.description, so.status,
+         so.scheduled_date, so.due_time,
+         so.started_at, so.finished_at,
+         so.problem_description, so.issue_description,
+         so.employee_posto,
+         e.full_name, e.badge_number,
+         u.name AS unit_name, u.address AS unit_address,
+         (SELECT COUNT(*) FROM service_photos sp WHERE sp.service_order_id = so.id) AS total_photos
+       FROM service_orders so
+       LEFT JOIN employees e ON e.id = so.assigned_employee_id
+       JOIN units u ON u.id = so.unit_id
+       WHERE so.scheduled_date BETWEEN $1 AND $2
+         ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
+       ORDER BY so.scheduled_date ASC, so.id ASC`,
+      params
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Nenhum serviço encontrado para o período.' });
+    }
+
+    const STATUS_LABEL = {
+      pending:          'Pendente',
+      in_progress:      'Em andamento',
+      done:             'Concluído',
+      done_with_issues: 'Concluído c/ ressalvas',
+      problem:          'Problema',
+    };
+
+    const fmtQueryDate = (s) => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+    const fmtTs = (ts) => ts ? new Date(ts).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
+    const fmtDate = (d) => {
+      const dt = new Date(d);
+      return `${String(dt.getUTCDate()).padStart(2,'0')}/${String(dt.getUTCMonth()+1).padStart(2,'0')}/${dt.getUTCFullYear()}`;
+    };
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet    = workbook.addWorksheet('Ordens de Serviço');
+
+    sheet.columns = [
+      { header: 'ID',              key: 'id',                  width: 8  },
+      { header: 'Título',          key: 'title',               width: 36 },
+      { header: 'Status',          key: 'status',              width: 22 },
+      { header: 'Funcionário',     key: 'full_name',           width: 28 },
+      { header: 'Matrícula',       key: 'badge_number',        width: 14 },
+      { header: 'Unidade',         key: 'unit_name',           width: 24 },
+      { header: 'Endereço',        key: 'unit_address',        width: 36 },
+      { header: 'Posto',           key: 'employee_posto',      width: 22 },
+      { header: 'Data Agendada',   key: 'scheduled_date',      width: 16 },
+      { header: 'Hora Prevista',   key: 'due_time',            width: 14 },
+      { header: 'Início',          key: 'started_at',          width: 22 },
+      { header: 'Conclusão',       key: 'finished_at',         width: 22 },
+      { header: 'Descrição',       key: 'description',         width: 40 },
+      { header: 'Problema',        key: 'problem_description', width: 40 },
+      { header: 'Ressalvas',       key: 'issue_description',   width: 40 },
+      { header: 'Qtd. Fotos',      key: 'total_photos',        width: 12 },
+    ];
+
+    sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7C3AED' } };
+
+    result.rows.forEach((r) => {
+      sheet.addRow({
+        id:                  r.id,
+        title:               r.title,
+        status:              STATUS_LABEL[r.status] || r.status,
+        full_name:           r.full_name || '—',
+        badge_number:        r.badge_number || '—',
+        unit_name:           r.unit_name,
+        unit_address:        r.unit_address || '—',
+        employee_posto:      r.employee_posto || '—',
+        scheduled_date:      fmtDate(r.scheduled_date),
+        due_time:            r.due_time ? r.due_time.slice(0, 5) : '—',
+        started_at:          fmtTs(r.started_at),
+        finished_at:         fmtTs(r.finished_at),
+        description:         r.description || '—',
+        problem_description: r.problem_description || '—',
+        issue_description:   r.issue_description || '—',
+        total_photos:        parseInt(r.total_photos, 10),
+      });
+    });
+
+    res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.set('Content-Disposition', `attachment; filename="servicos_${startDate}_${endDate}.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ----------------------------------------------------------------
+// GET /api/admin/export/services/docx
+// Ordens de serviço em Word (.docx) com fotos before/after
+// ----------------------------------------------------------------
+async function exportServicesDocx(req, res, next) {
+  try {
+    const { employeeId, unitId, startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'Parâmetros obrigatórios: startDate, endDate.' });
+    }
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRe.test(startDate) || !dateRe.test(endDate)) {
+      return res.status(400).json({ error: 'Formato de data inválido. Use YYYY-MM-DD.' });
+    }
+    if (!employeeId && !unitId) {
+      return res.status(400).json({ error: 'Informe employeeId ou unitId.' });
+    }
+
+    const {
+      Document, Packer, Paragraph, TextRun, ImageRun,
+      HeadingLevel, AlignmentType, BorderStyle, Table, TableRow, TableCell,
+      WidthType, ShadingType,
+    } = require('docx');
+
+    const params  = [startDate, endDate];
+    const filters = [];
+    if (req.user.role === 'gestor' && req.user.contractId) {
+      filters.push(`u.contract_id = $${params.push(req.user.contractId)}`);
+    }
+    if (employeeId) filters.push(`so.assigned_employee_id = $${params.push(parseInt(employeeId, 10))}`);
+    if (unitId)     filters.push(`so.unit_id = $${params.push(parseInt(unitId, 10))}`);
+
+    const result = await db.query(
+      `SELECT
+         so.id, so.title, so.description, so.status,
+         so.scheduled_date, so.due_time,
+         so.started_at, so.finished_at,
+         so.problem_description, so.issue_description,
+         so.employee_posto,
+         e.full_name, e.badge_number,
+         u.name AS unit_name, u.address AS unit_address
+       FROM service_orders so
+       LEFT JOIN employees e ON e.id = so.assigned_employee_id
+       JOIN units u ON u.id = so.unit_id
+       WHERE so.scheduled_date BETWEEN $1 AND $2
+         ${filters.length ? 'AND ' + filters.join(' AND ') : ''}
+       ORDER BY so.scheduled_date ASC, so.id ASC`,
+      params
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Nenhum serviço encontrado para o período.' });
+    }
+
+    // Fotos
+    const serviceIds  = result.rows.map((r) => r.id);
+    const photosResult = await db.query(
+      `SELECT service_order_id, phase, photo_path, latitude, longitude
+       FROM service_photos
+       WHERE service_order_id = ANY($1)
+       ORDER BY service_order_id, created_at ASC`,
+      [serviceIds]
+    );
+    const photosByService = {};
+    photosResult.rows.forEach((p) => {
+      if (!photosByService[p.service_order_id]) photosByService[p.service_order_id] = [];
+      photosByService[p.service_order_id].push(p);
+    });
+
+    // Pré-carrega buffers com concorrência limitada
+    const photoQueue = [];
+    const photoBufferCache = {};
+    for (const svc of result.rows) {
+      const photos = photosByService[svc.id] || [];
+      const toLoad = [
+        ...photos.filter((p) => p.phase === 'before').slice(0, 2),
+        ...photos.filter((p) => p.phase === 'after').slice(0, 2),
+      ];
+      for (const p of toLoad) {
+        if (photoBufferCache[p.photo_path] === undefined) {
+          photoBufferCache[p.photo_path] = null;
+          photoQueue.push(p.photo_path);
+        }
+      }
+    }
+    const CONCURRENCY = 8;
+    for (let i = 0; i < photoQueue.length; i += CONCURRENCY) {
+      const batch = photoQueue.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map((key) =>
+        storage.getBuffer(key)
+          .then((buf) => { photoBufferCache[key] = buf; })
+          .catch(() => { photoBufferCache[key] = null; })
+      ));
+    }
+
+    const STATUS_LABEL = {
+      pending:          'Pendente',
+      in_progress:      'Em andamento',
+      done:             'Concluído',
+      done_with_issues: 'Concluído c/ ressalvas',
+      problem:          'Problema',
+    };
+
+    const fmtDate = (d) => {
+      const dt = new Date(d);
+      return `${String(dt.getUTCDate()).padStart(2,'0')}/${String(dt.getUTCMonth()+1).padStart(2,'0')}/${dt.getUTCFullYear()}`;
+    };
+    const fmtTs = (ts) => ts ? new Date(ts).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—';
+
+    // Monta seções do documento
+    const children = [];
+
+    // Título do relatório
+    children.push(
+      new Paragraph({
+        text: 'RELATÓRIO DE ORDENS DE SERVIÇO',
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: `Período: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')}`, color: '444444', size: 22 })],
+        alignment: AlignmentType.CENTER,
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: `Gerado em: ${new Date().toLocaleString('pt-BR')}`, color: '888888', size: 18 })],
+        alignment: AlignmentType.CENTER,
+      }),
+      new Paragraph({ text: '' }),
+    );
+
+    for (const svc of result.rows) {
+      const photos      = photosByService[svc.id] || [];
+      const beforePhotos = photos.filter((p) => p.phase === 'before').slice(0, 2);
+      const afterPhotos  = photos.filter((p) => p.phase === 'after').slice(0, 2);
+
+      // Título do serviço
+      children.push(
+        new Paragraph({
+          children: [new TextRun({ text: svc.title, bold: true, size: 26, color: '0f172a' })],
+          spacing: { before: 300, after: 60 },
+        }),
+      );
+
+      // Metadados em tabela 2 colunas
+      const metaRows = [
+        ['Funcionário',  svc.full_name || '—'],
+        ['Matrícula',    svc.badge_number || '—'],
+        ['Unidade',      svc.unit_name],
+        ['Posto',        svc.employee_posto || svc.unit_name],
+        ['Status',       STATUS_LABEL[svc.status] || svc.status],
+        ['Agendado',     fmtDate(svc.scheduled_date) + (svc.due_time ? ' às ' + svc.due_time.slice(0,5) : '')],
+        ['Início',       fmtTs(svc.started_at)],
+        ['Conclusão',    fmtTs(svc.finished_at)],
+      ];
+      if (svc.description)         metaRows.push(['Descrição',  svc.description]);
+      if (svc.problem_description) metaRows.push(['Problema',   svc.problem_description]);
+      if (svc.issue_description)   metaRows.push(['Ressalvas',  svc.issue_description]);
+
+      const metaTable = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: metaRows.map(([label, value]) => new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 20, type: WidthType.PERCENTAGE },
+              shading: { type: ShadingType.SOLID, color: 'f1f5f9' },
+              children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 20, color: '334155' })] })],
+            }),
+            new TableCell({
+              width: { size: 80, type: WidthType.PERCENTAGE },
+              children: [new Paragraph({ children: [new TextRun({ text: String(value || '—'), size: 20 })] })],
+            }),
+          ],
+        })),
+      });
+
+      children.push(metaTable, new Paragraph({ text: '' }));
+
+      // Fotos — Antes
+      if (beforePhotos.length) {
+        children.push(new Paragraph({ children: [new TextRun({ text: 'Fotos — Antes:', bold: true, size: 20, color: '64748b' })] }));
+        for (const p of beforePhotos) {
+          const buf = photoBufferCache[p.photo_path];
+          if (buf) {
+            children.push(new Paragraph({
+              children: [new ImageRun({ data: buf, transformation: { width: 400, height: 300 }, type: 'jpg' })],
+              spacing: { after: 120 },
+            }));
+          }
+        }
+      }
+
+      // Fotos — Depois
+      if (afterPhotos.length) {
+        children.push(new Paragraph({ children: [new TextRun({ text: 'Fotos — Depois:', bold: true, size: 20, color: '64748b' })] }));
+        for (const p of afterPhotos) {
+          const buf = photoBufferCache[p.photo_path];
+          if (buf) {
+            children.push(new Paragraph({
+              children: [new ImageRun({ data: buf, transformation: { width: 400, height: 300 }, type: 'jpg' })],
+              spacing: { after: 120 },
+            }));
+          }
+        }
+      }
+
+      // Separador
+      children.push(new Paragraph({
+        border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'e2e8f0' } },
+        spacing: { before: 200, after: 200 },
+        text: '',
+      }));
+    }
+
+    const doc = new Document({ sections: [{ children }] });
+    const buffer = await Packer.toBuffer(doc);
+
+    res.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.set('Content-Disposition', `attachment; filename="servicos_${startDate}_${endDate}.docx"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { exportPdf, exportExcel, exportServicesPdf, exportServicesExcel, exportServicesDocx };

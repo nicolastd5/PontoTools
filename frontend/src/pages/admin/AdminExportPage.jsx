@@ -85,6 +85,8 @@ const ICON_FILE_TEXT = 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V
 const ICON_GRID      = 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z';
 const ICON_CLIPBOARD = 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 2h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z';
 const ICON_DOWNLOAD  = 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3';
+const ICON_WORD      = 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M9 13l2 4 2-4 2 4 2-4';
+const ICON_TABLE     = 'M3 3h18v18H3z M3 9h18 M3 15h18 M9 3v18 M15 3v18';
 
 function useUnits() {
   return useQuery({ queryKey: ['units'], queryFn: () => api.get('/units').then((r) => r.data.units) });
@@ -94,9 +96,11 @@ function useEmployees() {
 }
 
 const EXPORT_CARDS = [
-  { key: 'pdf',      icon: ICON_FILE_TEXT, iconColor: '#ef4444', bg: 'rgba(239,68,68,0.08)',  title: 'Cartão de Ponto (PDF)',       desc: 'Gera o cartão de ponto mensal do funcionário com tabela de horários por dia.', adminOnly: true },
-  { key: 'xls',      icon: ICON_GRID,      iconColor: '#059669', bg: 'rgba(16,185,129,0.08)', title: 'Auditoria Bruta (Excel)',      desc: 'Exporta todas as batidas com colunas completas: UTC, local, coordenadas, motivo de bloqueio.', adminOnly: true },
-  { key: 'svc',      icon: ICON_CLIPBOARD, iconColor: '#7c3aed', bg: 'rgba(124,58,237,0.08)', title: 'Relatório de Serviços (PDF)',  desc: 'Exporta as ordens de serviço do período com status, horários de início/conclusão e fotos antes/depois.', adminOnly: false },
+  { key: 'pdf',      icon: ICON_FILE_TEXT, iconColor: '#ef4444', bg: 'rgba(239,68,68,0.08)',   title: 'Cartão de Ponto (PDF)',          desc: 'Gera o cartão de ponto mensal do funcionário com tabela de horários por dia.', adminOnly: true },
+  { key: 'xls',      icon: ICON_GRID,      iconColor: '#059669', bg: 'rgba(16,185,129,0.08)',  title: 'Auditoria Bruta (Excel)',         desc: 'Exporta todas as batidas com colunas completas: UTC, local, coordenadas, motivo de bloqueio.', adminOnly: true },
+  { key: 'svc',      icon: ICON_CLIPBOARD, iconColor: '#7c3aed', bg: 'rgba(124,58,237,0.08)',  title: 'Relatório de Serviços (PDF)',     desc: 'Exporta as ordens de serviço do período com status, horários de início/conclusão e fotos antes/depois.', adminOnly: false },
+  { key: 'svc-docx', icon: ICON_WORD,      iconColor: '#2563eb', bg: 'rgba(37,99,235,0.08)',   title: 'Relatório de Serviços (Word)',    desc: 'Mesmo relatório em formato .docx editável, com fotos antes/depois incorporadas.', adminOnly: false },
+  { key: 'svc-xls',  icon: ICON_TABLE,     iconColor: '#0891b2', bg: 'rgba(8,145,178,0.08)',   title: 'Serviços (Excel)',                desc: 'Exporta todas as ordens de serviço com todos os campos em planilha, sem fotos.', adminOnly: false },
 ];
 
 export default function AdminExportPage() {
@@ -108,8 +112,10 @@ export default function AdminExportPage() {
 
   const [pdfForm, setPdfForm] = useState({ employeeId: '', month: '', year: new Date().getFullYear() });
   const [xlsForm, setXlsForm] = useState({ unitId: '', startDate: '', endDate: '' });
-  const [svcForm, setSvcForm] = useState({ filterType: 'employee', employeeId: '', unitId: '', startDate: '', endDate: '' });
-  const [loading, setLoading] = useState({ pdf: false, xls: false, svc: false });
+  const [svcForm,     setSvcForm]     = useState({ filterType: 'employee', employeeId: '', unitId: '', startDate: '', endDate: '' });
+  const [svcDocxForm, setSvcDocxForm] = useState({ filterType: 'employee', employeeId: '', unitId: '', startDate: '', endDate: '' });
+  const [svcXlsForm,  setSvcXlsForm]  = useState({ filterType: 'employee', employeeId: '', unitId: '', startDate: '', endDate: '' });
+  const [loading, setLoading] = useState({ pdf: false, xls: false, svc: false, svcDocx: false, svcXls: false });
 
   async function exportPdf() {
     if (!pdfForm.employeeId || !pdfForm.month) return error('Selecione funcionário e mês.');
@@ -148,6 +154,40 @@ export default function AdminExportPage() {
     } finally { setLoading((p) => ({ ...p, svc: false })); }
   }
 
+  async function exportServicesDocx() {
+    if (!svcDocxForm.startDate || !svcDocxForm.endDate) return error('Selecione o intervalo de datas.');
+    if (svcDocxForm.filterType === 'employee' && !svcDocxForm.employeeId) return error('Selecione o funcionário.');
+    if (svcDocxForm.filterType === 'unit' && !svcDocxForm.unitId) return error('Selecione a unidade.');
+    setLoading((p) => ({ ...p, svcDocx: true }));
+    try {
+      const params = { startDate: svcDocxForm.startDate, endDate: svcDocxForm.endDate };
+      if (svcDocxForm.filterType === 'employee') params.employeeId = svcDocxForm.employeeId;
+      else params.unitId = svcDocxForm.unitId;
+      const res = await api.get('/admin/export/services/docx', { params, responseType: 'blob' });
+      download(res.data, `servicos_${svcDocxForm.startDate}_${svcDocxForm.endDate}.docx`);
+    } catch (err) {
+      try { const t = await err.response?.data?.text?.(); const j = JSON.parse(t); error(j.error || 'Erro ao gerar Word.'); }
+      catch { error('Erro ao gerar Word de serviços. Tente novamente.'); }
+    } finally { setLoading((p) => ({ ...p, svcDocx: false })); }
+  }
+
+  async function exportServicesXls() {
+    if (!svcXlsForm.startDate || !svcXlsForm.endDate) return error('Selecione o intervalo de datas.');
+    if (svcXlsForm.filterType === 'employee' && !svcXlsForm.employeeId) return error('Selecione o funcionário.');
+    if (svcXlsForm.filterType === 'unit' && !svcXlsForm.unitId) return error('Selecione a unidade.');
+    setLoading((p) => ({ ...p, svcXls: true }));
+    try {
+      const params = { startDate: svcXlsForm.startDate, endDate: svcXlsForm.endDate };
+      if (svcXlsForm.filterType === 'employee') params.employeeId = svcXlsForm.employeeId;
+      else params.unitId = svcXlsForm.unitId;
+      const res = await api.get('/admin/export/services/excel', { params, responseType: 'blob' });
+      download(res.data, `servicos_${svcXlsForm.startDate}_${svcXlsForm.endDate}.xlsx`);
+    } catch (err) {
+      try { const t = await err.response?.data?.text?.(); const j = JSON.parse(t); error(j.error || 'Erro ao gerar Excel.'); }
+      catch { error('Erro ao gerar Excel de serviços. Tente novamente.'); }
+    } finally { setLoading((p) => ({ ...p, svcXls: false })); }
+  }
+
   function download(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -166,7 +206,7 @@ export default function AdminExportPage() {
 
   return (
     <div>
-      <PdfProgressModal visible={loading.svc} />
+      <PdfProgressModal visible={loading.svc || loading.svcDocx} />
       <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-ink)', margin: '0 0 24px', letterSpacing: '-0.03em' }}>Exportar Dados</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
@@ -189,7 +229,15 @@ export default function AdminExportPage() {
             )}
             {card.key === 'svc' && (
               <ExportSvcForm form={svcForm} setForm={setSvcForm} employees={employees} units={units}
-                loading={loading.svc} onExport={exportServicesPdf} />
+                loading={loading.svc} onExport={exportServicesPdf} label="Gerar PDF de Serviços" loadLabel="Aguarde..." bg="#7c3aed" />
+            )}
+            {card.key === 'svc-docx' && (
+              <ExportSvcForm form={svcDocxForm} setForm={setSvcDocxForm} employees={employees} units={units}
+                loading={loading.svcDocx} onExport={exportServicesDocx} label="Gerar Word de Serviços" loadLabel="Gerando Word..." bg="#2563eb" />
+            )}
+            {card.key === 'svc-xls' && (
+              <ExportSvcForm form={svcXlsForm} setForm={setSvcXlsForm} employees={employees} units={units}
+                loading={loading.svcXls} onExport={exportServicesXls} label="Gerar Excel de Serviços" loadLabel="Gerando Excel..." bg="#0891b2" />
             )}
           </div>
         ))}
@@ -250,7 +298,7 @@ function ExportXlsForm({ form, setForm, units, loading, onExport }) {
   );
 }
 
-function ExportSvcForm({ form, setForm, employees, units, loading, onExport }) {
+function ExportSvcForm({ form, setForm, employees, units, loading, onExport, label = 'Gerar PDF de Serviços', loadLabel = 'Aguarde...', bg = '#7c3aed' }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <Field label="Filtrar por">
@@ -286,7 +334,7 @@ function ExportSvcForm({ form, setForm, employees, units, loading, onExport }) {
           </Field>
         </div>
       </div>
-      <ExportBtn loading={loading} onExport={onExport} label="Gerar PDF de Serviços" loadLabel="Aguarde..." bg="#7c3aed" />
+      <ExportBtn loading={loading} onExport={onExport} label={label} loadLabel={loadLabel} bg={bg} />
     </div>
   );
 }
