@@ -1,4 +1,4 @@
-import { useState }  from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery }  from '@tanstack/react-query';
 import api           from '../../services/api';
 import { useToast }  from '../../contexts/ToastContext';
@@ -10,6 +10,74 @@ function Icon({ d, size = 16, color = 'currentColor', strokeWidth = 1.8 }) {
       stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       {Array.isArray(d) ? d.map((p, i) => <path key={i} d={p} />) : <path d={d} />}
     </svg>
+  );
+}
+
+const STEPS_SVC = [
+  { label: 'Consultando serviços no banco...', duration: 1500 },
+  { label: 'Carregando fotos do servidor...', duration: 6000 },
+  { label: 'Obtendo endereços GPS...', duration: 4000 },
+  { label: 'Montando páginas do PDF...', duration: 3000 },
+  { label: 'Finalizando download...', duration: 99999 },
+];
+
+function PdfProgressModal({ visible }) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [dots, setDots]       = useState('');
+  const timerRef = useRef(null);
+  const dotsRef  = useRef(null);
+
+  useEffect(() => {
+    if (!visible) { setStepIdx(0); setDots(''); return; }
+
+    let idx = 0;
+    function advance() {
+      if (idx < STEPS_SVC.length - 1) {
+        timerRef.current = setTimeout(() => { idx++; setStepIdx(idx); advance(); }, STEPS_SVC[idx].duration);
+      }
+    }
+    advance();
+
+    dotsRef.current = setInterval(() => setDots((d) => d.length >= 3 ? '' : d + '.'), 500);
+
+    return () => { clearTimeout(timerRef.current); clearInterval(dotsRef.current); };
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: '36px 40px', minWidth: 320, maxWidth: 420, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        {/* Spinner */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          <svg width={48} height={48} viewBox="0 0 48 48" style={{ animation: 'spin 1s linear infinite' }}>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <circle cx="24" cy="24" r="20" fill="none" stroke="var(--color-line)" strokeWidth="4" />
+            <path d="M24 4 a20 20 0 0 1 20 20" fill="none" stroke="#7c3aed" strokeWidth="4" strokeLinecap="round" />
+          </svg>
+        </div>
+
+        <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-ink)', margin: '0 0 8px' }}>Gerando PDF de Serviços</p>
+        <p style={{ fontSize: 13, color: 'var(--color-muted)', margin: 0, minHeight: 20 }}>
+          {STEPS_SVC[stepIdx].label}{dots}
+        </p>
+
+        {/* Barra de progresso */}
+        <div style={{ marginTop: 20, background: 'var(--color-line)', borderRadius: 99, height: 6, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%',
+            background: '#7c3aed',
+            borderRadius: 99,
+            width: `${Math.round(((stepIdx + 1) / STEPS_SVC.length) * 100)}%`,
+            transition: 'width 0.6s ease',
+          }} />
+        </div>
+
+        <p style={{ marginTop: 10, fontSize: 11, color: 'var(--color-muted)' }}>
+          Etapa {stepIdx + 1} de {STEPS_SVC.length}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -98,6 +166,7 @@ export default function AdminExportPage() {
 
   return (
     <div>
+      <PdfProgressModal visible={loading.svc} />
       <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-ink)', margin: '0 0 24px', letterSpacing: '-0.03em' }}>Exportar Dados</h1>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
@@ -217,7 +286,7 @@ function ExportSvcForm({ form, setForm, employees, units, loading, onExport }) {
           </Field>
         </div>
       </div>
-      <ExportBtn loading={loading} onExport={onExport} label="Gerar PDF de Serviços" loadLabel="Gerando PDF..." bg="#7c3aed" />
+      <ExportBtn loading={loading} onExport={onExport} label="Gerar PDF de Serviços" loadLabel="Aguarde..." bg="#7c3aed" />
     </div>
   );
 }

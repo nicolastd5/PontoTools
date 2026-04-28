@@ -420,9 +420,9 @@ async function exportServicesPdf(req, res, next) {
       }
     }
 
-    // Pré-carrega todos os buffers de fotos em paralelo (até 2 por fase por serviço)
+    // Pré-carrega buffers de fotos com concorrência limitada para não sobrecarregar o S3
     const photoBufferCache = {};
-    const bufferFetches = [];
+    const photoQueue = [];
     for (const svc of result.rows) {
       const photos = photosByService[svc.id] || [];
       const toLoad = [
@@ -431,16 +431,22 @@ async function exportServicesPdf(req, res, next) {
       ];
       for (const p of toLoad) {
         if (photoBufferCache[p.photo_path] === undefined) {
-          photoBufferCache[p.photo_path] = null; // reserva slot
-          bufferFetches.push(
-            storage.getBuffer(p.photo_path)
-              .then((buf) => { photoBufferCache[p.photo_path] = buf; })
-              .catch(() => { photoBufferCache[p.photo_path] = null; })
-          );
+          photoBufferCache[p.photo_path] = null;
+          photoQueue.push(p.photo_path);
         }
       }
     }
-    await Promise.all(bufferFetches);
+
+    // Processa em lotes de 8 paralelos
+    const CONCURRENCY = 8;
+    for (let i = 0; i < photoQueue.length; i += CONCURRENCY) {
+      const batch = photoQueue.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map((key) =>
+        storage.getBuffer(key)
+          .then((buf) => { photoBufferCache[key] = buf; })
+          .catch(() => { photoBufferCache[key] = null; })
+      ));
+    }
 
     const STATUS_LABEL = {
       pending:          'Pendente',
