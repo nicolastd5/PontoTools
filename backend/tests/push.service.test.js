@@ -50,4 +50,9 @@ describe('nextWeekday', () => {
     const result = nextWeekday(day(2026, 5, 2), SAB);
     expect(result).toEqual(day(2026, 5, 9)); // sábado seguinte
   });
+
+  test('virada de ano: fromDate em 29/12 (segunda), próximo domingo é 04/01 do ano seguinte', () => {
+    const result = nextWeekday(day(2025, 12, 29), DOM);
+    expect(result).toEqual(day(2026, 1, 4)); // domingo 2026-01-04
+  });
 });
