@@ -151,13 +151,31 @@ async function checkTemplates() {
           serviceIds.push(inserted.rows[0].id);
         }
 
-        await client.query(
-          `UPDATE service_templates
-           SET next_run_at = next_run_at + ($1 || ' days')::interval,
-               updated_at  = NOW()
-           WHERE id = $2`,
-          [tpl.interval_days, tpl.id]
-        );
+        let nextRun;
+        if (tpl.fire_weekdays != null) {
+          const next = nextWeekday(new Date(tpl.next_run_at), tpl.fire_weekdays);
+          nextRun = next ? next.toISOString() : null;
+        } else {
+          nextRun = null;
+        }
+
+        if (nextRun !== null) {
+          await client.query(
+            `UPDATE service_templates
+             SET next_run_at = $1,
+                 updated_at  = NOW()
+             WHERE id = $2`,
+            [nextRun, tpl.id]
+          );
+        } else {
+          await client.query(
+            `UPDATE service_templates
+             SET next_run_at = next_run_at + ($1 || ' days')::interval,
+                 updated_at  = NOW()
+             WHERE id = $2`,
+            [tpl.interval_days, tpl.id]
+          );
+        }
         await client.query('COMMIT');
       } catch (txErr) {
         await client.query('ROLLBACK').catch(() => {});
