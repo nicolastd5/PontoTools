@@ -718,11 +718,13 @@ export default function AdminServicesPage() {
                 <input type="time" style={inputStyle} value={tplForm.due_time}
                   onChange={(e) => setTplForm((p) => ({ ...p, due_time: e.target.value }))} />
               </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <Field label="Intervalo em dias *">
-                  <input type="number" min={1} style={inputStyle} value={tplForm.interval_days}
-                    onChange={(e) => setTplForm((p) => ({ ...p, interval_days: e.target.value }))} required />
-                </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: tplForm.fire_days.some(Boolean) ? '1fr' : '1fr 1fr', gap: 10 }}>
+                {!tplForm.fire_days.some(Boolean) && (
+                  <Field label="Intervalo em dias *">
+                    <input type="number" min={1} style={inputStyle} value={tplForm.interval_days}
+                      onChange={(e) => setTplForm((p) => ({ ...p, interval_days: e.target.value }))} required />
+                  </Field>
+                )}
                 <Field label="Qtd. por disparo *">
                   <input type="number" min={1} max={40} style={inputStyle} value={tplForm.quantity}
                     onChange={(e) => setTplForm((p) => ({ ...p, quantity: e.target.value }))} required />
