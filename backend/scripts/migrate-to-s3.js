@@ -51,41 +51,48 @@ async function uploadToS3(localPath, key) {
 async function main() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
+  try {
+    console.log('Buscando caminhos de fotos no banco...');
+    const photoPaths = await fetchAllPhotoPaths(client);
+    console.log(`Total de fotos a migrar: ${photoPaths.length}`);
 
-  console.log('Buscando caminhos de fotos no banco...');
-  const photoPaths = await fetchAllPhotoPaths(client);
-  console.log(`Total de fotos a migrar: ${photoPaths.length}`);
+    const errors = [];
+    let success  = 0;
 
-  const errors = [];
-  let success  = 0;
+    for (let i = 0; i < photoPaths.length; i++) {
+      const key       = photoPaths[i];
+      const localFile = path.resolve(BASE_DIR, key);
+      process.stdout.write(`[${i + 1}/${photoPaths.length}] ${key} ... `);
 
-  for (let i = 0; i < photoPaths.length; i++) {
-    const key       = photoPaths[i];
-    const localFile = path.resolve(BASE_DIR, key);
-    process.stdout.write(`[${i + 1}/${photoPaths.length}] ${key} ... `);
+      if (!localFile.startsWith(BASE_DIR + path.sep)) {
+        console.log('IGNORADO (caminho fora do diretório base)');
+        errors.push({ key, reason: 'caminho fora do BASE_DIR' });
+        continue;
+      }
 
-    if (!fs.existsSync(localFile)) {
-      console.log('IGNORADO (arquivo não existe localmente)');
-      errors.push({ key, reason: 'arquivo não encontrado localmente' });
-      continue;
+      if (!fs.existsSync(localFile)) {
+        console.log('IGNORADO (arquivo não existe localmente)');
+        errors.push({ key, reason: 'arquivo não encontrado localmente' });
+        continue;
+      }
+
+      try {
+        await uploadToS3(localFile, key);
+        console.log('OK');
+        success++;
+      } catch (err) {
+        console.log(`ERRO: ${err.message}`);
+        errors.push({ key, reason: err.message });
+      }
     }
 
-    try {
-      await uploadToS3(localFile, key);
-      console.log('OK');
-      success++;
-    } catch (err) {
-      console.log(`ERRO: ${err.message}`);
-      errors.push({ key, reason: err.message });
+    console.log(`\nMigração concluída: ${success} OK, ${errors.length} erros.`);
+    if (errors.length > 0) {
+      console.log('\nArquivos com erro:');
+      for (const e of errors) console.log(`  - ${e.key}: ${e.reason}`);
     }
-  }
-
-  await client.end();
-
-  console.log(`\nMigração concluída: ${success} OK, ${errors.length} erros.`);
-  if (errors.length > 0) {
-    console.log('\nArquivos com erro:');
-    for (const e of errors) console.log(`  - ${e.key}: ${e.reason}`);
+  } finally {
+    await client.end();
   }
 }
 
