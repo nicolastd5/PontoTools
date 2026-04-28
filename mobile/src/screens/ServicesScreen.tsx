@@ -323,8 +323,6 @@ export default function ServicesScreen({
           <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 4, marginLeft: 16 }} numberOfLines={2}>
             📍 {address}
           </Text>
-        ) : gpsStatus === 'granted' ? (
-          <Text style={{ fontSize: 12, color: theme.textMuted, marginTop: 4, marginLeft: 16 }}>Obtendo endereço...</Text>
         ) : null}
       </View>
 

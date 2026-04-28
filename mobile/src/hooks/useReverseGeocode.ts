@@ -23,7 +23,7 @@ export function useReverseGeocode(coords: Coords | null) {
     const doFetch = (attempt: number): Promise<void> =>
       fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt-BR&zoom=18`,
-        { signal: controller.signal, headers: { Accept: 'application/json' } },
+        { signal: controller.signal, headers: { Accept: 'application/json', 'User-Agent': 'PontoTools/1.0 (pontotools.shop)' } },
       )
         .then((r) => r.json())
         .then((data) => {

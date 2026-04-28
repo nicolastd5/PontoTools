@@ -25,7 +25,7 @@ const PATHS = {
   coffee:    <><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></>,
   list:      <><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></>,
   user:      <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
-  logo:      <><path d="M7 3v18" strokeWidth="2.5"/><path d="M7 3h6a5 5 0 0 1 0 10H7" strokeWidth="2.5"/></>,
+  logo:      <><path d="M19 9a8 8 0 1 0 0 6" strokeWidth="2.5"/><path d="M14 15h5v-6" strokeWidth="2.5"/></>,
 };
 
 export default function Icon({ name, size = 20, color = 'currentColor', strokeWidth = 1.75 }) {

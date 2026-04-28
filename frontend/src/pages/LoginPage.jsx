@@ -70,7 +70,7 @@ export default function LoginPage() {
             <Logo size={52} theme={theme}/>
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: theme.ink, margin: '16px 0 4px', letterSpacing: '-0.02em' }}>Bem-vindo</h1>
-          <p style={{ fontSize: 14, color: theme.muted }}>Entre na sua conta PontoTools</p>
+          <p style={{ fontSize: 14, color: theme.muted }}>Gerenciador de Serviços</p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -25,7 +25,7 @@ export default function LogoIcon({ size = 36, radius, className, style }) {
         width={size * 0.6}
         height={size * 0.6}
       >
-        <path d="M9 5v22M9 5h8a7 7 0 0 1 0 14H9" />
+        <path d="M24 11A11 11 0 1 0 24 21" /><path d="M18 21h6v-9" />
       </svg>
     </span>
   );

@@ -257,8 +257,6 @@ export default function EmployeeServicesPage() {
         </div>
         {address ? (
           <span style={{ fontSize: 12, color: theme.textSecondary, paddingLeft: 16 }}>📍 {address}</span>
-        ) : gpsStatus === 'granted' ? (
-          <span style={{ fontSize: 12, color: theme.textMuted, paddingLeft: 16 }}>Obtendo endereço...</span>
         ) : null}
       </div>
 
