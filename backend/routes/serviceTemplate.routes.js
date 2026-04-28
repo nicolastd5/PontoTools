@@ -16,7 +16,7 @@ router.post('/',
   requireAdminOrGestor,
   body('title').notEmpty().withMessage('Título obrigatório.'),
   body('unit_id').isInt({ min: 1 }).withMessage('Posto obrigatório.'),
-  body('interval_days').isInt({ min: 1 }).withMessage('Intervalo mínimo de 1 dia.'),
+  body('interval_days').if((value, { req }) => !req.body.fire_weekdays).isInt({ min: 1 }).withMessage('Intervalo mínimo de 1 dia.'),
   body('start_date').isDate().withMessage('Data de início inválida.'),
   validate,
   controller.create

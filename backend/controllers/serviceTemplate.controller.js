@@ -53,6 +53,7 @@ async function create(req, res, next) {
 
     const qty = Math.min(40, Math.max(1, parseInt(quantity, 10) || 1));
     const fwd = (fire_weekdays != null && fire_weekdays !== 127) ? (parseInt(fire_weekdays, 10) & 127) : null;
+    const idays = fwd ? 1 : parseInt(interval_days, 10);
 
     // Gestor só pode criar em units do próprio contrato
     const unitCheck = req.user.role === 'gestor'
@@ -85,7 +86,7 @@ async function create(req, res, next) {
         parseInt(unit_id, 10),
         assigned_employee_id ? parseInt(assigned_employee_id, 10) : null,
         due_time || null,
-        parseInt(interval_days, 10),
+        idays,
         qty,
         fwd,
         start_date,

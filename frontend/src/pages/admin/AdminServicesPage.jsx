@@ -246,7 +246,7 @@ export default function AdminServicesPage() {
       unit_id: parseInt(tplForm.unit_id, 10),
       assigned_employee_id: tplForm.assigned_employee_id ? parseInt(tplForm.assigned_employee_id, 10) : undefined,
       due_time: tplForm.due_time || undefined,
-      interval_days: parseInt(tplForm.interval_days, 10),
+      interval_days: parseInt(tplForm.interval_days, 10) || 1,
       quantity: Math.min(40, Math.max(1, parseInt(tplForm.quantity, 10) || 1)),
       fire_weekdays: daysToBitmask(tplForm.fire_days),
       start_date: tplForm.start_date,
