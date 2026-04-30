@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useToast } from '../../contexts/ToastContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { registerFcmToken } from '../../hooks/useFcmWeb';
+import usePullToRefresh from '../../hooks/usePullToRefresh';
+import PullToRefreshIndicator from '../../components/shared/PullToRefreshIndicator';
 
 const FIREBASE_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY;
 
@@ -40,6 +42,9 @@ export default function EmployeeNotificationsPage() {
 
   const notifications = data?.notifications || [];
   const unread = data?.unread ?? 0;
+
+  const handleRefresh = useCallback(() => queryClient.invalidateQueries(['my-notifications']), [queryClient]);
+  const { containerRef, pullY, refreshing: ptrRefreshing } = usePullToRefresh(handleRefresh);
 
   const [pushSupported, setPushSupported] = useState(false);
   const [pushGranted, setPushGranted] = useState(false);
@@ -100,7 +105,8 @@ export default function EmployeeNotificationsPage() {
   }
 
   return (
-    <div>
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <PullToRefreshIndicator pullY={pullY} refreshing={ptrRefreshing} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: theme.textPrimary }}>Notificações</h1>
         {unread > 0 && (

@@ -1,4 +1,4 @@
-import { useState, useEffect }  from 'react';
+import { useState, useEffect, useCallback }  from 'react';
 import { Navigate }             from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone }  from 'date-fns-tz';
@@ -7,10 +7,12 @@ import { useAuth }           from '../../contexts/AuthContext';
 import { useTheme }          from '../../contexts/ThemeContext';
 import { useToast }          from '../../contexts/ToastContext';
 import { useGeolocation }    from '../../hooks/useGeolocation';
+import usePullToRefresh      from '../../hooks/usePullToRefresh';
 import GpsStatus             from '../../components/employee/GpsStatus';
 import CameraCapture         from '../../components/employee/CameraCapture';
 import ServiceCard           from '../../components/employee/ServiceCard';
 import Icon                  from '../../components/shared/Icon';
+import PullToRefreshIndicator from '../../components/shared/PullToRefreshIndicator';
 
 const CLOCK_TYPES = [
   { key: 'entry',       label: 'Entrada',         icon: 'play',   colorKey: 'ok'     },
@@ -46,6 +48,9 @@ export default function EmployeeDashboardPage() {
 
   const [cameraFor, setCameraFor]       = useState(null);
   const [gpsSnapshot, setGpsSnapshot]   = useState(null);
+
+  const handleRefresh = useCallback(() => queryClient.invalidateQueries(['clock-today']), [queryClient]);
+  const { containerRef, pullY, refreshing: ptrRefreshing } = usePullToRefresh(handleRefresh);
 
   const { status: gpsStatus, coords, distanceMeters, isInsideZone } = useGeolocation(user?.unit);
 
@@ -147,7 +152,8 @@ export default function EmployeeDashboardPage() {
   const softKey = { ok: 'okSoft', warn: 'warnSoft', info: 'infoSoft', danger: 'dangerSoft' };
 
   return (
-    <div>
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <PullToRefreshIndicator pullY={pullY} refreshing={ptrRefreshing} />
       {/* Hero clock — fundo escuro com gradiente */}
       <div style={{
         background: `linear-gradient(135deg, ${theme.night} 0%, ${theme.night2} 100%)`,

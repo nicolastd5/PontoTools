@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, Alert, RefreshControl } from 'react-native';
 import { useAuth }  from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import TabBar from '../components/TabBar';
@@ -15,6 +15,12 @@ export default function ProfileScreen({
 }) {
   const { user, logout }               = useAuth();
   const { isDark, theme, toggleTheme } = useTheme();
+  const [refreshing, setRefreshing]    = useState(false);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 600);
+  }, []);
 
   function handleLogout() {
     Alert.alert('Sair', 'Deseja encerrar a sessão?', [
@@ -35,7 +41,10 @@ export default function ProfileScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 16, backgroundColor: theme.bg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, backgroundColor: theme.bg }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.accent]} tintColor={theme.accent} />}
+      >
         <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 2, color: theme.accent, textTransform: 'uppercase', marginBottom: 2 }}>Conta</Text>
         <Text style={{ fontSize: 24, fontWeight: '800', color: theme.textPrimary, marginBottom: 24 }}>Meu Perfil</Text>
 

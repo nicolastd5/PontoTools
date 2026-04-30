@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
+import usePullToRefresh from '../../hooks/usePullToRefresh';
+import PullToRefreshIndicator from '../../components/shared/PullToRefreshIndicator';
 
 function Icon({ d, size = 16, color = 'currentColor', strokeWidth = 1.8 }) {
   return (
@@ -31,6 +33,12 @@ export default function EmployeeGalleryPage() {
   const [tab, setTab]           = useState('clock');
   const [lightbox, setLightbox] = useState(null);
   const [photoSrc, setPhotoSrc] = useState({});
+  const queryClient             = useQueryClient();
+
+  const handleRefresh = useCallback(() => {
+    return queryClient.invalidateQueries(['my-clock-history-gallery', 'my-services-gallery']);
+  }, [queryClient]);
+  const { containerRef, pullY, refreshing: ptrRefreshing } = usePullToRefresh(handleRefresh);
 
   const { data: clockData, isLoading: clockLoading } = useQuery({
     queryKey: ['my-clock-history-gallery'],
@@ -73,7 +81,8 @@ export default function EmployeeGalleryPage() {
   const servicesAll    = servicesData || [];
 
   return (
-    <div>
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <PullToRefreshIndicator pullY={pullY} refreshing={ptrRefreshing} />
       <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-ink)', marginBottom: 16, letterSpacing: '-0.03em' }}>Galeria</h1>
 
       {/* Tab switcher */}

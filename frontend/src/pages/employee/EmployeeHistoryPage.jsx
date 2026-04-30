@@ -3,6 +3,8 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
 import api         from '../../services/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import usePullToRefresh from '../../hooks/usePullToRefresh';
+import PullToRefreshIndicator from '../../components/shared/PullToRefreshIndicator';
 
 const LABELS = {
   entry: 'Entrada', exit: 'Saída',
@@ -51,10 +53,14 @@ export default function EmployeeHistoryPage() {
 
   useEffect(() => { fetchPage(1, true); }, []);
 
+  const handleRefresh = useCallback(() => fetchPage(1, true), []);
+  const { containerRef, pullY, refreshing: ptrRefreshing } = usePullToRefresh(handleRefresh);
+
   const groups = groupByDate(records);
 
   return (
-    <div>
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <PullToRefreshIndicator pullY={pullY} refreshing={ptrRefreshing} />
       <h1 style={{ fontSize: 22, fontWeight: 800, color: theme.textPrimary, marginBottom: 16 }}>Histórico</h1>
 
       {loading && records.length === 0 ? (

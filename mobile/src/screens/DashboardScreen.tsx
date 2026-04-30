@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, SafeAreaView,
-  TextInput, Modal, Image,
+  TextInput, Modal, Image, RefreshControl,
 } from 'react-native';
 import { formatInTimeZone } from 'date-fns-tz';
 import { useAuth } from '../contexts/AuthContext';
@@ -91,6 +91,7 @@ export default function DashboardScreen({
   const tz  = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const [loading, setLoading]               = useState(false);
+  const [refreshing, setRefreshing]         = useState(false);
   const [todayRecords, setTodayRecords]     = useState<ClockRecord[]>([]);
   const [available, setAvailable]           = useState<Available>({ entry: true, break_start: false, break_end: false, exit: false });
   const [maxPhotos, setMaxPhotos]           = useState(1);
@@ -118,6 +119,19 @@ export default function DashboardScreen({
     const id = setInterval(loadToday, 15 * 1000);
     return () => clearInterval(id);
   }, []);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    api.get('/clock/today', { params: { timezone: tz } })
+      .then((r) => {
+        setTodayRecords(r.data.records || []);
+        if (r.data.available)                    setAvailable(r.data.available);
+        if (r.data.maxPhotos)                    setMaxPhotos(r.data.maxPhotos);
+        if (r.data.requireLocation !== undefined) setRequireLocation(r.data.requireLocation);
+      })
+      .catch(() => {})
+      .finally(() => setRefreshing(false));
+  }, [tz]);
 
   const handleClockPress = useCallback((clockType: ClockType) => {
     if (requireLocation) {
@@ -212,7 +226,10 @@ export default function DashboardScreen({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24, backgroundColor: theme.bg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16, paddingBottom: 24, backgroundColor: theme.bg }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[theme.primary]} tintColor={theme.primary} />}
+      >
 
         {/* Header: saudação + avatar */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>

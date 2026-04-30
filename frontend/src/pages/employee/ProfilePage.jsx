@@ -1,7 +1,10 @@
+import { useCallback }  from 'react';
 import { useAuth }     from '../../contexts/AuthContext';
 import { useTheme }    from '../../contexts/ThemeContext';
 import { useToast }    from '../../contexts/ToastContext';
 import { useNavigate } from 'react-router-dom';
+import usePullToRefresh from '../../hooks/usePullToRefresh';
+import PullToRefreshIndicator from '../../components/shared/PullToRefreshIndicator';
 
 export default function ProfilePage() {
   const { user, logout }             = useAuth();
@@ -15,6 +18,9 @@ export default function ProfilePage() {
     navigate('/login');
   }
 
+  const handleRefresh = useCallback(() => {}, []);
+  const { containerRef, pullY, refreshing: ptrRefreshing } = usePullToRefresh(handleRefresh);
+
   const initials = user?.name
     ? user.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
     : '?';
@@ -26,7 +32,8 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div>
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <PullToRefreshIndicator pullY={pullY} refreshing={ptrRefreshing} />
       <h1 style={{ fontSize: 22, fontWeight: 800, color: theme.textPrimary, marginBottom: 20 }}>Meu Perfil</h1>
 
       {/* Avatar */}
