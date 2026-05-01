@@ -115,7 +115,7 @@ async function listLive(req, res, next) {
     }
 
     const result = await db.query(
-      `WITH eligible_services AS (
+      `WITH ranked_services AS (
          SELECT
            so.id AS service_order_id,
            so.title,
@@ -125,11 +125,25 @@ async function listLive(req, res, next) {
            e.full_name AS employee_name,
            u.name AS unit_name,
            u.code AS unit_code,
-           u.contract_id
+           u.contract_id,
+           ROW_NUMBER() OVER (
+             PARTITION BY so.assigned_employee_id
+             ORDER BY
+               CASE so.status WHEN 'in_progress' THEN 0 ELSE 1 END,
+               so.scheduled_date ASC NULLS LAST,
+               so.due_time ASC NULLS LAST,
+               so.created_at DESC,
+               so.id ASC
+           ) AS employee_service_rank
          FROM service_orders so
          JOIN units u ON u.id = so.unit_id
          LEFT JOIN employees e ON e.id = so.assigned_employee_id
          WHERE ${filters.join(' AND ')}
+       ),
+       eligible_services AS (
+         SELECT *
+         FROM ranked_services
+         WHERE employee_service_rank = 1
        ),
        latest_locations AS (
          SELECT DISTINCT ON (slu.service_order_id)

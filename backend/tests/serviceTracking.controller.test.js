@@ -177,6 +177,10 @@ describe('serviceTracking.controller', () => {
       expect(db.query.mock.calls[0][0]).toContain('eligible_services AS');
       expect(db.query.mock.calls[0][0]).toContain('latest_locations AS');
       expect(db.query.mock.calls[0][0]).toContain('so.assigned_employee_id IS NOT NULL');
+      expect(db.query.mock.calls[0][0]).toContain('ROW_NUMBER() OVER');
+      expect(db.query.mock.calls[0][0]).toContain('PARTITION BY so.assigned_employee_id');
+      expect(db.query.mock.calls[0][0]).toContain("WHEN 'in_progress' THEN 0");
+      expect(db.query.mock.calls[0][0]).toContain('employee_service_rank = 1');
       expect(db.query.mock.calls[0][0]).toContain('NOW() - slu.created_at');
       expect(db.query.mock.calls[0][0]).toContain('ORDER BY slu.service_order_id, slu.created_at DESC');
       expect(db.query.mock.calls[0][1]).toEqual([]);
