@@ -35,7 +35,7 @@ export function useServiceLocationTracker<T extends TrackableService>(
 
   const coordsRef = useRef(coords);
   const serviceRef = useRef(service);
-  const sendingRef = useRef(false);
+  const inFlightServiceIdsRef = useRef(new Set<TrackableService['id']>());
   const generationRef = useRef(0);
 
   useEffect(() => {
@@ -52,8 +52,6 @@ export function useServiceLocationTracker<T extends TrackableService>(
     let interval: ReturnType<typeof setInterval> | null = null;
 
     async function sendLocation() {
-      if (sendingRef.current) return;
-
       const currentService = serviceRef.current;
       const currentCoords = coordsRef.current;
 
@@ -69,8 +67,10 @@ export function useServiceLocationTracker<T extends TrackableService>(
         return;
       }
 
-      sendingRef.current = true;
       const serviceId = currentService.id;
+      if (inFlightServiceIdsRef.current.has(serviceId)) return;
+
+      inFlightServiceIdsRef.current.add(serviceId);
       const recordedAt = new Date().toISOString();
 
       try {
@@ -98,7 +98,7 @@ export function useServiceLocationTracker<T extends TrackableService>(
           setError(err?.response?.data?.error || err?.message || 'Nao foi possivel compartilhar a localizacao.');
         }
       } finally {
-        sendingRef.current = false;
+        inFlightServiceIdsRef.current.delete(serviceId);
       }
     }
 
