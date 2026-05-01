@@ -95,8 +95,7 @@ export default function AdminServicesPage() {
 
   const [tab, setTab] = useState('services');
 
-  const [svcTab, setSvcTab]             = useState('pending');
-  const [filters, setFilters]           = useState({ status: '', employeeId: '' });
+  const [filters, setFilters]           = useState({ status: 'pending', employeeId: '' });
   const [selected, setSelected]         = useState(new Set());
   const [modal, setModal]               = useState(false);
   const [detailModal, setDetail]        = useState(null);
@@ -115,6 +114,9 @@ export default function AdminServicesPage() {
 
   const { data: services = [], isLoading: svcLoading } = useServices(
     Object.fromEntries(Object.entries(filters).filter(([, v]) => v))
+  );
+  const { data: allServices = [] } = useServices(
+    filters.employeeId ? { employeeId: filters.employeeId } : {}
   );
   const { data: employees = [] }         = useEmployees();
   const { data: assignEmployees = [] }   = useEmployeesByUnit(assignModal?.unit_id);
@@ -261,9 +263,9 @@ export default function AdminServicesPage() {
     return formatInTimeZone(new Date(dt), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
   }
 
-  const pendingServices   = services.filter((sv) => sv.status === 'pending');
-  const othersServices    = services.filter((sv) => sv.status !== 'pending');
-  const displayedServices = svcTab === 'pending' ? pendingServices : othersServices;
+  const statusCounts      = Object.fromEntries(Object.keys(STATUS_LABEL).map((k) => [k, 0]));
+  allServices.forEach((sv) => { if (statusCounts[sv.status] !== undefined) statusCounts[sv.status]++; });
+  const displayedServices = services;
   const allPhotos         = detailModal ? [...(detailModal.photos || [])] : [];
   const beforePhotos      = allPhotos.filter((p) => p.phase === 'before');
   const afterPhotos       = allPhotos.filter((p) => p.phase === 'after');
@@ -297,50 +299,45 @@ export default function AdminServicesPage() {
       {/* ── SERVICES TAB ── */}
       {tab === 'services' && (
         <>
-          {/* Sub-tabs */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-            {[
-              { key: 'pending', label: 'Pendentes', count: pendingServices.length },
-              { key: 'others',  label: 'Demais',    count: othersServices.length  },
-            ].map((t) => (
-              <button key={t.key}
-                onClick={() => { setSvcTab(t.key); if (t.key === 'others') setFilters((p) => ({ ...p, status: p.status === 'pending' ? '' : p.status })); }}
-                style={{
-                  padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                  border: '1.5px solid',
-                  borderColor: svcTab === t.key ? 'var(--color-primary)' : 'var(--color-line)',
-                  borderRadius: 8,
-                  background: svcTab === t.key ? 'var(--color-primary-soft)' : 'var(--color-hairline)',
-                  color: svcTab === t.key ? 'var(--color-primary)' : 'var(--color-muted)',
-                  display: 'flex', alignItems: 'center', gap: 7,
-                }}>
-                {t.label}
-                <span style={{
-                  minWidth: 20, height: 20, borderRadius: 999, padding: '0 5px',
-                  background: svcTab === t.key ? 'var(--color-primary)' : 'var(--color-line)',
-                  color: svcTab === t.key ? '#fff' : 'var(--color-muted)',
-                  fontSize: 11, fontWeight: 800,
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: 'var(--font-mono)',
-                }}>{t.count}</span>
-              </button>
-            ))}
+          {/* Status filter buttons */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+            {[{ key: '', label: 'Todos' }, ...Object.entries(STATUS_LABEL).map(([k, v]) => ({ key: k, label: v }))].map((t) => {
+              const active = filters.status === t.key;
+              const count  = t.key === '' ? allServices.length : (statusCounts[t.key] ?? 0);
+              return (
+                <button key={t.key}
+                  onClick={() => setFilters((p) => ({ ...p, status: t.key }))}
+                  style={{
+                    padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    border: '1.5px solid',
+                    borderColor: active ? 'var(--color-primary)' : 'var(--color-line)',
+                    borderRadius: 8,
+                    background: active ? 'var(--color-primary-soft)' : 'var(--color-hairline)',
+                    color: active ? 'var(--color-primary)' : 'var(--color-muted)',
+                    display: 'flex', alignItems: 'center', gap: 7,
+                  }}>
+                  {t.label}
+                  <span style={{
+                    minWidth: 20, height: 20, borderRadius: 999, padding: '0 5px',
+                    background: active ? 'var(--color-primary)' : 'var(--color-line)',
+                    color: active ? '#fff' : 'var(--color-muted)',
+                    fontSize: 11, fontWeight: 800,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'var(--font-mono)',
+                  }}>{count}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Filters */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-            <select value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} style={selectStyle}>
-              <option value="">Todos os status</option>
-              {Object.entries(STATUS_LABEL)
-                .filter(([k]) => svcTab === 'others' ? k !== 'pending' : k === 'pending')
-                .map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
             <select value={filters.employeeId} onChange={(e) => setFilters((p) => ({ ...p, employeeId: e.target.value }))} style={selectStyle}>
               <option value="">Todos os funcionários</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.full_name}</option>)}
             </select>
-            {(filters.status || filters.employeeId) && (
-              <button onClick={() => setFilters({ status: '', employeeId: '' })} style={clearBtn}>Limpar ×</button>
+            {filters.employeeId && (
+              <button onClick={() => setFilters((p) => ({ ...p, employeeId: '' }))} style={clearBtn}>Limpar ×</button>
             )}
           </div>
 
@@ -374,7 +371,7 @@ export default function AdminServicesPage() {
             {svcLoading ? (
               <p style={emptyMsg}>Carregando...</p>
             ) : displayedServices.length === 0 ? (
-              <p style={emptyMsg}>{svcTab === 'pending' ? 'Nenhum serviço pendente.' : 'Nenhum serviço encontrado.'}</p>
+              <p style={emptyMsg}>Nenhum serviço encontrado.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
