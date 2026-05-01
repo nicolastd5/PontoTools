@@ -22,6 +22,10 @@ function normalizeRecordedAt(value) {
 
 async function postLocation(req, res, next) {
   try {
+    if (req.user?.role !== 'employee') {
+      return res.status(403).json({ error: 'Apenas funcionarios podem enviar localizacao.' });
+    }
+
     const serviceOrderId = parsePositiveInt(req.body.service_order_id);
     if (!serviceOrderId) {
       return res.status(400).json({ error: 'Servico invalido.' });
@@ -89,7 +93,10 @@ async function postLocation(req, res, next) {
 async function listLive(req, res, next) {
   try {
     const params = [];
-    const filters = ["so.status IN ('pending', 'in_progress')"];
+    const filters = [
+      "so.status IN ('pending', 'in_progress')",
+      'so.assigned_employee_id IS NOT NULL',
+    ];
 
     if (req.user.role === 'gestor') {
       params.push(req.user.contractId);
@@ -135,10 +142,10 @@ async function listLive(req, res, next) {
            slu.source,
            slu.recorded_at,
            slu.created_at,
-           EXTRACT(EPOCH FROM (NOW() - slu.recorded_at)) AS signal_age_seconds
+           EXTRACT(EPOCH FROM (NOW() - slu.created_at)) AS signal_age_seconds
          FROM service_location_updates slu
          JOIN eligible_services es ON es.service_order_id = slu.service_order_id
-         ORDER BY slu.service_order_id, slu.recorded_at DESC, slu.created_at DESC
+         ORDER BY slu.service_order_id, slu.created_at DESC
        )
        SELECT
          es.service_order_id,
@@ -160,7 +167,7 @@ async function listLive(req, res, next) {
          ll.signal_age_seconds
        FROM eligible_services es
        LEFT JOIN latest_locations ll ON ll.service_order_id = es.service_order_id
-       ORDER BY ll.recorded_at DESC NULLS LAST, es.service_order_id ASC`,
+       ORDER BY ll.created_at DESC NULLS LAST, es.service_order_id ASC`,
       params
     );
 
