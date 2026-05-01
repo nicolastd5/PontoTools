@@ -12,6 +12,7 @@ import CameraModal from '../components/CameraModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useReverseGeocode } from '../hooks/useReverseGeocode';
+import { useServiceLocationTracker } from '../hooks/useServiceLocationTracker';
 import type { Theme } from '../theme';
 
 type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
@@ -94,9 +95,10 @@ export default function ServicesScreen({
 }) {
   const { theme } = useTheme();
   const { status: gpsStatus, coords } = useGeolocation(null);
-  const address = useReverseGeocode(coords);
-
   const [services, setServices]     = useState<ServiceOrder[]>([]);
+  const address = useReverseGeocode(coords);
+  const tracking = useServiceLocationTracker(services);
+
   const [loading, setLoading]       = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab]               = useState<'active' | 'history'>('active');
@@ -325,6 +327,13 @@ export default function ServicesScreen({
           </Text>
         ) : null}
       </View>
+      {tracking.active && tracking.service ? (
+        <View style={{ marginHorizontal: 16, marginBottom: 4, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, backgroundColor: theme.success + '15', borderColor: theme.success + '40' }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: theme.success }}>
+            Localizacao compartilhada enquanto houver servico ativo ou pendente.
+          </Text>
+        </View>
+      ) : null}
 
       {/* Tabs Ativos × Histórico */}
       <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 8, marginBottom: 4, backgroundColor: theme.elevated, borderRadius: 10, padding: 4, borderWidth: 1, borderColor: theme.border }}>
