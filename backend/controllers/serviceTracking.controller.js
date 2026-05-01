@@ -22,10 +22,6 @@ function normalizeRecordedAt(value) {
 
 async function postLocation(req, res, next) {
   try {
-    if (req.user.role !== 'employee') {
-      return res.status(403).json({ error: 'Apenas funcionarios podem enviar localizacao.' });
-    }
-
     const serviceOrderId = parsePositiveInt(req.body.service_order_id);
     if (!serviceOrderId) {
       return res.status(400).json({ error: 'Servico invalido.' });

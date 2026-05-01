@@ -126,6 +126,8 @@ export function useServiceLocationTracker<T extends TrackableService>(
       generationRef.current += 1;
       if (interval) clearInterval(interval);
     };
+  // Re-runs when service changes or GPS transitions between null and non-null.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [service?.id, coords !== null]);
 
   return { active, lastSentAt, error, service };

@@ -18,22 +18,8 @@ describe('serviceTracking.controller', () => {
     next = jest.fn();
   });
 
+  // Role enforcement (employee-only) is handled by requireEmployee middleware on the route.
   describe('postLocation', () => {
-    test.each(['admin', 'gestor'])('rejects %s with 403 and does not query DB', async (role) => {
-      const req = {
-        user: { id: 1, role },
-        body: { service_order_id: 10, latitude: -23.5, longitude: -46.6 },
-      };
-      const res = createRes();
-
-      await postLocation(req, res, next);
-
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Apenas funcionarios podem enviar localizacao.' });
-      expect(db.query).not.toHaveBeenCalled();
-      expect(next).not.toHaveBeenCalled();
-    });
-
     test('rejects invalid coordinates with 400 and does not query DB', async () => {
       const req = {
         user: { id: 2, role: 'employee' },
@@ -64,6 +50,45 @@ describe('serviceTracking.controller', () => {
       expect(res.json).toHaveBeenCalledWith({ error: 'Servico nao elegivel para rastreamento.' });
       expect(next).not.toHaveBeenCalled();
     });
+
+    test('rejects service assigned to a different employee with 403', async () => {
+      // Servico existe mas pertence ao funcionario id=99, nao ao id=2 autenticado
+      db.query.mockResolvedValueOnce({ rows: [] });
+      const req = {
+        user: { id: 2, role: 'employee' },
+        body: { service_order_id: 55, latitude: -23.5, longitude: -46.6 },
+      };
+      const res = createRes();
+
+      await postLocation(req, res, next);
+
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(db.query.mock.calls[0][1]).toEqual([55, 2]);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Servico nao elegivel para rastreamento.' });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test.each(['done', 'done_with_issues', 'problem'])(
+      'rejects service with status "%s" with 403',
+      async (status) => {
+        // O SQL ja filtra por status IN ('pending','in_progress'), entao retorna rows:[]
+        db.query.mockResolvedValueOnce({ rows: [] });
+        const req = {
+          user: { id: 2, role: 'employee' },
+          body: { service_order_id: 10, latitude: -23.5, longitude: -46.6 },
+        };
+        const res = createRes();
+
+        await postLocation(req, res, next);
+
+        expect(db.query).toHaveBeenCalledTimes(1);
+        expect(db.query.mock.calls[0][0]).toContain("status IN ('pending', 'in_progress')");
+        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.json).toHaveBeenCalledWith({ error: 'Servico nao elegivel para rastreamento.' });
+        expect(next).not.toHaveBeenCalled();
+      },
+    );
 
     test('inserts location for pending/in_progress service assigned to authenticated employee', async () => {
       const inserted = {

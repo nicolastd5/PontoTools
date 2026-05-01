@@ -2,13 +2,14 @@ const express  = require('express');
 const { body } = require('express-validator');
 const router   = express.Router();
 
-const controller               = require('../controllers/serviceTracking.controller');
-const auth                     = require('../middleware/auth');
-const { requireAdminOrGestor } = require('../middleware/roleGuard');
-const validate                 = require('../middleware/validate');
+const controller                           = require('../controllers/serviceTracking.controller');
+const auth                                 = require('../middleware/auth');
+const { requireAdminOrGestor, requireEmployee } = require('../middleware/roleGuard');
+const validate                             = require('../middleware/validate');
 
 router.post('/location',
   auth,
+  requireEmployee,
   body('service_order_id').isInt({ min: 1 }).withMessage('Servico invalido.'),
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Latitude invalida.'),
   body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude invalida.'),
