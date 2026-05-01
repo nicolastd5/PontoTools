@@ -6,6 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useReverseGeocode } from '../../hooks/useReverseGeocode';
+import { useServiceLocationTracker } from '../../hooks/useServiceLocationTracker';
 import CameraCapture from '../../components/employee/CameraCapture';
 import ServiceStatusBadge from '../../components/shared/ServiceStatusBadge';
 import PushBanner from '../../components/employee/PushBanner';
@@ -63,6 +64,7 @@ export default function EmployeeServicesPage() {
   const address = useReverseGeocode(coords);
 
   const { data: services = [], isLoading } = useMyServices();
+  const tracking = useServiceLocationTracker(services);
 
   const [detail, setDetail]           = useState(null);
   const [photoSrc, setPhotoSrc]       = useState({});
@@ -264,6 +266,18 @@ export default function EmployeeServicesPage() {
           <span style={{ fontSize: 12, color: theme.textSecondary, paddingLeft: 16 }}>📍 {address}</span>
         ) : null}
       </div>
+
+      {tracking.active && tracking.service ? (
+        <div style={{
+          padding: '8px 12px', borderRadius: 8, marginTop: -8, marginBottom: 16,
+          border: `1px solid ${theme.border}`,
+          background: theme.elevated,
+          color: theme.textSecondary,
+          fontSize: 12,
+        }}>
+          Localizacao compartilhada enquanto houver servico ativo ou pendente.
+        </div>
+      ) : null}
 
       {/* Tabs Ativos × Histórico */}
       <div style={{
