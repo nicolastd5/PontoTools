@@ -1,18 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import { Circle, CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import { useQuery }          from '@tanstack/react-query';
 import api                   from '../../services/api';
 import Icon                  from '../../components/shared/Icon';
-
-// Corrige o icone padrao do Leaflet que o Vite quebra.
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
 
 function useUnits() {
   return useQuery({
@@ -54,6 +45,12 @@ function formatAccuracy(value) {
   return Number.isFinite(accuracy) ? `${Math.round(accuracy)}m` : '-';
 }
 
+function accuracyRadius(value) {
+  if (value == null || value === '') return null;
+  const accuracy = Number(value);
+  return Number.isFinite(accuracy) && accuracy > 0 ? accuracy : null;
+}
+
 function coordinatePair(location) {
   if (!location) return null;
   const latitude = Number(location.latitude);
@@ -66,9 +63,9 @@ function hasCoordinates(location) {
 }
 
 const STATUS_THEME = {
-  online:  { key: 'online',  label: 'Online',    color: 'var(--color-ok)',     bg: 'var(--color-ok-soft)' },
-  recent:  { key: 'recent',  label: 'Recente',   color: 'var(--color-warn)',   bg: 'var(--color-warn-soft)' },
-  offline: { key: 'offline', label: 'Sem sinal', color: 'var(--color-danger)', bg: 'var(--color-danger-soft)' },
+  online:  { key: 'online',  label: 'Online',    color: 'var(--color-ok)',     bg: 'var(--color-ok-soft)',     mapColor: '#16a34a' },
+  recent:  { key: 'recent',  label: 'Recente',   color: 'var(--color-warn)',   bg: 'var(--color-warn-soft)',   mapColor: '#f59e0b' },
+  offline: { key: 'offline', label: 'Sem sinal', color: 'var(--color-danger)', bg: 'var(--color-danger-soft)', mapColor: '#dc2626' },
 };
 
 const SERVICE_STATUS_LABEL = {
@@ -78,17 +75,29 @@ const SERVICE_STATUS_LABEL = {
 
 export default function AdminServiceTrackingPage() {
   const [selectedUnit, setSelectedUnit] = useState('');
-  const [mapLocation, setMapLocation] = useState(null);
+  const [selectedServiceOrderId, setSelectedServiceOrderId] = useState(null);
   const unitId = selectedUnit ? Number.parseInt(selectedUnit, 10) : null;
 
   const { data: units = [] } = useUnits();
   const { data: locations = [], isLoading } = useLiveTracking(unitId);
+
+  const selectedMapLocation = useMemo(() => {
+    if (selectedServiceOrderId == null) return null;
+    return locations.find((location) => String(location.service_order_id) === selectedServiceOrderId) || null;
+  }, [locations, selectedServiceOrderId]);
 
   const summary = useMemo(() => locations.reduce((acc, location) => {
     const status = signalStatus(location);
     acc[status.key] += 1;
     return acc;
   }, { online: 0, recent: 0, offline: 0 }), [locations]);
+
+  useEffect(() => {
+    if (selectedServiceOrderId == null) return;
+    if (!selectedMapLocation || !hasCoordinates(selectedMapLocation)) {
+      setSelectedServiceOrderId(null);
+    }
+  }, [selectedMapLocation, selectedServiceOrderId]);
 
   return (
     <div>
@@ -163,7 +172,7 @@ export default function AdminServiceTrackingPage() {
                       <Td>{location.source || '-'}</Td>
                       <Td>
                         {hasCoordinates(location) ? (
-                          <button type="button" onClick={() => setMapLocation(location)} style={st.mapButton}>
+                          <button type="button" onClick={() => setSelectedServiceOrderId(String(location.service_order_id))} style={st.mapButton}>
                             <Icon name="pin" size={14} />
                             Ver mapa
                           </button>
@@ -180,10 +189,10 @@ export default function AdminServiceTrackingPage() {
         )}
       </div>
 
-      {mapLocation && (
+      {selectedMapLocation && (
         <TrackingMapModal
-          location={mapLocation}
-          onClose={() => setMapLocation(null)}
+          location={selectedMapLocation}
+          onClose={() => setSelectedServiceOrderId(null)}
         />
       )}
     </div>
@@ -205,6 +214,7 @@ function SummaryCard({ label, value, theme }) {
 function TrackingMapModal({ location, onClose }) {
   const position = coordinatePair(location);
   const signal = signalStatus(location);
+  const radius = accuracyRadius(location.accuracy_meters);
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -233,17 +243,29 @@ function TrackingMapModal({ location, onClose }) {
 
         <div style={st.mapFrame}>
           <MapContainer
-            key={`${position[0]},${position[1]}`}
+            key={location.service_order_id}
             center={position}
             zoom={16}
             scrollWheelZoom
             style={st.map}
           >
+            <MapRecentering position={position} />
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <Marker position={position}>
+            {radius && (
+              <Circle
+                center={position}
+                radius={radius}
+                pathOptions={st.accuracyCircle}
+              />
+            )}
+            <CircleMarker
+              center={position}
+              radius={9}
+              pathOptions={{ ...st.currentPoint, fillColor: signal.mapColor }}
+            >
               <Popup>
                 <strong>{location.employee_name || 'Funcionario'}</strong>
                 <br />
@@ -251,11 +273,15 @@ function TrackingMapModal({ location, onClose }) {
                 <br />
                 Ultimo sinal: {formatSignalAge(location.signal_age_seconds)}
               </Popup>
-            </Marker>
+            </CircleMarker>
           </MapContainer>
         </div>
 
         <div style={st.modalFooter}>
+          <span style={st.currentPointLegend}>
+            <span style={{ ...st.currentPointDot, background: signal.mapColor }} />
+            Posicao atual
+          </span>
           <span style={{ ...st.badge, color: signal.color, background: signal.bg }}>
             {signal.label}
           </span>
@@ -265,6 +291,17 @@ function TrackingMapModal({ location, onClose }) {
       </div>
     </div>
   );
+}
+
+function MapRecentering({ position }) {
+  const map = useMap();
+  const [latitude, longitude] = position;
+
+  useEffect(() => {
+    map.setView([latitude, longitude], map.getZoom(), { animate: true });
+  }, [latitude, longitude, map]);
+
+  return null;
 }
 
 function Th({ children }) {
@@ -390,9 +427,23 @@ const st = {
     background: 'var(--bg-soft)',
   },
   map: { width: '100%', height: '100%' },
+  accuracyCircle: {
+    color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.08, opacity: 0.35, weight: 1,
+  },
+  currentPoint: {
+    color: '#ffffff', fillColor: '#16a34a', fillOpacity: 1, opacity: 1, weight: 3,
+  },
   modalFooter: {
     display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
     padding: '12px 18px', borderTop: '1px solid var(--color-hairline)',
   },
   modalMeta: { color: 'var(--color-muted)', fontSize: 12, fontWeight: 600 },
+  currentPointLegend: {
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    color: 'var(--color-ink)', fontSize: 12, fontWeight: 700,
+  },
+  currentPointDot: {
+    width: 10, height: 10, borderRadius: 999,
+    border: '2px solid var(--bg-card)', boxShadow: '0 0 0 1px rgba(15, 23, 42, 0.18)',
+  },
 };
