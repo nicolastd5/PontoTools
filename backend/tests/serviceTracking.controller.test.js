@@ -19,9 +19,9 @@ describe('serviceTracking.controller', () => {
   });
 
   describe('postLocation', () => {
-    test('rejects admin/gestor with 403 and does not query DB', async () => {
+    test.each(['admin', 'gestor'])('rejects %s with 403 and does not query DB', async (role) => {
       const req = {
-        user: { id: 1, role: 'admin' },
+        user: { id: 1, role },
         body: { service_order_id: 10, latitude: -23.5, longitude: -46.6 },
       };
       const res = createRes();
