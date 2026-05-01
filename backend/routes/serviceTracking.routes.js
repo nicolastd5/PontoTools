@@ -4,12 +4,19 @@ const router   = express.Router();
 
 const controller                           = require('../controllers/serviceTracking.controller');
 const auth                                 = require('../middleware/auth');
-const { requireAdminOrGestor, requireEmployee } = require('../middleware/roleGuard');
+const { requireAdminOrGestor }             = require('../middleware/roleGuard');
 const validate                             = require('../middleware/validate');
+
+function requireTrackingEmployee(req, res, next) {
+  if (req.user?.role !== 'employee') {
+    return res.status(403).json({ error: 'Apenas funcionarios podem enviar localizacao.' });
+  }
+  next();
+}
 
 router.post('/location',
   auth,
-  requireEmployee,
+  requireTrackingEmployee,
   body('service_order_id').isInt({ min: 1 }).withMessage('Servico invalido.'),
   body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Latitude invalida.'),
   body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Longitude invalida.'),

@@ -18,8 +18,22 @@ describe('serviceTracking.controller', () => {
     next = jest.fn();
   });
 
-  // Role enforcement (employee-only) is handled by requireEmployee middleware on the route.
   describe('postLocation', () => {
+    test.each(['admin', 'gestor'])('rejects %s with 403 and does not query DB', async (role) => {
+      const req = {
+        user: { id: 2, role },
+        body: { service_order_id: 10, latitude: -23.5, longitude: -46.6 },
+      };
+      const res = createRes();
+
+      await postLocation(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Apenas funcionarios podem enviar localizacao.' });
+      expect(db.query).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
+    });
+
     test('rejects invalid coordinates with 400 and does not query DB', async () => {
       const req = {
         user: { id: 2, role: 'employee' },
@@ -162,6 +176,13 @@ describe('serviceTracking.controller', () => {
       expect(db.query).toHaveBeenCalledTimes(1);
       expect(db.query.mock.calls[0][0]).toContain('eligible_services AS');
       expect(db.query.mock.calls[0][0]).toContain('latest_locations AS');
+      expect(db.query.mock.calls[0][0]).toContain('so.assigned_employee_id IS NOT NULL');
+      expect(db.query.mock.calls[0][0]).toContain('ROW_NUMBER() OVER');
+      expect(db.query.mock.calls[0][0]).toContain('PARTITION BY so.assigned_employee_id');
+      expect(db.query.mock.calls[0][0]).toContain("WHEN 'in_progress' THEN 0");
+      expect(db.query.mock.calls[0][0]).toContain('employee_service_rank = 1');
+      expect(db.query.mock.calls[0][0]).toContain('NOW() - slu.created_at');
+      expect(db.query.mock.calls[0][0]).toContain('ORDER BY slu.service_order_id, slu.created_at DESC');
       expect(db.query.mock.calls[0][1]).toEqual([]);
       expect(res.json).toHaveBeenCalledWith({
         locations: [

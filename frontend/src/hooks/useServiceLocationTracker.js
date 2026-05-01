@@ -18,7 +18,7 @@ export function useServiceLocationTracker(services = []) {
   const [lastSentAt, setLastSentAt] = useState(null);
   const [error, setError] = useState(null);
   const [sharingActive, setSharingActive] = useState(false);
-  const sendingRef = useRef(false);
+  const inFlightServiceIdsRef = useRef(new Set());
   const currentServiceRef = useRef(null);
 
   const service = useMemo(() => selectTrackedService(services), [services]);
@@ -41,15 +41,15 @@ export function useServiceLocationTracker(services = []) {
     }
 
     function sendLocation() {
-      if (sendingRef.current || cancelled) return;
+      if (cancelled || inFlightServiceIdsRef.current.has(trackedServiceId)) return;
 
-      sendingRef.current = true;
+      inFlightServiceIdsRef.current.add(trackedServiceId);
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const recordedAt = new Date().toISOString();
 
           if (!isCurrentTrackedService()) {
-            sendingRef.current = false;
+            inFlightServiceIdsRef.current.delete(trackedServiceId);
             return;
           }
 
@@ -74,7 +74,7 @@ export function useServiceLocationTracker(services = []) {
               setSharingActive(false);
             }
           } finally {
-            sendingRef.current = false;
+            inFlightServiceIdsRef.current.delete(trackedServiceId);
           }
         },
         (geoError) => {
@@ -82,7 +82,7 @@ export function useServiceLocationTracker(services = []) {
             setError(geoError.message || 'Erro ao obter localizacao.');
             setSharingActive(false);
           }
-          sendingRef.current = false;
+          inFlightServiceIdsRef.current.delete(trackedServiceId);
         },
         GEOLOCATION_OPTIONS,
       );
@@ -93,6 +93,7 @@ export function useServiceLocationTracker(services = []) {
 
     return () => {
       cancelled = true;
+      inFlightServiceIdsRef.current.delete(trackedServiceId);
       clearInterval(intervalId);
     };
   }, [hasGeolocation, service?.id]);
