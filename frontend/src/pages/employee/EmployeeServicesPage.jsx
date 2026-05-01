@@ -80,17 +80,36 @@ export default function EmployeeServicesPage() {
   useEffect(() => {
     if (detail?.status === 'in_progress' && detail.started_at) {
       const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
-      if (Date.now() < unlock) {
-        timerRef.current = setInterval(() => {
-          const remaining = unlock - Date.now();
-          if (remaining <= 0) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-          setNow(Date.now());
-        }, 1000);
-        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+      if (Date.now() >= unlock) return;
+
+      function tick() {
+        setNow(Date.now());
+        if (Date.now() >= unlock) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
       }
+
+      function onVisibilityChange() {
+        if (document.visibilityState === 'visible') {
+          setNow(Date.now());
+          if (Date.now() < unlock && !timerRef.current) {
+            timerRef.current = setInterval(tick, 1000);
+          }
+        } else {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      }
+
+      timerRef.current = setInterval(tick, 1000);
+      document.addEventListener('visibilitychange', onVisibilityChange);
+
+      return () => {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+      };
     }
   }, [detail?.id, detail?.status, detail?.started_at]);
 

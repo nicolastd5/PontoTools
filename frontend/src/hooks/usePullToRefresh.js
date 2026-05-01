@@ -4,11 +4,16 @@ const THRESHOLD = 70;
 const MAX_PULL  = 110;
 
 export default function usePullToRefresh(onRefresh) {
-  const [pulling, setPulling]     = useState(false);
-  const [pullY, setPullY]         = useState(0);
+  const [pullY, setPullY]           = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const startYRef = useRef(null);
-  const containerRef = useRef(null);
+
+  const containerRef  = useRef(null);
+  const startYRef     = useRef(null);
+  const pullingRef    = useRef(false);
+  const pullYRef      = useRef(0);
+  const onRefreshRef  = useRef(onRefresh);
+
+  useEffect(() => { onRefreshRef.current = onRefresh; }, [onRefresh]);
 
   useEffect(() => {
     const el = containerRef.current || window;
@@ -27,24 +32,32 @@ export default function usePullToRefresh(onRefresh) {
       if (startYRef.current === null) return;
       if (getScrollTop() > 0) { startYRef.current = null; return; }
       const delta = e.touches[0].clientY - startYRef.current;
-      if (delta <= 0) { setPulling(false); setPullY(0); return; }
+      if (delta <= 0) {
+        pullingRef.current = false;
+        pullYRef.current   = 0;
+        setPullY(0);
+        return;
+      }
       e.preventDefault();
-      setPulling(true);
-      setPullY(Math.min(delta * 0.5, MAX_PULL));
+      pullingRef.current = true;
+      pullYRef.current   = Math.min(delta * 0.5, MAX_PULL);
+      setPullY(pullYRef.current);
     }
 
     function onTouchEnd() {
-      if (!pulling) { startYRef.current = null; return; }
-      if (pullY >= THRESHOLD) {
+      if (!pullingRef.current) { startYRef.current = null; return; }
+      if (pullYRef.current >= THRESHOLD) {
         setRefreshing(true);
         setPullY(40);
-        Promise.resolve(onRefresh()).finally(() => {
+        Promise.resolve(onRefreshRef.current()).finally(() => {
           setRefreshing(false);
-          setPulling(false);
+          pullingRef.current = false;
+          pullYRef.current   = 0;
           setPullY(0);
         });
       } else {
-        setPulling(false);
+        pullingRef.current = false;
+        pullYRef.current   = 0;
         setPullY(0);
       }
       startYRef.current = null;
@@ -59,7 +72,7 @@ export default function usePullToRefresh(onRefresh) {
       el.removeEventListener('touchmove',  onTouchMove);
       el.removeEventListener('touchend',   onTouchEnd);
     };
-  }, [pulling, pullY, onRefresh]);
+  }, []); // listeners montados uma única vez
 
-  return { containerRef, pulling, pullY, refreshing };
+  return { containerRef, pullY, refreshing };
 }
