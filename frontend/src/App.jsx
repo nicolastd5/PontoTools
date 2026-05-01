@@ -16,6 +16,7 @@ import AdminJobRolesPage           from './pages/admin/AdminJobRolesPage';
 import AdminProfilePage            from './pages/admin/AdminProfilePage';
 import AdminExportPage             from './pages/admin/AdminExportPage';
 import AdminServicesPage           from './pages/admin/AdminServicesPage';
+import AdminServiceTrackingPage    from './pages/admin/AdminServiceTrackingPage';
 import AdminNotificationsPage      from './pages/admin/AdminNotificationsPage';
 import AdminPhotosPage             from './pages/admin/AdminPhotosPage';
 import EmployeeDashboardPage       from './pages/employee/EmployeeDashboardPage';
@@ -77,6 +78,7 @@ function AppRoutes() {
         <Route path="profile"      element={<AdminProfilePage />} />
         <Route path="export"       element={<AdminExportPage />} />
         <Route path="services"     element={<AdminServicesPage />} />
+        <Route path="service-tracking" element={<AdminServiceTrackingPage />} />
         <Route path="notifications" element={<AdminNotificationsPage />} />
         <Route path="photos"       element={<AdminPhotosPage />} />
       </Route>

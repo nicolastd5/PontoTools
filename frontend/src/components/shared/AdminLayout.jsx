@@ -16,6 +16,7 @@ const ADMIN_NAV_OP = [
   { to: '/admin/photos',        label: 'Galeria',      icon: 'image'     },
   { to: '/admin/blocked',       label: 'Bloqueios',    icon: 'block'     },
   { to: '/admin/services',      label: 'Serviços',     icon: 'wrench'    },
+  { to: '/admin/service-tracking', label: 'Rastreamento', icon: 'pin'     },
   { to: '/admin/notifications', label: 'Notificações', icon: 'bell'      },
 ];
 const ADMIN_NAV_CFG = [
@@ -29,6 +30,7 @@ const GESTOR_NAV_OP = [
   { to: '/admin/clocks',        label: 'Registros',    icon: 'clock'  },
   { to: '/admin/photos',        label: 'Galeria',      icon: 'image'  },
   { to: '/admin/services',      label: 'Serviços',     icon: 'wrench' },
+  { to: '/admin/service-tracking', label: 'Rastreamento', icon: 'pin'  },
   { to: '/admin/notifications', label: 'Notificações', icon: 'bell'   },
 ];
 const GESTOR_NAV_CFG = [
