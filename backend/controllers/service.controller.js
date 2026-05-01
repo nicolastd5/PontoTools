@@ -278,6 +278,17 @@ async function addPhoto(req, res, next) {
       return res.status(403).json({ error: 'Acesso negado.' });
     }
 
+    // Valida posto antes de gravar qualquer arquivo
+    const svc = current.rows[0];
+    if (phase === 'before' && svc.status === 'pending') {
+      const postoRaw = typeof req.body.employee_posto === 'string' ? req.body.employee_posto.trim() : null;
+      const postoFinal = postoRaw || (typeof svc.employee_posto === 'string' ? svc.employee_posto.trim() : null);
+      if (!postoFinal) {
+        return res.status(400).json({ error: 'Posto obrigatório para iniciar o serviço.' });
+      }
+      svc._postoFinal = postoFinal;
+    }
+
     const filename = `services/${id}/${phase}_${req.user.id}_${Date.now()}.jpg`;
     await storage.save(file.buffer, filename);
 
@@ -295,13 +306,8 @@ async function addPhoto(req, res, next) {
 
     // Foto "antes" → muda para in_progress (se ainda pendente) e marca started_at
     // Foto "depois" → muda para done (se in_progress) e marca finished_at
-    const svc = current.rows[0];
     if (phase === 'before' && svc.status === 'pending') {
-      const postoRaw = typeof req.body.employee_posto === 'string' ? req.body.employee_posto.trim() : null;
-      const postoFinal = postoRaw || (typeof svc.employee_posto === 'string' ? svc.employee_posto.trim() : null);
-      if (!postoFinal) {
-        return res.status(400).json({ error: 'Posto obrigatório para iniciar o serviço.' });
-      }
+      const postoFinal = svc._postoFinal;
       await db.query(
         `UPDATE service_orders
          SET status = 'in_progress',
