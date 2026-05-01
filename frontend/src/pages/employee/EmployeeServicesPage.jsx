@@ -74,49 +74,35 @@ export default function EmployeeServicesPage() {
   const [issuesText, setIssuesText]       = useState('');
   const [lightbox, setLightbox]           = useState(null);
   const [posto, setPosto]                 = useState('');
-  const [now, setNow]                     = useState(() => Date.now());
+  const [tick, setTick]                   = useState(0);
   const timerRef                          = useRef(null);
 
   useEffect(() => {
-    if (detail?.status === 'in_progress' && detail.started_at) {
-      const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
-      if (Date.now() >= unlock) return;
+    if (detail?.status !== 'in_progress' || !detail.started_at) return;
+    const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
+    if (Date.now() >= unlock) return;
 
-      function tick() {
-        setNow(Date.now());
-        if (Date.now() >= unlock) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-      }
+    function bump() { setTick((n) => n + 1); }
 
-      function onVisibilityChange() {
-        if (document.visibilityState === 'visible') {
-          setNow(Date.now());
-          if (Date.now() < unlock && !timerRef.current) {
-            timerRef.current = setInterval(tick, 1000);
-          }
-        } else {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-      }
+    timerRef.current = setInterval(bump, 1000);
 
-      timerRef.current = setInterval(tick, 1000);
-      document.addEventListener('visibilitychange', onVisibilityChange);
+    // Safari iOS PWA não dispara visibilitychange de forma confiável;
+    // pageshow e focus cobrem o retorno da tela bloqueada e do background
+    window.addEventListener('pageshow', bump);
+    window.addEventListener('focus', bump);
 
-      return () => {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-        document.removeEventListener('visibilitychange', onVisibilityChange);
-      };
-    }
+    return () => {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+      window.removeEventListener('pageshow', bump);
+      window.removeEventListener('focus', bump);
+    };
   }, [detail?.id, detail?.status, detail?.started_at]);
 
   const secsLeft = (() => {
     if (!detail?.started_at || detail.status !== 'in_progress') return 0;
     const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
-    return Math.max(0, Math.ceil((unlock - now) / 1000));
+    return Math.max(0, Math.ceil((unlock - Date.now()) / 1000));
   })();
   const timerLabel = `${Math.floor(secsLeft / 60)}:${String(secsLeft % 60).padStart(2, '0')}`;
 
