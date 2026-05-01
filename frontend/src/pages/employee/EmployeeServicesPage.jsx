@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -159,13 +159,13 @@ export default function EmployeeServicesPage() {
     setPosto(res.data.employee_posto || '');
   }
 
-  async function loadPhoto(photo) {
+  const loadPhoto = useCallback(async (photo) => {
     if (photoSrc[photo.id]) return;
     try {
       const res = await api.get(`/services/${photo.service_order_id}/photos/${photo.id}`, { responseType: 'blob' });
       setPhotoSrc((prev) => ({ ...prev, [photo.id]: URL.createObjectURL(res.data) }));
     } catch {}
-  }
+  }, [photoSrc]);
 
   function handlePhotoCapture(blobs) {
     if (!detail || !cameraPhase) return;
@@ -535,13 +535,16 @@ export default function EmployeeServicesPage() {
 }
 
 function PhotoSection({ title, photos, photoSrc, onLoad, serviceId, onOpen, theme }) {
+  useEffect(() => {
+    photos.forEach((photo) => onLoad({ ...photo, service_order_id: serviceId }));
+  }, [photos, serviceId]);
+
   if (photos.length === 0) return null;
   return (
     <div style={{ marginBottom: 14 }}>
       <p style={{ fontSize: 11, fontWeight: 700, color: theme.textMuted, textTransform: 'uppercase', marginBottom: 8 }}>{title}</p>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {photos.map((photo) => {
-          onLoad({ ...photo, service_order_id: serviceId });
           const src = photoSrc[photo.id];
           return (
             <div key={photo.id} onClick={() => src && onOpen && onOpen(src)}
