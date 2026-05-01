@@ -207,24 +207,27 @@ async function registerClock(req, res, next) {
 async function getHistory(req, res, next) {
   try {
     const { startDate, endDate } = req.query;
+    const tz     = (req.query.timezone && isValidTimeZone(req.query.timezone))
+                   ? req.query.timezone
+                   : 'America/Sao_Paulo';
     const dateRe = /^\d{4}-\d{2}-\d{2}$/;
     const page   = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const offset = (page - 1) * limit;
 
-    // Filtros de data compartilhados entre as duas queries, sempre referenciando $1 = user_id
-    const countParams = [req.user.id];
+    // Filtros de data usando fuso local do funcionário
+    const countParams = [req.user.id, tz];
     const countFilters = [];
 
     if (startDate) {
       if (!dateRe.test(startDate)) return res.status(400).json({ error: 'startDate inválida (YYYY-MM-DD).' });
       countParams.push(startDate);
-      countFilters.push(`cr.clocked_at_utc::date >= $${countParams.length}`);
+      countFilters.push(`(cr.clocked_at_utc AT TIME ZONE $2)::date >= $${countParams.length}`);
     }
     if (endDate) {
       if (!dateRe.test(endDate)) return res.status(400).json({ error: 'endDate inválida (YYYY-MM-DD).' });
       countParams.push(endDate);
-      countFilters.push(`cr.clocked_at_utc::date <= $${countParams.length}`);
+      countFilters.push(`(cr.clocked_at_utc AT TIME ZONE $2)::date <= $${countParams.length}`);
     }
 
     const dateFilterSql = countFilters.length ? ` AND ${countFilters.join(' AND ')}` : '';

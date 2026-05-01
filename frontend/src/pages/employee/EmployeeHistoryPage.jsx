@@ -43,7 +43,7 @@ export default function EmployeeHistoryPage() {
     if (loading && !reset) return;
     setLoading(true);
     try {
-      const { data } = await api.get('/clock/history', { params: { page: pageNum, limit: 20 } });
+      const { data } = await api.get('/clock/history', { params: { page: pageNum, limit: 20, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } });
       setRecords((prev) => reset ? data.records : [...prev, ...data.records]);
       setPage(pageNum);
       setHasMore(pageNum < data.pagination.totalPages);

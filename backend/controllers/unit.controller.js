@@ -4,14 +4,26 @@ const logger = require('../utils/logger');
 
 async function list(req, res, next) {
   try {
-    // Funcionários só veem sua própria unidade; admins veem todas
-    const isAdmin = req.user.role === 'admin';
-    const result  = await db.query(
+    const { role, unitId, contractId } = req.user;
+    let whereExtra = '';
+    let params     = [];
+
+    if (role === 'admin') {
+      // sem filtro
+    } else if (role === 'gestor') {
+      whereExtra = 'AND contract_id = $1';
+      params     = [contractId];
+    } else {
+      whereExtra = 'AND id = $1';
+      params     = [unitId];
+    }
+
+    const result = await db.query(
       `SELECT id, name, code, latitude, longitude, radius_meters, address, active
        FROM units
-       WHERE active = TRUE ${isAdmin ? '' : 'AND id = $1'}
+       WHERE active = TRUE ${whereExtra}
        ORDER BY name`,
-      isAdmin ? [] : [req.user.unitId]
+      params
     );
     res.json({ units: result.rows });
   } catch (err) {

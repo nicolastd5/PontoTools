@@ -80,6 +80,7 @@ async function checkLateServices() {
        FROM service_orders so
        WHERE so.status IN ('pending','in_progress')
          AND so.late_notified = FALSE
+         AND so.assigned_employee_id IS NOT NULL
          AND (
            so.scheduled_date < CURRENT_DATE
            OR (so.scheduled_date = CURRENT_DATE AND so.due_time IS NOT NULL AND so.due_time < CURRENT_TIME)
@@ -87,12 +88,16 @@ async function checkLateServices() {
     );
 
     for (const row of result.rows) {
-      await notify(
-        row.assigned_employee_id,
-        'Serviço atrasado',
-        `O serviço "${row.title}" está atrasado e ainda não foi concluído.`,
-        'service_late'
-      );
+      try {
+        await notify(
+          row.assigned_employee_id,
+          'Serviço atrasado',
+          `O serviço "${row.title}" está atrasado e ainda não foi concluído.`,
+          'service_late'
+        );
+      } catch (notifErr) {
+        logger.error('Falha ao notificar serviço atrasado', { serviceId: row.id, error: notifErr.message });
+      }
       await db.query('UPDATE service_orders SET late_notified = TRUE WHERE id = $1', [row.id]);
     }
   } catch (err) {

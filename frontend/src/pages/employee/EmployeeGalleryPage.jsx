@@ -42,7 +42,7 @@ export default function EmployeeGalleryPage() {
 
   const { data: clockData, isLoading: clockLoading } = useQuery({
     queryKey: ['my-clock-history-gallery'],
-    queryFn:  () => api.get('/clock/history', { params: { limit: 50 } }).then((r) => r.data.records),
+    queryFn:  () => api.get('/clock/history', { params: { limit: 50, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } }).then((r) => r.data.records),
     enabled:  tab === 'clock',
   });
 
