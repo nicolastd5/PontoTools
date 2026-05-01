@@ -122,6 +122,9 @@ describe('serviceTracking.controller', () => {
         rows: [
           {
             service_order_id: 10,
+            service_title: 'Limpeza patio',
+            service_status: 'in_progress',
+            last_seen_at: '2026-05-01T12:35:10.000Z',
             signal_age_seconds: '42',
           },
         ],
@@ -136,7 +139,52 @@ describe('serviceTracking.controller', () => {
       expect(db.query.mock.calls[0][0]).toContain('latest_locations AS');
       expect(db.query.mock.calls[0][1]).toEqual([]);
       expect(res.json).toHaveBeenCalledWith({
-        locations: [{ service_order_id: 10, signal_age_seconds: 42 }],
+        locations: [
+          {
+            service_order_id: 10,
+            service_title: 'Limpeza patio',
+            service_status: 'in_progress',
+            last_seen_at: '2026-05-01T12:35:10.000Z',
+            signal_age_seconds: 42,
+          },
+        ],
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('preserves eligible service with no location signal', async () => {
+      db.query.mockResolvedValueOnce({
+        rows: [
+          {
+            service_order_id: 11,
+            service_title: 'Vistoria',
+            service_status: 'pending',
+            latitude: null,
+            longitude: null,
+            last_seen_at: null,
+            signal_age_seconds: null,
+          },
+        ],
+      });
+      const req = { user: { id: 1, role: 'admin' }, query: {} };
+      const res = createRes();
+
+      await listLive(req, res, next);
+
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(db.query.mock.calls[0][0]).not.toContain('WHERE ll.id IS NOT NULL');
+      expect(res.json).toHaveBeenCalledWith({
+        locations: [
+          {
+            service_order_id: 11,
+            service_title: 'Vistoria',
+            service_status: 'pending',
+            latitude: null,
+            longitude: null,
+            last_seen_at: null,
+            signal_age_seconds: null,
+          },
+        ],
       });
       expect(next).not.toHaveBeenCalled();
     });

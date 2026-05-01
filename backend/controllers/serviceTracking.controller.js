@@ -146,8 +146,8 @@ async function listLive(req, res, next) {
        )
        SELECT
          es.service_order_id,
-         es.title,
-         es.status,
+         es.title AS service_title,
+         es.status AS service_status,
          es.unit_id,
          es.assigned_employee_id,
          es.employee_name,
@@ -160,12 +160,11 @@ async function listLive(req, res, next) {
          ll.accuracy_meters,
          ll.source,
          ll.recorded_at,
-         ll.created_at,
+         ll.created_at AS last_seen_at,
          ll.signal_age_seconds
        FROM eligible_services es
        LEFT JOIN latest_locations ll ON ll.service_order_id = es.service_order_id
-       WHERE ll.id IS NOT NULL
-       ORDER BY ll.recorded_at DESC`,
+       ORDER BY ll.recorded_at DESC NULLS LAST, es.service_order_id ASC`,
       params
     );
 
