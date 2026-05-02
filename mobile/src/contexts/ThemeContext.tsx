@@ -14,9 +14,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
     AsyncStorage.getItem('theme').then((val) => {
+      if (!mounted) return;
       if (val === 'light') setIsDark(false);
-    });
+    }).catch(() => {});
+    return () => { mounted = false; };
   }, []);
 
   const theme = isDark ? darkTheme : lightTheme;
@@ -24,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   function toggleTheme() {
     setIsDark((prev) => {
       const next = !prev;
-      AsyncStorage.setItem('theme', next ? 'dark' : 'light');
+      AsyncStorage.setItem('theme', next ? 'dark' : 'light').catch(() => {});
       return next;
     });
   }

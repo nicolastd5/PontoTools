@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ActivityIndicator, Platform, Alert,
@@ -25,8 +25,18 @@ export default function CameraModal({ visible, onCapture, onCancel, facing: init
   const cameraRef = useRef<Camera>(null);
   const device = useCameraDevice(facing);
 
+  useEffect(() => {
+    if (!visible) return;
+    setFacing(initialFacing);
+    setCapturing(false);
+  }, [initialFacing, visible]);
+
   const handleRequestPermission = useCallback(async () => {
-    await requestPermission();
+    try {
+      await requestPermission();
+    } catch (err: any) {
+      Alert.alert('Erro', err?.message || 'Não foi possível solicitar a permissão da câmera.');
+    }
   }, [requestPermission]);
 
   const capture = useCallback(async () => {

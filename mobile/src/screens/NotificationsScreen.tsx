@@ -39,11 +39,22 @@ export default function NotificationsScreen({
   const [loading, setLoading]                 = useState(false);
   const [refreshing, setRefreshing]           = useState(false);
   const prevUnreadRef                         = useRef<number>(unreadCount);
+  const currentUnreadRef                      = useRef<number>(unreadCount);
+  const mountedRef                            = useRef(true);
+
+  useEffect(() => {
+    currentUnreadRef.current = unreadCount;
+  }, [unreadCount]);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const loadNotifications = useCallback(async (reset = false) => {
     if (!reset) setLoading(true);
     try {
       const { data } = await api.get('/notifications');
+      if (!mountedRef.current) return;
       setNotifications(data.notifications);
       const newUnread: number = data.unread;
       if (newUnread > prevUnreadRef.current) {
@@ -51,9 +62,15 @@ export default function NotificationsScreen({
         if (newest) Alert.alert(newest.title, newest.body);
       }
       prevUnreadRef.current = newUnread;
+      currentUnreadRef.current = newUnread;
       onUnreadChange?.(newUnread);
     } catch {}
-    finally { setLoading(false); setRefreshing(false); }
+    finally {
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   }, [onUnreadChange]);
 
   useEffect(() => {
@@ -65,15 +82,22 @@ export default function NotificationsScreen({
   const markRead = useCallback(async (id: number) => {
     try {
       await api.patch(`/notifications/${id}/read`);
+      if (!mountedRef.current) return;
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-      onUnreadChange?.(Math.max(0, unreadCount - 1));
+      const nextUnread = Math.max(0, currentUnreadRef.current - 1);
+      currentUnreadRef.current = nextUnread;
+      prevUnreadRef.current = nextUnread;
+      onUnreadChange?.(nextUnread);
     } catch {}
-  }, [unreadCount, onUnreadChange]);
+  }, [onUnreadChange]);
 
   const markAllRead = useCallback(async () => {
     try {
       await api.patch('/notifications/read-all');
+      if (!mountedRef.current) return;
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      currentUnreadRef.current = 0;
+      prevUnreadRef.current = 0;
       onUnreadChange?.(0);
     } catch {}
   }, [onUnreadChange]);
@@ -90,9 +114,12 @@ export default function NotificationsScreen({
           onPress: async () => {
             try {
               await api.delete('/notifications/read');
+              if (!mountedRef.current) return;
               setNotifications((prev) => prev.filter((n) => !n.read));
             } catch {
-              Alert.alert('Erro', 'Não foi possível excluir as notificações.');
+              if (mountedRef.current) {
+                Alert.alert('Erro', 'Não foi possível excluir as notificações.');
+              }
             }
           },
         },

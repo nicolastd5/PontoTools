@@ -89,14 +89,20 @@ function AppContent() {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     function fetchUnread() {
       api.get('/notifications')
-        .then(({ data }) => setUnreadCount(data.unread ?? 0))
+        .then(({ data }) => {
+          if (!cancelled) setUnreadCount(data.unread ?? 0);
+        })
         .catch(() => {});
     }
     fetchUnread();
     intervalRef.current = setInterval(fetchUnread, 30_000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      cancelled = true;
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [user]);
 
   if (loading || (user && !screenReady)) {

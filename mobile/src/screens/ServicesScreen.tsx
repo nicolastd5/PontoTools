@@ -15,7 +15,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useReverseGeocode } from '../hooks/useReverseGeocode';
 import type { Theme } from '../theme';
 
-type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
+type Screen = 'dashboard' | 'history' | 'services' | 'notifications' | 'profile';
 
 interface ServicePhoto {
   id: number;
@@ -121,6 +121,11 @@ export default function ServicesScreen({
   const [issuesText, setIssuesText]     = useState('');
   const [now, setNow]                   = useState(() => Date.now());
   const timerRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef                      = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   useEffect(() => {
     if (detail?.status === 'in_progress' && detail.started_at) {
@@ -143,14 +148,20 @@ export default function ServicesScreen({
     if (!reset) setLoading(true);
     try {
       const { data } = await api.get('/services');
+      if (!mountedRef.current) return;
       const nextServices = data.services || [];
       setServices(nextServices);
       syncTrackingServices(nextServices);
     } catch {}
-    finally { setLoading(false); setRefreshing(false); }
+    finally {
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   }, [syncTrackingServices]);
 
-  React.useEffect(() => { loadServices(false); }, [loadServices]);
+  useEffect(() => { loadServices(false); }, [loadServices]);
 
   const openDetail = useCallback(async (service: ServiceOrder) => {
     setSessionPhase(null);
@@ -163,9 +174,11 @@ export default function ServicesScreen({
     setIssuesModal(false);
     try {
       const { data } = await api.get(`/services/${service.id}`);
+      if (!mountedRef.current) return;
       setDetail(data);
       setPosto(data.employee_posto || '');
     } catch {
+      if (!mountedRef.current) return;
       setDetail(service);
       setPosto(service.employee_posto || '');
     }
@@ -174,6 +187,7 @@ export default function ServicesScreen({
   const reloadDetail = useCallback(async (id: number) => {
     try {
       const { data } = await api.get(`/services/${id}`);
+      if (!mountedRef.current) return;
       setDetail(data);
       setPosto(data.employee_posto || '');
       setPhotoUrls({});
@@ -238,14 +252,17 @@ export default function ServicesScreen({
           status: 'done_with_issues',
           issue_description: issuesText,
         });
+        if (!mountedRef.current) return;
         setIssuesText('');
       }
 
+      if (!mountedRef.current) return;
       setSessionPhase(null);
       setSessionUris([]);
       loadServices(false);
       await reloadDetail(detail.id);
     } catch (err: any) {
+      if (!mountedRef.current) return;
       const status = err?.response?.status;
       const msg =
         err?.response?.data?.error ||
@@ -255,7 +272,7 @@ export default function ServicesScreen({
          err?.message || 'Não foi possível enviar.');
       Alert.alert('Erro', msg);
     } finally {
-      setSubmitting(false);
+      if (mountedRef.current) setSubmitting(false);
     }
   }, [detail, sessionPhase, sessionUris, posto, issuesText, loadServices, reloadDetail]);
 
@@ -267,6 +284,7 @@ export default function ServicesScreen({
     setSubmitting(true);
     try {
       await api.patch(`/services/${detail.id}/status`, { status, ...extra });
+      if (!mountedRef.current) return;
       setProblemModal(false);
       setProblemText('');
       setIssuesModal(false);
@@ -274,21 +292,34 @@ export default function ServicesScreen({
       loadServices(false);
       await reloadDetail(detail.id);
     } catch (err: any) {
+      if (!mountedRef.current) return;
       Alert.alert('Erro', err?.response?.data?.error || 'Não foi possível atualizar.');
     } finally {
-      setSubmitting(false);
+      if (mountedRef.current) setSubmitting(false);
     }
   }, [detail, loadServices, reloadDetail]);
-
-  const loadPhotoUrl = useCallback((photo: ServicePhoto, serviceId: number) => {
-    if (photoUrls[photo.id]) return;
-    const url = `${(api.defaults.baseURL ?? '').replace('/api', '')}/api/services/${serviceId}/photos/${photo.id}`;
-    setPhotoUrls((prev) => ({ ...prev, [photo.id]: url }));
-  }, [photoUrls]);
 
   const allPhotos    = detail?.photos ?? [];
   const beforePhotos = allPhotos.filter((p) => p.phase === 'before');
   const afterPhotos  = allPhotos.filter((p) => p.phase === 'after');
+
+  useEffect(() => {
+    if (!detail?.photos?.length) return;
+
+    const apiBaseUrl = (api.defaults.baseURL ?? '').replace('/api', '');
+    setPhotoUrls((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      detail.photos?.forEach((photo) => {
+        if (next[photo.id]) return;
+        next[photo.id] = `${apiBaseUrl}/api/services/${detail.id}/photos/${photo.id}`;
+        changed = true;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [detail?.id, detail?.photos]);
 
   const isActive   = detail && (detail.status === 'pending' || detail.status === 'in_progress');
   const canIssues  = detail?.status === 'in_progress';
@@ -487,7 +518,6 @@ export default function ServicesScreen({
                     <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted, textTransform: 'uppercase', marginBottom: 8 }}>FOTOS — ANTES</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {beforePhotos.map((p) => {
-                        loadPhotoUrl(p, detail.id);
                         const src = photoUrls[p.id];
                         return (
                           <TouchableOpacity key={p.id} onPress={() => src && setLightbox(src)} style={{ marginRight: 8 }}>
@@ -507,7 +537,6 @@ export default function ServicesScreen({
                     <Text style={{ fontSize: 11, fontWeight: '700', color: theme.textMuted, textTransform: 'uppercase', marginBottom: 8 }}>FOTOS — DEPOIS</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {afterPhotos.map((p) => {
-                        loadPhotoUrl(p, detail.id);
                         const src = photoUrls[p.id];
                         return (
                           <TouchableOpacity key={p.id} onPress={() => src && setLightbox(src)} style={{ marginRight: 8 }}>

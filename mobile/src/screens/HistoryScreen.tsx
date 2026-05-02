@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList,
   ActivityIndicator, RefreshControl, SafeAreaView,
@@ -57,24 +57,38 @@ export default function HistoryScreen({
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading]       = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const loadingRef                  = useRef(false);
+  const mountedRef                  = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const DOT: Record<string, string> = {
     entry: theme.success, break_start: theme.warning, break_end: theme.info, exit: theme.danger,
   };
 
   const fetchRecords = useCallback(async (pageNum: number, reset = false) => {
-    if (loading && !reset) return;
+    if (loadingRef.current && !reset) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       const { data } = await api.get('/clock/history', { params: { page: pageNum, limit: 20, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } });
+      if (!mountedRef.current) return;
       setRecords((prev) => reset ? data.records : [...prev, ...data.records]);
       setTotalPages(data.pagination.totalPages);
       setPage(pageNum);
     } catch {}
-    finally { setLoading(false); setRefreshing(false); }
-  }, [loading]);
+    finally {
+      loadingRef.current = false;
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, []);
 
-  useEffect(() => { fetchRecords(1, true); }, []);
+  useEffect(() => { fetchRecords(1, true); }, [fetchRecords]);
 
   const groups = groupByDate(records);
 

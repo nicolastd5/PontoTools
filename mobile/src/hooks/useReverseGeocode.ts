@@ -25,7 +25,10 @@ export function useReverseGeocode(coords: Coords | null) {
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt-BR&zoom=18`,
         { signal: controller.signal, headers: { Accept: 'application/json', 'User-Agent': 'PontoTools/1.0 (pontotools.shop)' } },
       )
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error(`Reverse geocode failed: ${r.status}`);
+          return r.json();
+        })
         .then((data) => {
           if (cancelled) return;
           const a = data.address ?? {};

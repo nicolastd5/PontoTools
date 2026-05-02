@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, Alert, RefreshControl } from 'react-native';
 import { useAuth }  from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,10 +16,19 @@ export default function ProfileScreen({
   const { user, logout }               = useAuth();
   const { isDark, theme, toggleTheme } = useTheme();
   const [refreshing, setRefreshing]    = useState(false);
+  const refreshTimeoutRef              = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+  }, []);
 
   const handleRefresh = useCallback(() => {
+    if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 600);
+    refreshTimeoutRef.current = setTimeout(() => {
+      setRefreshing(false);
+      refreshTimeoutRef.current = null;
+    }, 600);
   }, []);
 
   function handleLogout() {

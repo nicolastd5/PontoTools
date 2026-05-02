@@ -1,6 +1,11 @@
 import axios from 'axios';
+import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AUTH_TOKENS_UPDATED_AT_KEY, saveAuthTokens } from './authTokenStorage';
+import {
+  AUTH_TOKENS_UPDATED_AT_KEY,
+  getAuthTokensUpdatedAt,
+  saveAuthTokens,
+} from './authTokenStorage';
 
 export const BASE_URL = 'https://pontotools.shop';
 
@@ -12,6 +17,28 @@ const api = axios.create({
     'X-Client-Type': 'mobile',
   },
 });
+
+const nativeTracker = Platform.OS === 'android'
+  ? NativeModules.BackgroundLocationTracking
+  : null;
+
+async function syncNewerNativeTokens(): Promise<string | null> {
+  if (!nativeTracker?.getStoredTokens) return null;
+
+  try {
+    const tokens = await nativeTracker.getStoredTokens();
+    if (!tokens?.accessToken || !tokens?.refreshToken) return null;
+
+    const nativeUpdatedAt = Number(tokens.updatedAtMs ?? 0);
+    const localUpdatedAt = await getAuthTokensUpdatedAt();
+    if (!Number.isFinite(nativeUpdatedAt) || nativeUpdatedAt <= localUpdatedAt) return null;
+
+    await saveAuthTokens(tokens.accessToken, tokens.refreshToken, nativeUpdatedAt);
+    return tokens.accessToken;
+  } catch {
+    return null;
+  }
+}
 
 api.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('accessToken');
@@ -33,12 +60,15 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
+    if (!original) return Promise.reject(error);
+
     const isAuthRoute = original.url?.includes('/auth/login') || original.url?.includes('/auth/refresh');
     if (error.response?.status === 401 && !original._retry && !isAuthRoute) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token) => {
+          original.headers = original.headers ?? {};
           original.headers.Authorization = `Bearer ${token}`;
           return api(original);
         });
@@ -55,9 +85,18 @@ api.interceptors.response.use(
         );
         await saveAuthTokens(data.accessToken, data.refreshToken ?? null);
         processQueue(null, data.accessToken);
+        original.headers = original.headers ?? {};
         original.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(original);
       } catch (err) {
+        const nativeAccessToken = await syncNewerNativeTokens();
+        if (nativeAccessToken) {
+          processQueue(null, nativeAccessToken);
+          original.headers = original.headers ?? {};
+          original.headers.Authorization = `Bearer ${nativeAccessToken}`;
+          return api(original);
+        }
+
         processQueue(err, null);
         await AsyncStorage.multiRemove(['accessToken', 'refreshToken', AUTH_TOKENS_UPDATED_AT_KEY, 'user']);
         throw err;

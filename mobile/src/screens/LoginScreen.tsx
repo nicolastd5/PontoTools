@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView,
@@ -14,6 +14,11 @@ export default function LoginScreen({ onForgotPassword }: Props) {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
+  const mountedRef              = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   async function handleLogin() {
     if (!email.trim() || !password.trim()) {
@@ -24,9 +29,11 @@ export default function LoginScreen({ onForgotPassword }: Props) {
     try {
       await login(email.trim().toLowerCase(), password);
     } catch (err: any) {
-      Alert.alert('Erro', err?.response?.data?.error || 'Erro ao fazer login.');
+      if (mountedRef.current) {
+        Alert.alert('Erro', err?.response?.data?.error || 'Erro ao fazer login.');
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }
 

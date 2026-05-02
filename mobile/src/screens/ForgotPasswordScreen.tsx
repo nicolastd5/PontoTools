@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -13,6 +13,11 @@ export default function ForgotPasswordScreen({ onBack }: Props) {
   const [email,   setEmail]   = useState('');
   const [loading, setLoading] = useState(false);
   const [sent,    setSent]    = useState(false);
+  const mountedRef            = useRef(true);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   async function handleSubmit() {
     if (!email.trim()) {
@@ -22,11 +27,13 @@ export default function ForgotPasswordScreen({ onBack }: Props) {
     setLoading(true);
     try {
       await api.post('/auth/forgot-password', { email: email.trim().toLowerCase() });
-      setSent(true);
+      if (mountedRef.current) setSent(true);
     } catch (err: any) {
-      Alert.alert('Erro', err?.response?.data?.error || 'Erro ao enviar. Tente novamente.');
+      if (mountedRef.current) {
+        Alert.alert('Erro', err?.response?.data?.error || 'Erro ao enviar. Tente novamente.');
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }
 

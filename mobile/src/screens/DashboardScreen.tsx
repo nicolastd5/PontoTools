@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity,
   Alert, ActivityIndicator, ScrollView, SafeAreaView,
@@ -102,36 +102,45 @@ export default function DashboardScreen({
   const [cameraFacing, setCameraFacing]     = useState<'front' | 'back'>('front');
   const [cameraOpen, setCameraOpen]         = useState(false);
   const [gpsSnapshot, setGpsSnapshot]       = useState<GpsSnapshot | null>(null);
+  const mountedRef                          = useRef(true);
 
-  function loadToday() {
-    api.get('/clock/today', { params: { timezone: tz } })
-      .then((r) => {
-        setTodayRecords(r.data.records || []);
-        if (r.data.available)                   setAvailable(r.data.available);
-        if (r.data.maxPhotos)                   setMaxPhotos(r.data.maxPhotos);
-        if (r.data.requireLocation !== undefined) setRequireLocation(r.data.requireLocation);
-      })
-      .catch(() => {});
-  }
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
+
+  const applyTodayData = useCallback((data: any) => {
+    setTodayRecords(data.records || []);
+    if (data.available) setAvailable(data.available);
+    if (data.maxPhotos) setMaxPhotos(data.maxPhotos);
+    if (data.requireLocation !== undefined) setRequireLocation(data.requireLocation);
+  }, []);
+
+  const loadToday = useCallback(async () => {
+    try {
+      const { data } = await api.get('/clock/today', { params: { timezone: tz } });
+      if (!mountedRef.current) return;
+      applyTodayData(data);
+    } catch {}
+  }, [applyTodayData, tz]);
 
   useEffect(() => {
     loadToday();
     const id = setInterval(loadToday, 15 * 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [loadToday]);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     api.get('/clock/today', { params: { timezone: tz } })
       .then((r) => {
-        setTodayRecords(r.data.records || []);
-        if (r.data.available)                    setAvailable(r.data.available);
-        if (r.data.maxPhotos)                    setMaxPhotos(r.data.maxPhotos);
-        if (r.data.requireLocation !== undefined) setRequireLocation(r.data.requireLocation);
+        if (!mountedRef.current) return;
+        applyTodayData(r.data);
       })
       .catch(() => {})
-      .finally(() => setRefreshing(false));
-  }, [tz]);
+      .finally(() => {
+        if (mountedRef.current) setRefreshing(false);
+      });
+  }, [applyTodayData, tz]);
 
   const handleClockPress = useCallback((clockType: ClockType) => {
     if (requireLocation) {
@@ -172,10 +181,12 @@ export default function DashboardScreen({
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000,
       });
+      if (!mountedRef.current) return;
       setTodayRecords((prev) => [...prev, { id: res.data.id, clock_type: res.data.clockType, clocked_at_utc: res.data.clockedAtUtc, timezone: tz, is_inside_zone: res.data.isInsideZone }]);
       loadToday();
       Alert.alert('Registro efetuado!', `${LABELS[clockType]} às ${formatInTimeZone(new Date(res.data.clockedAtUtc), tz, 'HH:mm:ss')}`);
     } catch (err: any) {
+      if (!mountedRef.current) return;
       const data   = err?.response?.data;
       const status = err?.response?.status;
       if (data?.blocked) {
@@ -189,7 +200,12 @@ export default function DashboardScreen({
            err?.message || 'Erro ao registrar.');
         Alert.alert('Erro', msg);
       }
-    } finally { setLoading(false); setGpsSnapshot(null); }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+        setGpsSnapshot(null);
+      }
+    }
   }
 
   const gpsOk          = gpsStatus === 'granted';
@@ -279,7 +295,7 @@ export default function DashboardScreen({
 
         {/* GPS status */}
         <View style={{
-          borderRadius: 14, padding: '12px' as any,
+          borderRadius: 14,
           paddingVertical: 12, paddingHorizontal: 14,
           backgroundColor: theme.surface,
           borderWidth: 1, borderColor: theme.border,
