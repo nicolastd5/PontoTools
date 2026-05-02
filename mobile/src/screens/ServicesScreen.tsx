@@ -49,8 +49,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 function statusColor(status: string, theme: Theme): string {
   switch (status) {
-    case 'pending':          return theme.textSecondary;
-    case 'in_progress':      return theme.warning;
+    case 'pending':          return theme.warning;
+    case 'in_progress':      return theme.primary;
     case 'done':             return theme.success;
     case 'done_with_issues': return '#ea580c';
     case 'problem':          return theme.danger;
@@ -60,8 +60,8 @@ function statusColor(status: string, theme: Theme): string {
 
 function statusBg(status: string, theme: Theme): string {
   switch (status) {
-    case 'pending':          return theme.elevated;
-    case 'in_progress':      return theme.warning + '20';
+    case 'pending':          return theme.warning + '20';
+    case 'in_progress':      return theme.primary + '20';
     case 'done':             return theme.success + '20';
     case 'done_with_issues': return '#ea580c20';
     case 'problem':          return theme.danger + '20';

@@ -21,10 +21,10 @@ const STATUS_LABEL = {
 
 function statusColor(status, theme) {
   switch (status) {
-    case 'pending':          return theme.textSecondary;
-    case 'in_progress':      return theme.warning;
+    case 'pending':          return theme.warning;
+    case 'in_progress':      return theme.primary;
     case 'done':             return theme.success;
-    case 'done_with_issues': return theme.warn;
+    case 'done_with_issues': return '#ea580c';
     case 'problem':          return theme.danger;
     default:                 return theme.textMuted;
   }
@@ -32,10 +32,10 @@ function statusColor(status, theme) {
 
 function statusBg(status, theme) {
   switch (status) {
-    case 'pending':          return theme.elevated;
-    case 'in_progress':      return theme.warning + '22';
+    case 'pending':          return theme.warning + '22';
+    case 'in_progress':      return theme.primary + '22';
     case 'done':             return theme.success + '22';
-    case 'done_with_issues': return theme.warn + '22';
+    case 'done_with_issues': return '#ea580c22';
     case 'problem':          return theme.danger + '22';
     default:                 return theme.elevated;
   }
