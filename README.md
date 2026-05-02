@@ -1,6 +1,6 @@
-# Ponto Eletrônico com GPS e Foto
+# Gerenciador de Serviços
 
-Sistema completo de registro de ponto para múltiplas unidades com validação por GPS e captura de foto obrigatória.
+Sistema para gerenciar serviços em geral, com rastreamento em tempo real via GPS
 
 ## Pré-requisitos
 
