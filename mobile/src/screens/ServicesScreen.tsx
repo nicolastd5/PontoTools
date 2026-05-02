@@ -10,9 +10,9 @@ import api from '../services/api';
 import TabBar from '../components/TabBar';
 import CameraModal from '../components/CameraModal';
 import { useTheme } from '../contexts/ThemeContext';
+import { useServiceLocationTracking } from '../contexts/ServiceLocationTrackingContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useReverseGeocode } from '../hooks/useReverseGeocode';
-import { useServiceLocationTracker } from '../hooks/useServiceLocationTracker';
 import type { Theme } from '../theme';
 
 type Screen = 'dashboard' | 'history' | 'services' | 'notifications';
@@ -97,7 +97,8 @@ export default function ServicesScreen({
   const { status: gpsStatus, coords } = useGeolocation(null);
   const [services, setServices]     = useState<ServiceOrder[]>([]);
   const address = useReverseGeocode(coords);
-  const tracking = useServiceLocationTracker(services);
+  const tracking = useServiceLocationTracking();
+  const syncTrackingServices = tracking.syncServices;
 
   const [loading, setLoading]       = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -142,12 +143,14 @@ export default function ServicesScreen({
     if (!reset) setLoading(true);
     try {
       const { data } = await api.get('/services');
-      setServices(data.services);
+      const nextServices = data.services || [];
+      setServices(nextServices);
+      syncTrackingServices(nextServices);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
-  }, []);
+  }, [syncTrackingServices]);
 
-  React.useEffect(() => { loadServices(false); }, []);
+  React.useEffect(() => { loadServices(false); }, [loadServices]);
 
   const openDetail = useCallback(async (service: ServiceOrder) => {
     setSessionPhase(null);
@@ -330,7 +333,18 @@ export default function ServicesScreen({
       {tracking.active && tracking.service ? (
         <View style={{ marginHorizontal: 16, marginBottom: 4, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, backgroundColor: theme.success + '15', borderColor: theme.success + '40' }}>
           <Text style={{ fontSize: 12, fontWeight: '600', color: theme.success }}>
-            Localizacao compartilhada enquanto houver servico ativo ou pendente.
+            Localizacao em tempo real ativa para o servico #{tracking.service.id}.
+          </Text>
+          {tracking.lastSentAt ? (
+            <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
+              Ultimo envio: {new Date(tracking.lastSentAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </Text>
+          ) : null}
+        </View>
+      ) : tracking.error && tracking.service ? (
+        <View style={{ marginHorizontal: 16, marginBottom: 4, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, backgroundColor: theme.warning + '15', borderColor: theme.warning + '40' }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: theme.warning }}>
+            Rastreamento pausado: {tracking.error}
           </Text>
         </View>
       ) : null}

@@ -6,6 +6,7 @@ import {
 import { AuthProvider, useAuth }   from './src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { GpsProvider }             from './src/contexts/GpsContext';
+import { ServiceLocationTrackingProvider } from './src/contexts/ServiceLocationTrackingContext';
 import LoginScreen             from './src/screens/LoginScreen';
 import ForgotPasswordScreen    from './src/screens/ForgotPasswordScreen';
 import DashboardScreen         from './src/screens/DashboardScreen';
@@ -140,14 +141,16 @@ function AppContent() {
 
   return (
     <GpsProvider>
-      <View style={{ flex: 1, backgroundColor: theme.bg }}>
-        <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
-        {screen === 'dashboard'     && <DashboardScreen     {...sharedProps} />}
-        {screen === 'history'       && <HistoryScreen       {...sharedProps} />}
-        {screen === 'services'      && <ServicesScreen      {...sharedProps} />}
-        {screen === 'notifications' && <NotificationsScreen {...sharedProps} onUnreadChange={setUnreadCount} />}
-        {screen === 'profile'       && <ProfileScreen       {...sharedProps} />}
-      </View>
+      <ServiceLocationTrackingProvider enabled={user.role === 'employee'}>
+        <View style={{ flex: 1, backgroundColor: theme.bg }}>
+          <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
+          {screen === 'dashboard'     && <DashboardScreen     {...sharedProps} />}
+          {screen === 'history'       && <HistoryScreen       {...sharedProps} />}
+          {screen === 'services'      && <ServicesScreen      {...sharedProps} />}
+          {screen === 'notifications' && <NotificationsScreen {...sharedProps} onUnreadChange={setUnreadCount} />}
+          {screen === 'profile'       && <ProfileScreen       {...sharedProps} />}
+        </View>
+      </ServiceLocationTrackingProvider>
     </GpsProvider>
   );
 }

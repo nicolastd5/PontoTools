@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGpsContext } from '../contexts/GpsContext';
 import api from '../services/api';
+import {
+  selectTrackedService,
+  shouldSendLocationUpdate,
+  TRACKING_HEARTBEAT_INTERVAL_MS,
+  type SentLocationSnapshot,
+  type TrackableService,
+} from './serviceLocationTrackerUtils';
 
-type TrackableStatus = 'pending' | 'in_progress' | string;
-
-export interface TrackableService {
-  id: number | string;
-  status: TrackableStatus;
-}
+export type { TrackableService };
 
 interface TrackingState<T extends TrackableService> {
   active: boolean;
@@ -16,119 +18,141 @@ interface TrackingState<T extends TrackableService> {
   service: T | null;
 }
 
-const TRACKING_INTERVAL_MS = 30000;
-
-function pickTrackedService<T extends TrackableService>(services: T[]): T | null {
-  const inProgress = services.find((service) => service.status === 'in_progress');
-  if (inProgress) return inProgress;
-  return services.find((service) => service.status === 'pending') ?? null;
-}
-
 export function useServiceLocationTracker<T extends TrackableService>(
   services: T[] = [],
 ): TrackingState<T> {
   const { coords } = useGpsContext();
-  const service = useMemo(() => pickTrackedService(services), [services]);
+  const service = useMemo(() => selectTrackedService(services), [services]);
   const [active, setActive] = useState(false);
   const [lastSentAt, setLastSentAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const coordsRef = useRef(coords);
   const serviceRef = useRef(service);
-  const inFlightServiceIdsRef = useRef(new Set<TrackableService['id']>());
-  const generationRef = useRef(0);
+  const inFlightServiceIdsRef = useRef(new Set<string>());
+  const lastSentSnapshotRef = useRef<SentLocationSnapshot | null>(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     coordsRef.current = coords;
   }, [coords]);
 
   useEffect(() => {
+    if (String(serviceRef.current?.id ?? '') !== String(service?.id ?? '')) {
+      lastSentSnapshotRef.current = null;
+      setActive(false);
+      setLastSentAt(null);
+    }
     serviceRef.current = service;
   }, [service]);
 
-  useEffect(() => {
-    generationRef.current += 1;
-    const generation = generationRef.current;
-    let interval: ReturnType<typeof setInterval> | null = null;
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
-    async function sendLocation() {
-      const currentService = serviceRef.current;
-      const currentCoords = coordsRef.current;
+  const sendLocation = useCallback(async () => {
+    const currentService = serviceRef.current;
+    const currentCoords = coordsRef.current;
 
-      if (!currentService) {
+    if (!currentService) {
+      if (mountedRef.current) {
         setActive(false);
         setError(null);
-        return;
       }
-
-      if (!currentCoords) {
-        setActive(false);
-        setError('GPS indisponivel para compartilhamento.');
-        return;
-      }
-
-      const serviceId = currentService.id;
-      if (inFlightServiceIdsRef.current.has(serviceId)) return;
-
-      inFlightServiceIdsRef.current.add(serviceId);
-      const recordedAt = new Date().toISOString();
-
-      try {
-        if (generationRef.current !== generation || serviceRef.current?.id !== serviceId) {
-          return;
-        }
-
-        await api.post('/service-tracking/location', {
-          service_order_id: serviceId,
-          latitude: currentCoords.latitude,
-          longitude: currentCoords.longitude,
-          accuracy_meters: currentCoords.accuracy,
-          source: 'mobile',
-          recorded_at: recordedAt,
-        });
-
-        if (generationRef.current === generation && serviceRef.current?.id === serviceId) {
-          setActive(true);
-          setLastSentAt(recordedAt);
-          setError(null);
-        }
-      } catch (err: any) {
-        if (generationRef.current === generation && serviceRef.current?.id === serviceId) {
-          setActive(false);
-          setError(err?.response?.data?.error || err?.message || 'Nao foi possivel compartilhar a localizacao.');
-        }
-      } finally {
-        inFlightServiceIdsRef.current.delete(serviceId);
-      }
+      return;
     }
 
-    setActive(false);
+    if (!currentCoords) {
+      if (mountedRef.current) {
+        setActive(false);
+        setError('GPS indisponivel para compartilhamento.');
+      }
+      return;
+    }
 
+    const serviceId = String(currentService.id);
+    const latitude = Number(currentCoords.latitude);
+    const longitude = Number(currentCoords.longitude);
+    const accuracy = currentCoords.accuracy == null ? null : Number(currentCoords.accuracy);
+    const recordedAtMs = Date.now();
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      if (mountedRef.current) {
+        setActive(false);
+        setError('GPS indisponivel para compartilhamento.');
+      }
+      return;
+    }
+
+    if (!shouldSendLocationUpdate({
+      previous: lastSentSnapshotRef.current,
+      next: { serviceId, latitude, longitude, recordedAtMs },
+    })) {
+      return;
+    }
+
+    if (inFlightServiceIdsRef.current.has(serviceId)) return;
+    inFlightServiceIdsRef.current.add(serviceId);
+
+    const recordedAt = new Date(recordedAtMs).toISOString();
+
+    try {
+      if (String(serviceRef.current?.id ?? '') !== serviceId) return;
+
+      await api.post('/service-tracking/location', {
+        service_order_id: serviceId,
+        latitude,
+        longitude,
+        accuracy_meters: Number.isFinite(accuracy) ? accuracy : null,
+        source: 'mobile',
+        recorded_at: recordedAt,
+      });
+
+      if (mountedRef.current && String(serviceRef.current?.id ?? '') === serviceId) {
+        lastSentSnapshotRef.current = {
+          serviceId,
+          latitude,
+          longitude,
+          sentAtMs: recordedAtMs,
+        };
+        setActive(true);
+        setLastSentAt(recordedAt);
+        setError(null);
+      }
+    } catch (err: any) {
+      if (mountedRef.current && String(serviceRef.current?.id ?? '') === serviceId) {
+        setActive(false);
+        setError(err?.response?.data?.error || err?.message || 'Nao foi possivel compartilhar a localizacao.');
+      }
+    } finally {
+      inFlightServiceIdsRef.current.delete(serviceId);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!service) {
+      setActive(false);
       setError(null);
-      return () => {
-        generationRef.current += 1;
-      };
+      return;
     }
 
     if (!coords) {
+      setActive(false);
       setError('GPS indisponivel para compartilhamento.');
-      return () => {
-        generationRef.current += 1;
-      };
+      return;
     }
 
     setError(null);
     sendLocation();
-    interval = setInterval(sendLocation, TRACKING_INTERVAL_MS);
+  }, [service?.id, coords?.latitude, coords?.longitude, coords?.accuracy, sendLocation]);
 
+  useEffect(() => {
+    if (!service) return undefined;
+    const interval = setInterval(sendLocation, TRACKING_HEARTBEAT_INTERVAL_MS);
     return () => {
-      generationRef.current += 1;
-      if (interval) clearInterval(interval);
+      clearInterval(interval);
     };
-  // Re-runs when service changes or GPS transitions between null and non-null.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [service?.id, coords !== null]);
+  }, [sendLocation, service?.id]);
 
   return { active, lastSentAt, error, service };
 }
