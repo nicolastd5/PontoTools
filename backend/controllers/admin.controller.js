@@ -483,7 +483,7 @@ async function deleteClockRecord(req, res, next) {
     const extras = await db.query(
       `SELECT photo_path FROM clock_photos WHERE clock_record_id = $1`, [recordId]
     );
-    await Promise.all(extras.rows.map((r) => storage.delete(r.photo_path)));
+    await Promise.allSettled(extras.rows.map((r) => storage.delete(r.photo_path)));
 
     // Apaga foto principal física (se não for placeholder)
     if (photo_path && !photo_path.startsWith('placeholder/')) {

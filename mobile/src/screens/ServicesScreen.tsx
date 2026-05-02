@@ -107,45 +107,51 @@ export default function ServicesScreen({
   }, []);
 
   useEffect(() => {
-    if (detail?.status === 'in_progress' && detail.started_at) {
-      const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
-      if (Date.now() < unlock) {
-        const tick = () => {
-          setNow(Date.now());
-          const remaining = unlock - Date.now();
-          if (remaining <= 0) {
-            clearInterval(timerRef.current!);
-            timerRef.current = null;
-          }
-        };
-        timerRef.current = setInterval(tick, 1000);
+    if (detail?.status !== 'in_progress' || !detail.started_at) return;
 
-        const onAppStateChange = (state: AppStateStatus) => {
-          if (state === 'active') {
-            // Recalculate immediately when returning to foreground
-            setNow(Date.now());
-            // Restart interval if timer still running
-            if (Date.now() < unlock) {
-              if (timerRef.current) clearInterval(timerRef.current);
-              timerRef.current = setInterval(tick, 1000);
-            } else {
-              if (timerRef.current) clearInterval(timerRef.current);
-              timerRef.current = null;
-            }
-          } else {
-            if (timerRef.current) clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-        };
+    const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
 
-        const sub = AppState.addEventListener('change', onAppStateChange);
-        return () => {
-          if (timerRef.current) clearInterval(timerRef.current);
-          sub.remove();
-        };
+    const stop = () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
-    }
+    };
+
+    const start = () => {
+      stop();
+      setNow(Date.now());
+      if (Date.now() >= unlock) return;
+      timerRef.current = setInterval(() => {
+        const t = Date.now();
+        setNow(t);
+        if (t >= unlock) stop();
+      }, 1000);
+    };
+
+    start();
+
+    const onAppStateChange = (state: AppStateStatus) => {
+      if (state === 'active') start();
+      else stop();
+    };
+
+    const sub = AppState.addEventListener('change', onAppStateChange);
+    return () => {
+      stop();
+      sub.remove();
+    };
   }, [detail?.id, detail?.status, detail?.started_at]);
+
+  useEffect(() => {
+    const onAppStateChange = (state: AppStateStatus) => {
+      if (state === 'active' && mountedRef.current) {
+        loadServices(true);
+      }
+    };
+    const sub = AppState.addEventListener('change', onAppStateChange);
+    return () => sub.remove();
+  }, [loadServices]);
 
   const loadServices = useCallback(async (reset = false) => {
     if (!reset) setLoading(true);

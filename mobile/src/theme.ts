@@ -18,6 +18,8 @@ export const darkTheme = {
   dangerSoft:    '#2d0a0a',
   info:          '#38bdf8',
   infoSoft:      '#082f49',
+  violet:        '#c4b5fd',
+  night:         '#000000',
   // alias kept for compatibility
   accent:        '#818cf8',
 } as const;
@@ -42,6 +44,8 @@ export const lightTheme = {
   dangerSoft:    '#fef2f2',
   info:          '#0ea5e9',
   infoSoft:      '#f0f9ff',
+  violet:        '#8b5cf6',
+  night:         '#09090b',
   // alias kept for compatibility
   accent:        '#4f46e5',
 } as const;

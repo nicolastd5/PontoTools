@@ -5,28 +5,28 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- G: arc centered around (42, 54), radius 13 -->
+    <!-- G: arc centered around (47, 54), radius 9 -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="7"
+        android:strokeWidth="5"
         android:strokeLineCap="round"
-        android:pathData="M29,47 A13,13 0 1 0 29,61"/>
+        android:pathData="M40,49 A9,9 0 1 0 40,59"/>
 
     <!-- G crossbar -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="7"
+        android:strokeWidth="5"
         android:strokeLineCap="round"
-        android:pathData="M29,54 L42,54"/>
+        android:pathData="M40,54 L51,54"/>
 
-    <!-- S: top arch + diagonal + bottom arch, right half (57–79) -->
+    <!-- S: top arch + diagonal + bottom arch (right half ~60-72) -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="7"
+        android:strokeWidth="5"
         android:strokeLineCap="round"
-        android:pathData="M79,44 C79,35 57,35 57,44 S79,54 79,64 S57,73 57,64"/>
+        android:pathData="M72,47 C72,41 60,41 60,47 S72,54 72,61 S60,67 60,61"/>
 
 </vector>
