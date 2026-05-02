@@ -9,6 +9,8 @@ object BackgroundLocationTrackingStore {
   private const val KEY_REFRESH_TOKEN = "refresh_token"
   private const val KEY_SERVICE_ID = "service_id"
   private const val KEY_USER_ID = "user_id"
+  private const val KEY_TOKENS_UPDATED_AT_MS = "tokens_updated_at_ms"
+  private const val KEY_LAST_SENT_AT = "last_sent_at"
 
   fun save(
     context: Context,
@@ -25,6 +27,7 @@ object BackgroundLocationTrackingStore {
       .putString(KEY_REFRESH_TOKEN, refreshToken)
       .putString(KEY_SERVICE_ID, serviceId)
       .putString(KEY_USER_ID, userId)
+      .putLong(KEY_TOKENS_UPDATED_AT_MS, System.currentTimeMillis())
       .apply()
   }
 
@@ -33,13 +36,26 @@ object BackgroundLocationTrackingStore {
       .edit()
       .putString(KEY_ACCESS_TOKEN, accessToken)
       .putString(KEY_REFRESH_TOKEN, refreshToken)
+      .putLong(KEY_TOKENS_UPDATED_AT_MS, System.currentTimeMillis())
       .apply()
   }
 
   fun saveServiceId(context: Context, serviceId: String?) {
-    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
       .edit()
       .putString(KEY_SERVICE_ID, serviceId)
+
+    if (serviceId == null) {
+      editor.remove(KEY_LAST_SENT_AT)
+    }
+
+    editor.apply()
+  }
+
+  fun saveLastSentAt(context: Context, lastSentAt: String) {
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+      .edit()
+      .putString(KEY_LAST_SENT_AT, lastSentAt)
       .apply()
   }
 
@@ -63,4 +79,12 @@ object BackgroundLocationTrackingStore {
   fun getUserId(context: Context): String? =
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
       .getString(KEY_USER_ID, null)
+
+  fun getTokensUpdatedAtMs(context: Context): Long =
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+      .getLong(KEY_TOKENS_UPDATED_AT_MS, 0L)
+
+  fun getLastSentAt(context: Context): String? =
+    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+      .getString(KEY_LAST_SENT_AT, null)
 }

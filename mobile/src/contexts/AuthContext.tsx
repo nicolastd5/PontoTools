@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { AUTH_TOKENS_UPDATED_AT_KEY, saveAuthTokens } from '../services/authTokenStorage';
 
 interface Unit {
   id: number;
@@ -45,11 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function login(email: string, password: string) {
     const { data } = await api.post('/auth/login', { email, password });
 
-    await AsyncStorage.multiSet([
-      ['accessToken', data.accessToken],
-      ['refreshToken', data.refreshToken ?? ''],
-      ['user', JSON.stringify(data.user)],
-    ]);
+    await saveAuthTokens(data.accessToken, data.refreshToken ?? '');
+    await AsyncStorage.setItem('user', JSON.stringify(data.user));
 
     const unitRes = await api.get(`/units/${data.user.unitId}`);
     const unit = unitRes.data;
@@ -74,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const refreshToken = await AsyncStorage.getItem('refreshToken');
       await api.post('/auth/logout', { refreshToken });
     } catch {}
-    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', AUTH_TOKENS_UPDATED_AT_KEY, 'user']);
     setUser(null);
   }
 

@@ -7,9 +7,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { AppState, NativeModules, Platform } from 'react-native';
+import { AppState, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { BASE_URL } from '../services/api';
+import { getAuthTokensUpdatedAt, saveAuthTokens } from '../services/authTokenStorage';
 import {
   useServiceLocationTracker,
   type TrackableService,
@@ -34,6 +35,7 @@ const ServiceLocationTrackingContext = createContext<ServiceLocationTrackingStat
 });
 
 const SERVICE_REFRESH_INTERVAL_MS = 30000;
+const ACCESS_BACKGROUND_LOCATION = 'android.permission.ACCESS_BACKGROUND_LOCATION' as any;
 const nativeTracker = Platform.OS === 'android'
   ? NativeModules.BackgroundLocationTracking
   : null;
@@ -51,13 +53,17 @@ export function ServiceLocationTrackingProvider({
   const [services, setServices] = useState<TrackableService[]>([]);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [nativeStartedAt, setNativeStartedAt] = useState<string | null>(null);
+  const [nativeLastSentAt, setNativeLastSentAt] = useState<string | null>(null);
   const [nativeError, setNativeError] = useState<string | null>(null);
+  const [nativeConfigVersion, setNativeConfigVersion] = useState(0);
   const tracking = useServiceLocationTracker(services, {
     postUpdates: !hasNativeBackgroundTracker,
   });
   const mountedRef = useRef(true);
   const enabledRef = useRef(enabled);
   const refreshInFlightRef = useRef(false);
+  const nativeServiceIdRef = useRef<string | null>(null);
+  const backgroundPermissionRequestedRef = useRef(false);
 
   useEffect(() => {
     enabledRef.current = enabled;
@@ -72,13 +78,47 @@ export function ServiceLocationTrackingProvider({
 
     const tokens = await nativeTracker.getStoredTokens();
     if (String(tokens?.userId ?? '') !== String(userId)) return;
+    if (
+      mountedRef.current &&
+      tokens?.lastSentAt &&
+      String(tokens?.serviceId ?? '') === String(nativeServiceIdRef.current ?? '')
+    ) {
+      setNativeLastSentAt(tokens.lastSentAt);
+    }
 
-    const pairs: [string, string][] = [];
+    if (!tokens?.accessToken || !tokens?.refreshToken) return;
 
-    if (tokens?.accessToken) pairs.push(['accessToken', tokens.accessToken]);
-    if (tokens?.refreshToken) pairs.push(['refreshToken', tokens.refreshToken]);
-    if (pairs.length > 0) await AsyncStorage.multiSet(pairs);
+    const nativeUpdatedAt = Number(tokens?.updatedAtMs ?? 0);
+    const localUpdatedAt = await getAuthTokensUpdatedAt();
+    if (!Number.isFinite(nativeUpdatedAt) || nativeUpdatedAt <= localUpdatedAt) return;
+
+    await saveAuthTokens(tokens.accessToken, tokens.refreshToken, nativeUpdatedAt);
   }, [userId]);
+
+  const ensureBackgroundLocationPermission = useCallback(async () => {
+    if (Platform.OS !== 'android' || Number(Platform.Version) < 29) return true;
+
+    const alreadyGranted = await PermissionsAndroid.check(ACCESS_BACKGROUND_LOCATION);
+    if (alreadyGranted) {
+      backgroundPermissionRequestedRef.current = false;
+      return true;
+    }
+
+    if (backgroundPermissionRequestedRef.current) return false;
+    backgroundPermissionRequestedRef.current = true;
+
+    const result = await PermissionsAndroid.request(
+      ACCESS_BACKGROUND_LOCATION,
+      {
+        title: 'Localizacao em segundo plano',
+        message: 'Permita a localizacao o tempo todo para rastrear somente enquanto houver servico pendente ou em andamento.',
+        buttonPositive: 'Permitir',
+        buttonNegative: 'Negar',
+      },
+    );
+
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  }, []);
 
   const refreshServices = useCallback(async () => {
     if (!enabled || refreshInFlightRef.current) return;
@@ -90,6 +130,9 @@ export function ServiceLocationTrackingProvider({
       if (!mountedRef.current || !enabledRef.current) return;
       setServices(data.services || []);
       setRefreshError(null);
+      if (hasNativeBackgroundTracker) {
+        setNativeConfigVersion((version) => version + 1);
+      }
     } catch (err: any) {
       if (!mountedRef.current || !enabledRef.current) return;
       setRefreshError(err?.response?.data?.error || err?.message || 'Nao foi possivel atualizar os servicos rastreados.');
@@ -102,6 +145,9 @@ export function ServiceLocationTrackingProvider({
     if (!enabled) return;
     setServices(nextServices || []);
     setRefreshError(null);
+    if (hasNativeBackgroundTracker) {
+      setNativeConfigVersion((version) => version + 1);
+    }
   }, [enabled]);
 
   useEffect(() => {
@@ -124,9 +170,11 @@ export function ServiceLocationTrackingProvider({
 
     async function syncNativeService() {
       if (!enabled || !serviceId) {
-        await nativeTracker.stopTracking();
+        await nativeTracker.stopTracking().catch(() => {});
         if (!cancelled) {
+          nativeServiceIdRef.current = null;
           setNativeStartedAt(null);
+          setNativeLastSentAt(null);
           setNativeError(null);
         }
         return;
@@ -134,6 +182,11 @@ export function ServiceLocationTrackingProvider({
 
       try {
         await syncNativeTokensToStorage();
+        const hasBackgroundPermission = await ensureBackgroundLocationPermission();
+        if (!hasBackgroundPermission) {
+          throw new Error('Permita a localizacao o tempo todo para rastrear este servico em segundo plano.');
+        }
+
         const [accessToken, refreshToken] = await Promise.all([
           AsyncStorage.getItem('accessToken'),
           AsyncStorage.getItem('refreshToken'),
@@ -152,12 +205,21 @@ export function ServiceLocationTrackingProvider({
         });
 
         if (!cancelled) {
-          setNativeStartedAt(new Date().toISOString());
+          const nextServiceId = String(serviceId);
+          const serviceChanged = nativeServiceIdRef.current !== nextServiceId;
+          nativeServiceIdRef.current = nextServiceId;
+          if (serviceChanged) {
+            setNativeLastSentAt(null);
+          }
+          setNativeStartedAt((current) => (serviceChanged || !current ? new Date().toISOString() : current));
           setNativeError(null);
         }
       } catch (err: any) {
+        nativeTracker.stopTracking().catch(() => {});
         if (!cancelled) {
+          nativeServiceIdRef.current = null;
           setNativeStartedAt(null);
+          setNativeLastSentAt(null);
           setNativeError(err?.message || 'Nao foi possivel iniciar o rastreamento em segundo plano.');
         }
       }
@@ -168,7 +230,14 @@ export function ServiceLocationTrackingProvider({
     return () => {
       cancelled = true;
     };
-  }, [enabled, syncNativeTokensToStorage, tracking.service?.id, userId]);
+  }, [
+    enabled,
+    ensureBackgroundLocationPermission,
+    nativeConfigVersion,
+    syncNativeTokensToStorage,
+    tracking.service?.id,
+    userId,
+  ]);
 
   useEffect(() => () => {
     if (hasNativeBackgroundTracker) {
@@ -188,6 +257,7 @@ export function ServiceLocationTrackingProvider({
     if (!enabled || !hasNativeBackgroundTracker) return undefined;
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
+        backgroundPermissionRequestedRef.current = false;
         syncNativeTokensToStorage()
           .then(refreshServices)
           .catch(() => {});
@@ -202,12 +272,12 @@ export function ServiceLocationTrackingProvider({
       ? Boolean(tracking.service && nativeStartedAt && !nativeError)
       : tracking.active,
     lastSentAt: hasNativeBackgroundTracker
-      ? nativeStartedAt
+      ? nativeLastSentAt
       : tracking.lastSentAt,
     error: nativeError || tracking.error || refreshError,
     syncServices,
     refreshServices,
-  }), [nativeError, nativeStartedAt, refreshError, refreshServices, syncServices, tracking]);
+  }), [nativeError, nativeLastSentAt, nativeStartedAt, refreshError, refreshServices, syncServices, tracking]);
 
   return (
     <ServiceLocationTrackingContext.Provider value={value}>

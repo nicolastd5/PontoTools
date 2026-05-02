@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AUTH_TOKENS_UPDATED_AT_KEY, saveAuthTokens } from './authTokenStorage';
 
 export const BASE_URL = 'https://pontotools.shop';
 
@@ -52,16 +53,13 @@ api.interceptors.response.use(
           { refreshToken },
           { headers: { 'X-Client-Type': 'mobile' } },
         );
-        await AsyncStorage.setItem('accessToken', data.accessToken);
-        if (data.refreshToken) {
-          await AsyncStorage.setItem('refreshToken', data.refreshToken);
-        }
+        await saveAuthTokens(data.accessToken, data.refreshToken ?? null);
         processQueue(null, data.accessToken);
         original.headers.Authorization = `Bearer ${data.accessToken}`;
         return api(original);
       } catch (err) {
         processQueue(err, null);
-        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', AUTH_TOKENS_UPDATED_AT_KEY, 'user']);
         throw err;
       } finally {
         isRefreshing = false;

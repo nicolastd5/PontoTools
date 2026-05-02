@@ -1,7 +1,10 @@
 package com.pontomobile.tracking
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.content.ContextCompat
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -26,6 +29,11 @@ class BackgroundLocationTrackingModule(
 
       if (serviceId.isBlank() || userId.isBlank() || accessToken.isBlank() || refreshToken.isBlank()) {
         promise.reject("INVALID_CONFIG", "Configuracao de rastreamento incompleta.")
+        return
+      }
+
+      if (!hasLocationPermission()) {
+        promise.reject("LOCATION_PERMISSION_MISSING", "Permissao de localizacao em segundo plano ausente.")
         return
       }
 
@@ -79,9 +87,26 @@ class BackgroundLocationTrackingModule(
       map.putString("accessToken", tokens.first)
       map.putString("refreshToken", tokens.second)
       map.putString("userId", BackgroundLocationTrackingStore.getUserId(reactContext))
+      map.putString("serviceId", BackgroundLocationTrackingStore.getServiceId(reactContext))
+      map.putString("lastSentAt", BackgroundLocationTrackingStore.getLastSentAt(reactContext))
+      map.putDouble("updatedAtMs", BackgroundLocationTrackingStore.getTokensUpdatedAtMs(reactContext).toDouble())
       promise.resolve(map)
     } catch (error: Exception) {
       promise.reject("TOKEN_READ_FAILED", error)
     }
+  }
+
+  private fun hasLocationPermission(): Boolean {
+    val hasFine = ContextCompat.checkSelfPermission(
+      reactContext,
+      Manifest.permission.ACCESS_FINE_LOCATION,
+    ) == PackageManager.PERMISSION_GRANTED
+    if (!hasFine) return false
+
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+      ContextCompat.checkSelfPermission(
+        reactContext,
+        Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+      ) == PackageManager.PERMISSION_GRANTED
   }
 }

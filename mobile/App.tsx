@@ -20,9 +20,8 @@ import { useFcmToken }         from './src/hooks/useFcmToken';
 type Screen     = 'dashboard' | 'history' | 'services' | 'notifications' | 'profile';
 type AuthScreen = 'login' | 'forgot-password';
 type GpsGate    = 'pending' | 'granted' | 'denied';
-const ACCESS_BACKGROUND_LOCATION = 'android.permission.ACCESS_BACKGROUND_LOCATION' as any;
 
-async function requestLocationPermissions(): Promise<boolean> {
+async function requestForegroundLocationPermission(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
 
   const fineResult = await PermissionsAndroid.request(
@@ -35,20 +34,7 @@ async function requestLocationPermissions(): Promise<boolean> {
     },
   );
 
-  if (fineResult !== PermissionsAndroid.RESULTS.GRANTED) return false;
-  if (Number(Platform.Version) < 29) return true;
-
-  const backgroundResult = await PermissionsAndroid.request(
-    ACCESS_BACKGROUND_LOCATION,
-    {
-      title: 'Localizacao em segundo plano',
-      message: 'Permita a localizacao o tempo todo para manter o rastreamento somente enquanto houver servico pendente ou em andamento.',
-      buttonPositive: 'Permitir',
-      buttonNegative: 'Negar',
-    },
-  );
-
-  return backgroundResult === PermissionsAndroid.RESULTS.GRANTED;
+  return fineResult === PermissionsAndroid.RESULTS.GRANTED;
 }
 
 function AppContent() {
@@ -77,7 +63,7 @@ function AppContent() {
     async function init() {
       let gpsOk = false;
       try {
-        gpsOk = await requestLocationPermissions();
+        gpsOk = await requestForegroundLocationPermission();
       } catch {
         gpsOk = false;
       }
@@ -137,8 +123,8 @@ function AppContent() {
           GPS Obrigatorio
         </Text>
         <Text style={{ fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 28 }}>
-          O aplicativo requer localizacao sempre permitida para registrar ponto, servicos e rastreamento em segundo plano.{'\n'}
-          Habilite a localizacao como "Permitir o tempo todo" nas configuracoes e reabra o app.
+          O aplicativo requer acesso a localizacao para registrar ponto e servicos.{'\n'}
+          Habilite a localizacao nas configuracoes e reabra o app.
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: theme.accent, borderRadius: 12, padding: 14, paddingHorizontal: 32 }}

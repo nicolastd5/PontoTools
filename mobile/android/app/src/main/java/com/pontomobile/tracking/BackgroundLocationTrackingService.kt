@@ -40,6 +40,7 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
   private var lastSentLocation: Location? = null
   private var lastSentAtMs: Long = 0L
   private var isTracking = false
+  private var isForeground = false
   @Volatile private var sendInFlight = false
   @Volatile private var refreshInFlight = false
 
@@ -76,7 +77,14 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
       return START_NOT_STICKY
     }
 
-    startForegroundNotification()
+    try {
+      startForegroundNotification()
+    } catch (error: Exception) {
+      Log.w(TAG, "Nao foi possivel iniciar o servico de rastreamento em foreground.", error)
+      stopSelf()
+      return START_NOT_STICKY
+    }
+
     startTracking()
     if (serviceChanged) {
       lastLocation?.let { sendLocation(it, force = true) }
@@ -87,7 +95,7 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
   override fun onBind(intent: Intent?): IBinder? = null
 
   override fun onDestroy() {
-    stopTracking()
+    stopTracking(stopService = false)
     super.onDestroy()
   }
 
@@ -141,6 +149,7 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
     } else {
       startForeground(NOTIFICATION_ID, notification)
     }
+    isForeground = true
   }
 
   private fun startTracking() {
@@ -168,7 +177,7 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
     handler.post(heartbeatRunnable)
   }
 
-  private fun stopTracking() {
+  private fun stopTracking(stopService: Boolean = true) {
     isTracking = false
     handler.removeCallbacksAndMessages(null)
     try {
@@ -179,8 +188,13 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
       if (it.isHeld) it.release()
     }
     wakeLock = null
-    stopForeground(STOP_FOREGROUND_REMOVE)
-    stopSelf()
+    if (isForeground) {
+      stopForeground(STOP_FOREGROUND_REMOVE)
+      isForeground = false
+    }
+    if (stopService) {
+      stopSelf()
+    }
   }
 
   private fun requestProvider(provider: String) {
@@ -214,18 +228,20 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
 
     Thread {
       try {
+        val recordedAt = isoNow()
         val body = JSONObject()
           .put("service_order_id", currentServiceId)
           .put("latitude", location.latitude)
           .put("longitude", location.longitude)
           .put("accuracy_meters", if (location.hasAccuracy()) location.accuracy.toDouble() else JSONObject.NULL)
           .put("source", "mobile")
-          .put("recorded_at", isoNow())
+          .put("recorded_at", recordedAt)
 
         val response = authorizedRequest("POST", "/api/service-tracking/location", body)
-        if (response.first in 200..299) {
+        if (response.first in 200..299 && currentServiceId == serviceId) {
           lastSentLocation = location
           lastSentAtMs = System.currentTimeMillis()
+          BackgroundLocationTrackingStore.saveLastSentAt(this, recordedAt)
         } else if (response.first == 403) {
           refreshEligibleService()
         }
