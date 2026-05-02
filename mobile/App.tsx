@@ -20,6 +20,36 @@ import { useFcmToken }         from './src/hooks/useFcmToken';
 type Screen     = 'dashboard' | 'history' | 'services' | 'notifications' | 'profile';
 type AuthScreen = 'login' | 'forgot-password';
 type GpsGate    = 'pending' | 'granted' | 'denied';
+const ACCESS_BACKGROUND_LOCATION = 'android.permission.ACCESS_BACKGROUND_LOCATION' as any;
+
+async function requestLocationPermissions(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+
+  const fineResult = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    {
+      title: 'GPS Obrigatorio',
+      message: 'O aplicativo requer acesso a localizacao para registrar ponto e servicos.',
+      buttonPositive: 'Permitir',
+      buttonNegative: 'Negar',
+    },
+  );
+
+  if (fineResult !== PermissionsAndroid.RESULTS.GRANTED) return false;
+  if (Number(Platform.Version) < 29) return true;
+
+  const backgroundResult = await PermissionsAndroid.request(
+    ACCESS_BACKGROUND_LOCATION,
+    {
+      title: 'Localizacao em segundo plano',
+      message: 'Permita a localizacao o tempo todo para manter o rastreamento somente enquanto houver servico pendente ou em andamento.',
+      buttonPositive: 'Permitir',
+      buttonNegative: 'Negar',
+    },
+  );
+
+  return backgroundResult === PermissionsAndroid.RESULTS.GRANTED;
+}
 
 function AppContent() {
   const { user, loading }               = useAuth();
@@ -45,29 +75,14 @@ function AppContent() {
     let cancelled = false;
 
     async function init() {
-      // 1. Pede permissão de GPS (obrigatório)
       let gpsOk = false;
-      if (Platform.OS === 'android') {
-        try {
-          const result = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-            {
-              title: 'GPS Obrigatório',
-              message: 'O aplicativo requer acesso à localização para registrar ponto e serviços.',
-              buttonPositive: 'Permitir',
-              buttonNegative: 'Negar',
-            },
-          );
-          gpsOk = result === PermissionsAndroid.RESULTS.GRANTED;
-        } catch {
-          gpsOk = false;
-        }
-      } else {
-        gpsOk = true;
+      try {
+        gpsOk = await requestLocationPermissions();
+      } catch {
+        gpsOk = false;
       }
       if (!cancelled) setGpsGate(gpsOk ? 'granted' : 'denied');
 
-      // 2. Determina qual tela mostrar (evita flash de dashboard → services)
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       try {
         const { data } = await api.get('/clock/today', { params: { timezone: tz } });
@@ -98,7 +113,6 @@ function AppContent() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [user]);
 
-  // Spinner enquanto auth carrega ou enquanto resolve tela inicial pós-login
   if (loading || (user && !screenReady)) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg }}>
@@ -114,24 +128,23 @@ function AppContent() {
     return <LoginScreen onForgotPassword={() => setAuthScreen('forgot-password')} />;
   }
 
-  // GPS negado → tela bloqueante com botão para configurações
   if (gpsGate === 'denied') {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg, padding: 32 }}>
         <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>📍</Text>
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>GPS</Text>
         <Text style={{ fontSize: 20, fontWeight: '800', color: theme.textPrimary, textAlign: 'center', marginBottom: 10 }}>
-          GPS Obrigatório
+          GPS Obrigatorio
         </Text>
         <Text style={{ fontSize: 14, color: theme.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 28 }}>
-          O aplicativo requer acesso à localização para registrar ponto e serviços.{'\n'}
-          Habilite o GPS nas configurações do dispositivo e reabra o app.
+          O aplicativo requer localizacao sempre permitida para registrar ponto, servicos e rastreamento em segundo plano.{'\n'}
+          Habilite a localizacao como "Permitir o tempo todo" nas configuracoes e reabra o app.
         </Text>
         <TouchableOpacity
           style={{ backgroundColor: theme.accent, borderRadius: 12, padding: 14, paddingHorizontal: 32 }}
           onPress={() => Linking.openSettings()}
         >
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Abrir Configurações</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Abrir Configuracoes</Text>
         </TouchableOpacity>
       </View>
     );
@@ -141,7 +154,7 @@ function AppContent() {
 
   return (
     <GpsProvider>
-      <ServiceLocationTrackingProvider enabled={user.role === 'employee'}>
+      <ServiceLocationTrackingProvider enabled={user.role === 'employee'} userId={user.id}>
         <View style={{ flex: 1, backgroundColor: theme.bg }}>
           <StatusBar backgroundColor={theme.bg} barStyle={isDark ? 'light-content' : 'dark-content'} />
           {screen === 'dashboard'     && <DashboardScreen     {...sharedProps} />}

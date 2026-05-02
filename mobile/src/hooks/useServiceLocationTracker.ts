@@ -18,10 +18,16 @@ interface TrackingState<T extends TrackableService> {
   service: T | null;
 }
 
+interface TrackingOptions {
+  postUpdates?: boolean;
+}
+
 export function useServiceLocationTracker<T extends TrackableService>(
   services: T[] = [],
+  options: TrackingOptions = {},
 ): TrackingState<T> {
   const { coords } = useGpsContext();
+  const postUpdates = options.postUpdates ?? true;
   const service = useMemo(() => selectTrackedService(services), [services]);
   const [active, setActive] = useState(false);
   const [lastSentAt, setLastSentAt] = useState<string | null>(null);
@@ -136,6 +142,12 @@ export function useServiceLocationTracker<T extends TrackableService>(
       return;
     }
 
+    if (!postUpdates) {
+      setActive(true);
+      setError(null);
+      return;
+    }
+
     if (!coords) {
       setActive(false);
       setError('GPS indisponivel para compartilhamento.');
@@ -144,15 +156,16 @@ export function useServiceLocationTracker<T extends TrackableService>(
 
     setError(null);
     sendLocation();
-  }, [service?.id, coords?.latitude, coords?.longitude, coords?.accuracy, sendLocation]);
+  }, [postUpdates, service?.id, coords?.latitude, coords?.longitude, coords?.accuracy, sendLocation]);
 
   useEffect(() => {
+    if (!postUpdates) return undefined;
     if (!service) return undefined;
     const interval = setInterval(sendLocation, TRACKING_HEARTBEAT_INTERVAL_MS);
     return () => {
       clearInterval(interval);
     };
-  }, [sendLocation, service?.id]);
+  }, [postUpdates, sendLocation, service?.id]);
 
   return { active, lastSentAt, error, service };
 }
