@@ -3,7 +3,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Modal, ScrollView, Alert, ActivityIndicator,
-  RefreshControl, TextInput, Image,
+  RefreshControl, TextInput, Image, AppState, AppStateStatus,
 } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import api from '../services/api';
@@ -131,15 +131,39 @@ export default function ServicesScreen({
     if (detail?.status === 'in_progress' && detail.started_at) {
       const unlock = new Date(detail.started_at).getTime() + 5 * 60 * 1000;
       if (Date.now() < unlock) {
-        timerRef.current = setInterval(() => {
+        const tick = () => {
+          setNow(Date.now());
           const remaining = unlock - Date.now();
           if (remaining <= 0) {
             clearInterval(timerRef.current!);
             timerRef.current = null;
           }
-          setNow(Date.now());
-        }, 1000);
-        return () => { if (timerRef.current) clearInterval(timerRef.current); };
+        };
+        timerRef.current = setInterval(tick, 1000);
+
+        const onAppStateChange = (state: AppStateStatus) => {
+          if (state === 'active') {
+            // Recalculate immediately when returning to foreground
+            setNow(Date.now());
+            // Restart interval if timer still running
+            if (Date.now() < unlock) {
+              if (timerRef.current) clearInterval(timerRef.current);
+              timerRef.current = setInterval(tick, 1000);
+            } else {
+              if (timerRef.current) clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
+          } else {
+            if (timerRef.current) clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
+        };
+
+        const sub = AppState.addEventListener('change', onAppStateChange);
+        return () => {
+          if (timerRef.current) clearInterval(timerRef.current);
+          sub.remove();
+        };
       }
     }
   }, [detail?.id, detail?.status, detail?.started_at]);

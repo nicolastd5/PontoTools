@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform, Alert,
+  ActivityIndicator, Platform, Alert, Image,
 } from 'react-native';
 import {
   Camera,
@@ -22,6 +22,7 @@ export default function CameraModal({ visible, onCapture, onCancel, facing: init
   const { hasPermission, requestPermission } = useCameraPermission();
   const [facing, setFacing] = useState<'front' | 'back'>(initialFacing);
   const [capturing, setCapturing] = useState(false);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
   const cameraRef = useRef<Camera>(null);
   const device = useCameraDevice(facing);
 
@@ -29,6 +30,7 @@ export default function CameraModal({ visible, onCapture, onCancel, facing: init
     if (!visible) return;
     setFacing(initialFacing);
     setCapturing(false);
+    setPreviewUri(null);
   }, [initialFacing, visible]);
 
   const handleRequestPermission = useCallback(async () => {
@@ -50,13 +52,24 @@ export default function CameraModal({ visible, onCapture, onCancel, facing: init
       });
       const rawPath = photo.path.startsWith('file://') ? photo.path : `file://${photo.path}`;
       const uri = Platform.OS === 'android' ? rawPath : photo.path;
-      onCapture(uri);
+      setPreviewUri(uri);
     } catch (err: any) {
       Alert.alert('Erro ao capturar foto', err?.message || 'Tente novamente.');
     } finally {
       setCapturing(false);
     }
-  }, [capturing, onCapture]);
+  }, [capturing]);
+
+  const confirmPhoto = useCallback(() => {
+    if (previewUri) {
+      onCapture(previewUri);
+      setPreviewUri(null);
+    }
+  }, [previewUri, onCapture]);
+
+  const retakePhoto = useCallback(() => {
+    setPreviewUri(null);
+  }, []);
 
   if (!visible) return null;
 
@@ -91,13 +104,30 @@ export default function CameraModal({ visible, onCapture, onCancel, facing: init
     );
   }
 
+  // Photo preview screen
+  if (previewUri) {
+    return (
+      <View style={styles.overlay}>
+        <Image source={{ uri: previewUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <View style={styles.previewActions}>
+          <TouchableOpacity style={[styles.previewBtn, { backgroundColor: 'rgba(0,0,0,0.7)' }]} onPress={retakePhoto}>
+            <Text style={styles.previewBtnText}>↩ Tirar novamente</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.previewBtn, { backgroundColor: theme.accent }]} onPress={confirmPhoto}>
+            <Text style={styles.previewBtnText}>✓ Usar foto</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.overlay}>
       <Camera
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
-        isActive={visible}
+        isActive={visible && !previewUri}
         photo
       />
 
@@ -132,14 +162,17 @@ export default function CameraModal({ visible, onCapture, onCancel, facing: init
 }
 
 const styles = StyleSheet.create({
-  overlay:      { ...StyleSheet.absoluteFillObject, zIndex: 999, backgroundColor: '#000' },
-  closeBtn:     { position: 'absolute', top: 48, left: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  switchBtn:    { position: 'absolute', top: 48, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  switchBtnText:{ color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  captureRow:   { position: 'absolute', bottom: 60, left: 0, right: 0, alignItems: 'center' },
-  captureBtn:   { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 3, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  captureInner: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff' },
-  btn:          { borderRadius: 10, padding: 14, paddingHorizontal: 32, alignItems: 'center' },
-  btnText:      { color: '#fff', fontWeight: '700', fontSize: 15 },
+  overlay:        { ...StyleSheet.absoluteFillObject, zIndex: 999, backgroundColor: '#000' },
+  closeBtn:       { position: 'absolute', top: 48, left: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  closeBtnText:   { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  switchBtn:      { position: 'absolute', top: 48, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  switchBtnText:  { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  captureRow:     { position: 'absolute', bottom: 60, left: 0, right: 0, alignItems: 'center' },
+  captureBtn:     { width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 3, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  captureInner:   { width: 52, height: 52, borderRadius: 26, backgroundColor: '#fff' },
+  btn:            { borderRadius: 10, padding: 14, paddingHorizontal: 32, alignItems: 'center' },
+  btnText:        { color: '#fff', fontWeight: '700', fontSize: 15 },
+  previewActions: { position: 'absolute', bottom: 48, left: 20, right: 20, flexDirection: 'row', gap: 12 },
+  previewBtn:     { flex: 1, borderRadius: 12, padding: 16, alignItems: 'center' },
+  previewBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

@@ -28,12 +28,12 @@ class BackgroundLocationTrackingModule(
       val refreshToken = config.getString("refreshToken") ?: ""
 
       if (serviceId.isBlank() || userId.isBlank() || accessToken.isBlank() || refreshToken.isBlank()) {
-        promise.reject("INVALID_CONFIG", "Configuracao de rastreamento incompleta.")
+        promise.reject("INVALID_CONFIG", "Configuração de rastreamento incompleta.")
         return
       }
 
       if (!hasLocationPermission()) {
-        promise.reject("LOCATION_PERMISSION_MISSING", "Permissao de localizacao em segundo plano ausente.")
+        promise.reject("LOCATION_PERMISSION_MISSING", "Permissão de localização em segundo plano ausente.")
         return
       }
 

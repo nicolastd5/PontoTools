@@ -80,7 +80,7 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
     try {
       startForegroundNotification()
     } catch (error: Exception) {
-      Log.w(TAG, "Nao foi possivel iniciar o servico de rastreamento em foreground.", error)
+      Log.w(TAG, "Não foi possível iniciar o serviço de rastreamento em foreground.", error)
       stopSelf()
       return START_NOT_STICKY
     }
@@ -129,19 +129,24 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val channel = NotificationChannel(
         channelId,
-        "Rastreamento de servico",
-        NotificationManager.IMPORTANCE_LOW,
-      )
+        "Rastreamento de serviço",
+        NotificationManager.IMPORTANCE_MIN,
+      ).apply {
+        setShowBadge(false)
+        lockscreenVisibility = Notification.VISIBILITY_SECRET
+      }
       val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
       manager.createNotificationChannel(channel)
     }
 
     val notification: Notification = NotificationCompat.Builder(this, channelId)
-      .setContentTitle("PontoTools")
-      .setContentText("Rastreamento ativo enquanto houver servico pendente ou em andamento.")
+      .setContentTitle("Gerenciador de Serviços")
+      .setContentText("Rastreamento de localização ativo.")
       .setSmallIcon(R.mipmap.ic_launcher)
       .setOngoing(true)
-      .setPriority(NotificationCompat.PRIORITY_LOW)
+      .setPriority(NotificationCompat.PRIORITY_MIN)
+      .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+      .setSilent(true)
       .build()
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -168,7 +173,7 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
       primeLastKnownLocation(LocationManager.GPS_PROVIDER)
       primeLastKnownLocation(LocationManager.NETWORK_PROVIDER)
     } catch (error: SecurityException) {
-      Log.w(TAG, "Permissao de localizacao ausente.", error)
+      Log.w(TAG, "Permissão de localização ausente.", error)
       stopSelf()
       return
     }
@@ -354,7 +359,7 @@ class BackgroundLocationTrackingService : Service(), LocationListener {
       val text = stream?.bufferedReader()?.use { it.readText() }
       Pair(status, text)
     } catch (error: Exception) {
-      Log.w(TAG, "Falha na requisicao de rastreamento.", error)
+      Log.w(TAG, "Falha na requisição de rastreamento.", error)
       Pair(0, null)
     } finally {
       connection.disconnect()

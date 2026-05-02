@@ -5,28 +5,28 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- G: large arc counterclockwise from "2 o'clock" to "4 o'clock", opening right -->
+    <!-- G: arc centered around (42, 54), radius 13 -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="10"
+        android:strokeWidth="7"
         android:strokeLineCap="round"
-        android:pathData="M41,45 A19,19 0 1 0 41,63"/>
+        android:pathData="M29,47 A13,13 0 1 0 29,61"/>
 
-    <!-- G crossbar at mid-height -->
+    <!-- G crossbar -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="10"
+        android:strokeWidth="7"
         android:strokeLineCap="round"
-        android:pathData="M25,54 L41,54"/>
+        android:pathData="M29,54 L42,54"/>
 
-    <!-- S: top arch + diagonal + bottom arch via smooth cubic beziers -->
+    <!-- S: top arch + diagonal + bottom arch, right half (57–79) -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="10"
+        android:strokeWidth="7"
         android:strokeLineCap="round"
-        android:pathData="M91,40 C91,27 61,27 61,40 S91,54 91,68 S61,81 61,68"/>
+        android:pathData="M79,44 C79,35 57,35 57,44 S79,54 79,64 S57,73 57,64"/>
 
 </vector>
