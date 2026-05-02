@@ -335,14 +335,7 @@ export default function EmployeeServicesPage() {
                 <span style={{ fontSize: 15, fontWeight: 700, color: theme.textPrimary, flex: 1, marginRight: 12 }}>
                   #{idx + 1} {sv.title}
                 </span>
-                <span style={{
-                  fontSize: 11, fontWeight: 700, borderRadius: 10,
-                  padding: '3px 10px', whiteSpace: 'nowrap',
-                  background: statusBg(sv.status, theme),
-                  color: statusColor(sv.status, theme),
-                }}>
-                  {STATUS_LABEL[sv.status]}
-                </span>
+                <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />
               </div>
               {sv.description && (
                 <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 6, marginTop: 0 }}>
@@ -372,14 +365,7 @@ export default function EmployeeServicesPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
               <div style={{ flex: 1, marginRight: 12 }}>
                 <h2 style={{ fontSize: 17, fontWeight: 800, color: theme.textPrimary, margin: '0 0 8px' }}>{detail.title}</h2>
-                <span style={{
-                  fontSize: 12, fontWeight: 700, borderRadius: 10,
-                  padding: '3px 10px', display: 'inline-block',
-                  background: statusBg(detail.status, theme),
-                  color: statusColor(detail.status, theme),
-                }}>
-                  {STATUS_LABEL[detail.status]}
-                </span>
+                <ServiceStatusBadge status={detail.status} label={STATUS_LABEL[detail.status]} />
               </div>
               <button onClick={() => setDetail(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: theme.textMuted, lineHeight: 1 }}>✕</button>
             </div>

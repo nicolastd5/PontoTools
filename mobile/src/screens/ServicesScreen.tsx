@@ -9,11 +9,11 @@ import Geolocation from '@react-native-community/geolocation';
 import api from '../services/api';
 import TabBar from '../components/TabBar';
 import CameraModal from '../components/CameraModal';
+import StatusBadge from '../components/StatusBadge';
 import { useTheme } from '../contexts/ThemeContext';
 import { useServiceLocationTracking } from '../contexts/ServiceLocationTrackingContext';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useReverseGeocode } from '../hooks/useReverseGeocode';
-import type { Theme } from '../theme';
 
 type Screen = 'dashboard' | 'history' | 'services' | 'notifications' | 'profile';
 
@@ -47,27 +47,6 @@ const STATUS_LABEL: Record<string, string> = {
   problem:          'Problema',
 };
 
-function statusColor(status: string, theme: Theme): string {
-  switch (status) {
-    case 'pending':          return theme.warning;
-    case 'in_progress':      return theme.primary;
-    case 'done':             return theme.success;
-    case 'done_with_issues': return '#ea580c';
-    case 'problem':          return theme.danger;
-    default:                 return theme.textMuted;
-  }
-}
-
-function statusBg(status: string, theme: Theme): string {
-  switch (status) {
-    case 'pending':          return theme.warning + '20';
-    case 'in_progress':      return theme.primary + '20';
-    case 'done':             return theme.success + '20';
-    case 'done_with_issues': return '#ea580c20';
-    case 'problem':          return theme.danger + '20';
-    default:                 return theme.elevated;
-  }
-}
 
 function fmtDate(dateStr: string) {
   const [y, m, d] = dateStr.split('-');
@@ -449,11 +428,7 @@ export default function ServicesScreen({
               <Text style={[styles.cardTitle, { color: theme.textPrimary }]} numberOfLines={1}>
                 #{index + 1} {item.title}
               </Text>
-              <View style={[styles.badge, { backgroundColor: statusBg(item.status, theme) }]}>
-                <Text style={[styles.badgeText, { color: statusColor(item.status, theme) }]}>
-                  {STATUS_LABEL[item.status]}
-                </Text>
-              </View>
+              <StatusBadge status={item.status} label={STATUS_LABEL[item.status]} />
             </View>
             {item.description ? (
               <Text style={[styles.cardDesc, { color: theme.textSecondary }]} numberOfLines={2}>
@@ -499,10 +474,8 @@ export default function ServicesScreen({
                   </TouchableOpacity>
                 </View>
 
-                <View style={{ alignSelf: 'flex-start', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 12, backgroundColor: statusBg(detail.status, theme) }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: statusColor(detail.status, theme) }}>
-                    {STATUS_LABEL[detail.status]}
-                  </Text>
+                <View style={{ marginBottom: 12 }}>
+                  <StatusBadge status={detail.status} label={STATUS_LABEL[detail.status]} />
                 </View>
 
                 <View style={{ flexDirection: 'row', gap: 16, marginBottom: 14 }}>
