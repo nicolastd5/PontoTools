@@ -466,31 +466,24 @@ async function exportServicesPdf(req, res, next) {
     doc.pipe(res);
 
     try {
-      // Cabeçalho com logo
+      // Cabeçalho: logo no canto superior esquerdo, título abaixo
       const fmtQueryDate = (s) => { const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
       const logoExists = fs.existsSync(LOGO_PATH);
-      const LOGO_W = 120;
-      const LOGO_H = 48;
-      const headerTopY = 40;
 
       if (logoExists) {
-        doc.image(LOGO_PATH, 40, headerTopY, { width: LOGO_W, height: LOGO_H });
+        doc.image(LOGO_PATH, 40, 40, { width: 130, height: 52 });
+        doc.y = 40 + 52 + 10;
       }
 
-      // Título e período centralizados verticalmente no espaço do logo
-      const titleX = logoExists ? 40 + LOGO_W + 10 : 40;
-      const titleWidth = 555 - titleX;
-      const titleY = headerTopY + 2;
-      doc.fontSize(14).font('Helvetica-Bold').fillColor('#0f172a')
-         .text('RELATÓRIO DE ORDENS DE SERVIÇO', titleX, titleY, { width: titleWidth, align: logoExists ? 'left' : 'center' });
-      doc.fontSize(10).font('Helvetica').fillColor('#374151')
-         .text(`Período: ${fmtQueryDate(startDate)} a ${fmtQueryDate(endDate)}`, titleX, doc.y + 2, { width: titleWidth, align: logoExists ? 'left' : 'center' });
+      doc.fontSize(16).font('Helvetica-Bold').fillColor('#0f172a')
+         .text('RELATÓRIO DE ORDENS DE SERVIÇO', 40, doc.y, { width: 515, align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(11).font('Helvetica').fillColor('#374151')
+         .text(`Período: ${fmtQueryDate(startDate)} a ${fmtQueryDate(endDate)}`, { align: 'center' });
+      doc.moveDown(0.2);
       doc.fontSize(9).fillColor('#64748b')
-         .text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, titleX, doc.y + 1, { width: titleWidth, align: logoExists ? 'left' : 'center' });
-
-      // Move para abaixo do bloco logo/título (o maior dos dois)
-      const afterHeader = Math.max(headerTopY + LOGO_H, doc.y) + 12;
-      doc.y = afterHeader;
+         .text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, { align: 'center' });
+      doc.moveDown(0.8);
       doc.fillColor('#000');
       doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
       doc.moveDown(0.8);
@@ -880,43 +873,33 @@ async function exportServicesDocx(req, res, next) {
     const logoExists = fs.existsSync(LOGO_PATH);
     const logoBuffer = logoExists ? fs.readFileSync(LOGO_PATH) : null;
 
-    const headerTextChildren = [
-      new TextRun({ text: 'RELATÓRIO DE ORDENS DE SERVIÇO', bold: true, size: 28, color: '0f172a' }),
-      new TextRun({ break: 1, text: `Período: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')}`, size: 22, color: '444444' }),
-      new TextRun({ break: 1, text: `Gerado em: ${new Date().toLocaleString('pt-BR')}`, size: 18, color: '888888' }),
-    ];
-
+    // Logo acima do título (empilhado)
     if (logoBuffer) {
-      // Tabela de cabeçalho: logo à esquerda, títulos à direita
-      const headerTable = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                width: { size: 22, type: WidthType.PERCENTAGE },
-                borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
-                children: [new Paragraph({
-                  children: [new ImageRun({ data: logoBuffer, transformation: { width: 130, height: 52 }, type: 'png' })],
-                  alignment: AlignmentType.LEFT,
-                })],
-              }),
-              new TableCell({
-                width: { size: 78, type: WidthType.PERCENTAGE },
-                borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
-                children: [new Paragraph({ children: headerTextChildren, alignment: AlignmentType.LEFT, spacing: { before: 60 } })],
-              }),
-            ],
-          }),
-        ],
-      });
-      children.push(headerTable, new Paragraph({ text: '' }));
-    } else {
-      children.push(
-        new Paragraph({ children: headerTextChildren, alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: '' }),
-      );
+      children.push(new Paragraph({
+        children: [new ImageRun({ data: logoBuffer, transformation: { width: 140, height: 56 }, type: 'png' })],
+        alignment: AlignmentType.LEFT,
+        spacing: { after: 120 },
+      }));
     }
+
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: 'RELATÓRIO DE ORDENS DE SERVIÇO', bold: true, size: 28, color: '0f172a' })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 60 },
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: `Período: ${startDate.split('-').reverse().join('/')} a ${endDate.split('-').reverse().join('/')}`, size: 22, color: '444444' })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 40 },
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: `Gerado em: ${new Date().toLocaleString('pt-BR')}`, size: 18, color: '888888' })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 160 },
+      }),
+      new Paragraph({ text: '' }),
+    );
 
     for (const svc of result.rows) {
       const photos      = photosByService[svc.id] || [];
