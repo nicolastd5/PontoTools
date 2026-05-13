@@ -472,7 +472,7 @@ async function exportServicesPdf(req, res, next) {
 
       if (logoExists) {
         doc.image(LOGO_PATH, 20, 20, { width: 180, height: 72 });
-        doc.y = 20 + 72 + 8;
+        doc.y = 20 + 72 + 28;
       }
 
       doc.fontSize(16).font('Helvetica-Bold').fillColor('#0f172a')
@@ -878,7 +878,7 @@ async function exportServicesDocx(req, res, next) {
       children.push(new Paragraph({
         children: [new ImageRun({ data: logoBuffer, transformation: { width: 190, height: 76 }, type: 'png' })],
         alignment: AlignmentType.LEFT,
-        spacing: { before: 0, after: 140 },
+        spacing: { before: 0, after: 280 },
       }));
     }
 
