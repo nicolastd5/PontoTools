@@ -471,8 +471,8 @@ async function exportServicesPdf(req, res, next) {
       const logoExists = fs.existsSync(LOGO_PATH);
 
       if (logoExists) {
-        doc.image(LOGO_PATH, 40, 40, { width: 130, height: 52 });
-        doc.y = 40 + 52 + 10;
+        doc.image(LOGO_PATH, 20, 20, { width: 180, height: 72 });
+        doc.y = 20 + 72 + 8;
       }
 
       doc.fontSize(16).font('Helvetica-Bold').fillColor('#0f172a')
@@ -876,9 +876,9 @@ async function exportServicesDocx(req, res, next) {
     // Logo acima do título (empilhado)
     if (logoBuffer) {
       children.push(new Paragraph({
-        children: [new ImageRun({ data: logoBuffer, transformation: { width: 140, height: 56 }, type: 'png' })],
+        children: [new ImageRun({ data: logoBuffer, transformation: { width: 190, height: 76 }, type: 'png' })],
         alignment: AlignmentType.LEFT,
-        spacing: { after: 120 },
+        spacing: { before: 0, after: 140 },
       }));
     }
 
