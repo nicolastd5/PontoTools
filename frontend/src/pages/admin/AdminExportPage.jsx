@@ -22,13 +22,15 @@ const STEPS_SVC = [
 ];
 
 function PdfProgressModal({ visible }) {
-  const [stepIdx, setStepIdx] = useState(0);
-  const [dots, setDots]       = useState('');
-  const timerRef = useRef(null);
-  const dotsRef  = useRef(null);
+  const [stepIdx, setStepIdx]       = useState(0);
+  const [dots, setDots]             = useState('');
+  const [finalPct, setFinalPct]     = useState(0);
+  const timerRef    = useRef(null);
+  const dotsRef     = useRef(null);
+  const finalRef    = useRef(null);
 
   useEffect(() => {
-    if (!visible) { setStepIdx(0); setDots(''); return; }
+    if (!visible) { setStepIdx(0); setDots(''); setFinalPct(0); return; }
 
     let idx = 0;
     function advance() {
@@ -40,10 +42,27 @@ function PdfProgressModal({ visible }) {
 
     dotsRef.current = setInterval(() => setDots((d) => d.length >= 3 ? '' : d + '.'), 500);
 
-    return () => { clearTimeout(timerRef.current); clearInterval(dotsRef.current); };
+    // Na etapa final cresce de 0% a 95% em ~60s, desacelerando conforme se aproxima do limite
+    setFinalPct(0);
+    const FINAL_STEP_MS = 800;
+    finalRef.current = setInterval(() => {
+      setFinalPct((prev) => {
+        if (prev >= 95) return prev;
+        // incremento diminui à medida que se aproxima de 95
+        const inc = Math.max(0.3, (95 - prev) * 0.025);
+        return Math.min(95, prev + inc);
+      });
+    }, FINAL_STEP_MS);
+
+    return () => { clearTimeout(timerRef.current); clearInterval(dotsRef.current); clearInterval(finalRef.current); };
   }, [visible]);
 
   if (!visible) return null;
+
+  const isFinalStep = stepIdx === STEPS_SVC.length - 1;
+  const barPct = isFinalStep
+    ? finalPct
+    : Math.round(((stepIdx + 1) / STEPS_SVC.length) * 100);
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -68,13 +87,15 @@ function PdfProgressModal({ visible }) {
             height: '100%',
             background: '#7c3aed',
             borderRadius: 99,
-            width: `${Math.round(((stepIdx + 1) / STEPS_SVC.length) * 100)}%`,
-            transition: 'width 0.6s ease',
+            width: `${Math.round(barPct)}%`,
+            transition: isFinalStep ? 'width 0.8s ease-out' : 'width 0.6s ease',
           }} />
         </div>
 
         <p style={{ marginTop: 10, fontSize: 11, color: 'var(--color-muted)' }}>
-          Etapa {stepIdx + 1} de {STEPS_SVC.length}
+          {isFinalStep
+            ? `${Math.round(barPct)}% — aguardando resposta do servidor...`
+            : `Etapa ${stepIdx + 1} de ${STEPS_SVC.length}`}
         </p>
       </div>
     </div>
