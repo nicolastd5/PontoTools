@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -21,6 +21,16 @@ const ICON_TRASH   = 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1
 const ICON_CHECK   = 'M20 6 9 17l-5-5';
 const ICON_CHEVRON_LEFT  = 'M15 18l-6-6 6-6';
 const ICON_CHEVRON_RIGHT = 'M9 6l6 6-6 6';
+const ICON_SEARCH  = 'M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z';
+const ICON_FILTER  = 'M22 3H2l8 9.46V19l4 2v-8.54z';
+
+const STATUS_COLOR = {
+  pending:          '#f59e0b',
+  in_progress:      '#3b82f6',
+  done:             '#10b981',
+  done_with_issues: '#f97316',
+  problem:          '#ef4444',
+};
 
 const CLOCK_LABELS = {
   entry: 'Entrada', exit: 'Saída',
@@ -63,6 +73,13 @@ export default function AdminPhotosPage() {
   const [svcLightbox, setSvcLightbox]     = useState(null);
   const [svcDeleting, setSvcDeleting]     = useState(null);
   const [svcDeletingId, setSvcDeletingId] = useState(null);
+
+  // Service gallery filters
+  const [svcSearch, setSvcSearch]         = useState('');
+  const [svcStatusFilter, setSvcStatusFilter] = useState('');
+  const [svcPhaseFilter, setSvcPhaseFilter]   = useState('');
+  const [svcEmployee, setSvcEmployee]         = useState('');
+  const [showSvcFilters, setShowSvcFilters]   = useState(false);
 
   const { data: svcData, isLoading: svcLoading } = useQuery({
     queryKey: ['admin-services-gallery'],
@@ -231,6 +248,29 @@ export default function AdminPhotosPage() {
   const total = lb ? lb.photoList.length : 0;
   const allSelected = records.length > 0 && selected.size === records.length;
 
+  const svcAll = svcData || [];
+
+  const svcEmployeeOptions = useMemo(() => {
+    const names = [...new Set(svcAll.map((s) => s.employee_name).filter(Boolean))].sort();
+    return names;
+  }, [svcAll]);
+
+  const svcFiltered = useMemo(() => {
+    return svcAll.filter((sv) => {
+      if (svcSearch && !sv.title.toLowerCase().includes(svcSearch.toLowerCase())) return false;
+      if (svcStatusFilter && sv.status !== svcStatusFilter) return false;
+      if (svcEmployee && sv.employee_name !== svcEmployee) return false;
+      if (svcPhaseFilter) {
+        const full   = svcDetails[sv.id];
+        const photos = full?.photos || [];
+        if (!photos.some((p) => p.phase === svcPhaseFilter)) return false;
+      }
+      return true;
+    });
+  }, [svcAll, svcSearch, svcStatusFilter, svcEmployee, svcPhaseFilter, svcDetails]);
+
+  const activeSvcFilterCount = [svcSearch, svcStatusFilter, svcEmployee, svcPhaseFilter].filter(Boolean).length;
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
@@ -266,60 +306,164 @@ export default function AdminPhotosPage() {
       {/* ── Services tab ── */}
       {tab === 'services' && (
         <div>
-          {svcLoading ? <p style={{ color: 'var(--color-muted)', padding: 24 }}>Carregando...</p>
-          : !svcData?.length ? <p style={{ color: 'var(--color-muted)', padding: 24 }}>Nenhum serviço encontrado.</p>
-          : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {svcData.map((sv) => {
-                loadSvcDetail(sv.id);
-                const full   = svcDetails[sv.id];
-                const photos = full?.photos || [];
-                return (
-                  <div key={sv.id} style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--color-line)', padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: photos.length ? 12 : 0, gap: 8 }}>
-                      <div>
-                        <span style={{ fontWeight: 700, color: 'var(--color-ink)', fontSize: 14 }}>{sv.title}</span>
-                        <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--color-muted)' }}>
-                          {sv.employee_name} · {fmtDate(sv.scheduled_date)} · {STATUS_LABEL[sv.status]}
-                        </span>
-                      </div>
-                      <button onClick={() => deleteSvcService(sv)} disabled={svcDeletingId === sv.id}
-                        style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12, color: 'var(--color-danger)', cursor: 'pointer', fontWeight: 600, opacity: svcDeletingId === sv.id ? 0.6 : 1 }}>
-                        <Icon d={ICON_TRASH} size={13} color="var(--color-danger)" />
-                        {svcDeletingId === sv.id ? 'Apagando...' : 'Apagar serviço'}
-                      </button>
+          {svcLoading ? <p style={{ color: 'var(--color-muted)', padding: 24 }}>Carregando...</p> : (
+            <>
+              {/* Filter bar */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: showSvcFilters ? 10 : 0, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 180, position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                      <Icon d={ICON_SEARCH} size={14} color="var(--color-muted)" />
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Buscar serviço..."
+                      value={svcSearch}
+                      onChange={(e) => setSvcSearch(e.target.value)}
+                      style={{ ...selectStyle, width: '100%', boxSizing: 'border-box', paddingLeft: 30 }}
+                    />
+                  </div>
+                  <button
+                    onClick={() => setShowSvcFilters((v) => !v)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      border: '1.5px solid var(--color-line)',
+                      background: activeSvcFilterCount > 0 ? 'var(--color-primary)' : 'var(--bg-card)',
+                      color: activeSvcFilterCount > 0 ? '#fff' : 'var(--color-ink)',
+                    }}
+                  >
+                    <Icon d={ICON_FILTER} size={13} color={activeSvcFilterCount > 0 ? '#fff' : 'var(--color-ink)'} />
+                    Filtros
+                    {activeSvcFilterCount > 0 && (
+                      <span style={{ background: 'rgba(255,255,255,0.3)', borderRadius: 10, padding: '1px 6px', fontSize: 11 }}>
+                        {activeSvcFilterCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {showSvcFilters && (
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '12px 14px', background: 'var(--bg-card)', borderRadius: 10, border: '1px solid var(--color-line)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</label>
+                      <select value={svcStatusFilter} onChange={(e) => setSvcStatusFilter(e.target.value)} style={selectStyle}>
+                        <option value="">Todos</option>
+                        {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
                     </div>
-                    {photos.length === 0 && <span style={{ fontSize: 12, color: 'var(--color-subtle)', fontStyle: 'italic' }}>Sem fotos</span>}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {photos.map((photo) => {
-                        const key = `${sv.id}_${photo.id}`;
-                        loadSvcPhoto(photo.id, sv.id);
-                        const src = svcPhotoSrc[key];
-                        return (
-                          <div key={photo.id} style={{ position: 'relative' }}>
-                            <div onClick={() => src && setSvcLightbox(src)}
-                              style={{ width: 88, height: 88, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-line)', background: 'var(--color-hairline)', cursor: src ? 'zoom-in' : 'default' }}>
-                              {src ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-subtle)' }}><Icon d={ICON_CAMERA} size={20} color="var(--color-subtle)" /></div>}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fase da foto</label>
+                      <select value={svcPhaseFilter} onChange={(e) => setSvcPhaseFilter(e.target.value)} style={selectStyle}>
+                        <option value="">Todas</option>
+                        <option value="before">Antes</option>
+                        <option value="after">Depois</option>
+                      </select>
+                    </div>
+                    {svcEmployeeOptions.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 160 }}>
+                        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Funcionário</label>
+                        <select value={svcEmployee} onChange={(e) => setSvcEmployee(e.target.value)} style={selectStyle}>
+                          <option value="">Todos</option>
+                          {svcEmployeeOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {(svcStatusFilter || svcPhaseFilter || svcEmployee) && (
+                      <button
+                        onClick={() => { setSvcStatusFilter(''); setSvcPhaseFilter(''); setSvcEmployee(''); }}
+                        style={{ ...ghostBtn, alignSelf: 'flex-end' }}
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {svcAll.length > 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 8 }}>
+                    {svcFiltered.length === svcAll.length
+                      ? `${svcAll.length} serviço${svcAll.length !== 1 ? 's' : ''}`
+                      : `${svcFiltered.length} de ${svcAll.length} serviço${svcAll.length !== 1 ? 's' : ''}`}
+                  </div>
+                )}
+              </div>
+
+              {svcAll.length === 0 ? (
+                <p style={{ color: 'var(--color-muted)', padding: 24 }}>Nenhum serviço encontrado.</p>
+              ) : svcFiltered.length === 0 ? (
+                <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+                  <p style={{ color: 'var(--color-muted)', marginBottom: 10 }}>Nenhum serviço corresponde aos filtros.</p>
+                  <button
+                    onClick={() => { setSvcSearch(''); setSvcStatusFilter(''); setSvcPhaseFilter(''); setSvcEmployee(''); }}
+                    style={{ fontSize: 13, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    Limpar filtros
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {svcFiltered.map((sv) => {
+                    loadSvcDetail(sv.id);
+                    const full      = svcDetails[sv.id];
+                    const allPhotos = full?.photos || [];
+                    const photos    = svcPhaseFilter ? allPhotos.filter((p) => p.phase === svcPhaseFilter) : allPhotos;
+                    return (
+                      <div key={sv.id} style={{ background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--color-line)', padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: photos.length ? 12 : 6, gap: 8 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+                              <span style={{ fontWeight: 700, color: 'var(--color-ink)', fontSize: 14 }}>{sv.title}</span>
+                              <span style={{
+                                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                                background: `${STATUS_COLOR[sv.status]}18`, color: STATUS_COLOR[sv.status],
+                              }}>
+                                {STATUS_LABEL[sv.status]}
+                              </span>
                             </div>
-                            {src && (
-                              <button onClick={(e) => { e.stopPropagation(); deleteSvcPhoto(photo.id, sv.id); }}
-                                disabled={svcDeleting === photo.id}
-                                style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 20, height: 20, color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {svcDeleting === photo.id ? '…' : '✕'}
-                              </button>
-                            )}
-                            <span style={{ display: 'block', textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--color-subtle)', marginTop: 3 }}>
-                              {photo.phase === 'before' ? 'Antes' : 'Depois'}
+                            <span style={{ fontSize: 12, color: 'var(--color-muted)' }}>
+                              {sv.employee_name} · {fmtDate(sv.scheduled_date)}
                             </span>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                          <button onClick={() => deleteSvcService(sv)} disabled={svcDeletingId === sv.id}
+                            style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 7, fontSize: 12, color: 'var(--color-danger)', cursor: 'pointer', fontWeight: 600, opacity: svcDeletingId === sv.id ? 0.6 : 1 }}>
+                            <Icon d={ICON_TRASH} size={13} color="var(--color-danger)" />
+                            {svcDeletingId === sv.id ? 'Apagando...' : 'Apagar serviço'}
+                          </button>
+                        </div>
+                        {photos.length === 0 && <span style={{ fontSize: 12, color: 'var(--color-subtle)', fontStyle: 'italic' }}>Sem fotos{svcPhaseFilter ? ` (${svcPhaseFilter === 'before' ? 'antes' : 'depois'})` : ''}</span>}
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {photos.map((photo) => {
+                            const key = `${sv.id}_${photo.id}`;
+                            loadSvcPhoto(photo.id, sv.id);
+                            const src = svcPhotoSrc[key];
+                            return (
+                              <div key={photo.id} style={{ position: 'relative' }}>
+                                <div onClick={() => src && setSvcLightbox(src)}
+                                  style={{ width: 88, height: 88, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-line)', background: 'var(--color-hairline)', cursor: src ? 'zoom-in' : 'default' }}>
+                                  {src ? <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}><Icon d={ICON_CAMERA} size={20} color="var(--color-subtle)" /></div>}
+                                </div>
+                                {src && (
+                                  <button onClick={(e) => { e.stopPropagation(); deleteSvcPhoto(photo.id, sv.id); }}
+                                    disabled={svcDeleting === photo.id}
+                                    style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 20, height: 20, color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {svcDeleting === photo.id ? '…' : '✕'}
+                                  </button>
+                                )}
+                                <span style={{ display: 'block', textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--color-subtle)', marginTop: 3 }}>
+                                  {photo.phase === 'before' ? 'Antes' : 'Depois'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
 
           {svcLightbox && (
