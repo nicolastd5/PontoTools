@@ -69,7 +69,7 @@ export default function EmployeeServicesPage() {
   const [detail, setDetail]           = useState(null);
   const [photoSrc, setPhotoSrc]       = useState({});
   const [cameraPhase, setCameraPhase] = useState(null);
-  const [tab, setTab]                 = useState('active');
+  const [tab, setTab]                 = useState('pending');
   const [problemModal, setProblemModal]   = useState(false);
   const [problemText, setProblemText]     = useState('');
   const [issuesModal, setIssuesModal]     = useState(false);
@@ -279,38 +279,68 @@ export default function EmployeeServicesPage() {
         </div>
       ) : null}
 
-      {/* Tabs Ativos × Histórico */}
-      <div style={{
-        display: 'flex', gap: 4, padding: 4, marginBottom: 12,
-        background: theme.elevated, borderRadius: 10, border: `1px solid ${theme.border}`,
-      }}>
-        {[
-          { key: 'active',  label: 'Ativos'    },
-          { key: 'history', label: 'Histórico' },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none',
-              fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              background: tab === t.key ? theme.accent  : 'transparent',
-              color:      tab === t.key ? '#fff'        : theme.textSecondary,
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Tabs Pendentes × Em andamento × Histórico */}
+      {(() => {
+        const pendingCount    = services.filter((s) => s.status === 'pending').length;
+        const inProgressCount = services.filter((s) => s.status === 'in_progress').length;
+        const tabs = [
+          { key: 'pending',     label: 'Pendentes',    count: pendingCount    },
+          { key: 'in_progress', label: 'Em andamento', count: inProgressCount },
+          { key: 'history',     label: 'Histórico',    count: null            },
+        ];
+        return (
+          <div style={{
+            display: 'flex', gap: 4, padding: 4, marginBottom: 12,
+            background: theme.elevated, borderRadius: 10, border: `1px solid ${theme.border}`,
+          }}>
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                style={{
+                  flex: 1, padding: '8px 6px', borderRadius: 8, border: 'none',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  background: tab === t.key ? theme.accent : 'transparent',
+                  color:      tab === t.key ? '#fff'       : theme.textSecondary,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                }}
+              >
+                <span>{t.label}</span>
+                {t.count != null && t.count > 0 && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 800,
+                    background: tab === t.key ? 'rgba(255,255,255,0.25)' : theme.accent + '33',
+                    color: tab === t.key ? '#fff' : theme.accent,
+                    borderRadius: 10, padding: '1px 6px', lineHeight: 1.5,
+                  }}>
+                    {t.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {(() => {
-        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const cutoff       = Date.now() - 7 * 24 * 60 * 60 * 1000;
         const closedStatus = ['done', 'done_with_issues', 'problem'];
-        const filtered = tab === 'active'
-          ? services.filter((s) => !closedStatus.includes(s.status))
-          : services
-              .filter((s) => closedStatus.includes(s.status) && s.finished_at && new Date(s.finished_at).getTime() >= cutoff)
-              .sort((a, b) => new Date(b.finished_at).getTime() - new Date(a.finished_at).getTime());
+
+        const filtered =
+          tab === 'pending'
+            ? services.filter((s) => s.status === 'pending')
+            : tab === 'in_progress'
+              ? services.filter((s) => s.status === 'in_progress')
+              : services
+                  .filter((s) => closedStatus.includes(s.status) && s.finished_at && new Date(s.finished_at).getTime() >= cutoff)
+                  .sort((a, b) => new Date(b.finished_at).getTime() - new Date(a.finished_at).getTime());
+
+        const emptyEmoji   = tab === 'pending' ? '📋' : tab === 'in_progress' ? '⚙️' : '🗂️';
+        const emptyMessage = tab === 'pending'
+          ? 'Nenhum serviço pendente.'
+          : tab === 'in_progress'
+            ? 'Nenhum serviço em andamento.'
+            : 'Nenhum serviço concluído nos últimos 7 dias.';
 
         if (isLoading) {
           return <p style={{ color: theme.textMuted, padding: 24 }}>Carregando...</p>;
@@ -318,39 +348,35 @@ export default function EmployeeServicesPage() {
         if (filtered.length === 0) {
           return (
             <div style={{ background: theme.surface, borderRadius: 12, border: `1px solid ${theme.border}`, padding: '48px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>{tab === 'active' ? '✅' : '🗂️'}</div>
-              <p style={{ color: theme.textMuted }}>
-                {tab === 'active'
-                  ? 'Nenhum serviço atribuído a você.'
-                  : 'Nenhum serviço concluído nos últimos 7 dias.'}
-              </p>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>{emptyEmoji}</div>
+              <p style={{ color: theme.textMuted }}>{emptyMessage}</p>
             </div>
           );
         }
         return (
           <div>
             {filtered.map((sv, idx) => (
-            <div key={sv.id} style={card} onClick={() => openDetail(sv)}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: theme.textPrimary, flex: 1, marginRight: 12 }}>
-                  #{idx + 1} {sv.title}
-                </span>
-                <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />
-              </div>
-              {sv.description && (
-                <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 6, marginTop: 0 }}>
-                  {sv.description.slice(0, 80)}{sv.description.length > 80 ? '…' : ''}
-                </p>
-              )}
-              <div style={{ display: 'flex', gap: 16, fontSize: 12, color: theme.textMuted, flexWrap: 'wrap' }}>
-                <span>📅 {fmtDate(sv.scheduled_date)}</span>
-                {sv.due_time && <span>⏰ até {sv.due_time.slice(0, 5)}</span>}
-                {tab === 'history' && sv.finished_at && (
-                  <span>✔ {new Date(sv.finished_at).toLocaleDateString('pt-BR')}</span>
+              <div key={sv.id} style={card} onClick={() => openDetail(sv)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: theme.textPrimary, flex: 1, marginRight: 12 }}>
+                    #{idx + 1} {sv.title}
+                  </span>
+                  <ServiceStatusBadge status={sv.status} label={STATUS_LABEL[sv.status]} />
+                </div>
+                {sv.description && (
+                  <p style={{ fontSize: 13, color: theme.textSecondary, marginBottom: 6, marginTop: 0 }}>
+                    {sv.description.slice(0, 80)}{sv.description.length > 80 ? '…' : ''}
+                  </p>
                 )}
+                <div style={{ display: 'flex', gap: 16, fontSize: 12, color: theme.textMuted, flexWrap: 'wrap' }}>
+                  <span>📅 {fmtDate(sv.scheduled_date)}</span>
+                  {sv.due_time && <span>⏰ até {sv.due_time.slice(0, 5)}</span>}
+                  {tab === 'history' && sv.finished_at && (
+                    <span>✔ {new Date(sv.finished_at).toLocaleDateString('pt-BR')}</span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
           </div>
         );
       })()}
