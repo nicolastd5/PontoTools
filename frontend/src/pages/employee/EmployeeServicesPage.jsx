@@ -119,6 +119,9 @@ export default function EmployeeServicesPage() {
       setProblemText('');
       setIssuesModal(false);
       setIssuesText('');
+      const newStatus = res.data?.status;
+      if (newStatus === 'in_progress') setTab('in_progress');
+      else if (['done', 'done_with_issues', 'problem'].includes(newStatus)) setTab('history');
     },
     onError: (err) => error(err.response?.data?.error || 'Erro ao atualizar status.'),
   });
@@ -143,9 +146,9 @@ export default function EmployeeServicesPage() {
         const res = await api.get(`/services/${detail.id}`);
         setDetail(res.data);
         setPhotoSrc({});
-        if (phase === 'before') success('Foto enviada. Serviço iniciado.');
-        else if (originalPhase === 'issues') success('Serviço concluído com ressalvas.');
-        else if (phase === 'after') success('Foto enviada. Serviço concluído.');
+        if (phase === 'before') { success('Foto enviada. Serviço iniciado.'); setTab('in_progress'); }
+        else if (originalPhase === 'issues') { success('Serviço concluído com ressalvas.'); setTab('history'); }
+        else if (phase === 'after') { success('Foto enviada. Serviço concluído.'); setTab('history'); }
         else success('Foto enviada.');
       }
       queryClient.invalidateQueries(['my-services']);
