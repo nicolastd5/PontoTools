@@ -10,7 +10,7 @@ const logger  = require('../utils/logger');
 // ----------------------------------------------------------------
 async function list(req, res, next) {
   try {
-    const { status, employeeId } = req.query;
+    const { status, employeeId, employeeName, search, page, limit } = req.query;
     const params  = [];
     const filters = [];
 
@@ -31,31 +31,60 @@ async function list(req, res, next) {
       params.push(parseInt(employeeId, 10));
       filters.push(`so.assigned_employee_id = $${params.length}`);
     }
+    if (employeeName && req.user.role !== 'employee') {
+      params.push(`%${employeeName}%`);
+      filters.push(`e.full_name ILIKE $${params.length}`);
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      filters.push(`(so.title ILIKE $${params.length} OR e.full_name ILIKE $${params.length})`);
+    }
 
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
-    const result = await db.query(
-      `SELECT
-         so.id, so.title, so.description, so.status,
-         to_char(so.scheduled_date, 'YYYY-MM-DD') AS scheduled_date, so.due_time, so.problem_description,
-         so.template_id,
-         so.started_at, so.finished_at,
-         so.unit_id,
-         so.created_at, so.updated_at,
-         e.full_name  AS employee_name,
-         cb.full_name AS created_by_name,
-         u.name       AS unit_name,
-         u.code       AS unit_code
-       FROM service_orders so
-       LEFT JOIN employees e  ON e.id  = so.assigned_employee_id
-       JOIN      employees cb ON cb.id = so.created_by_id
-       JOIN      units u      ON u.id  = so.unit_id
-       ${where}
-       ORDER BY so.scheduled_date ASC, so.created_at DESC`,
-      params
-    );
+    const pageNum  = Math.max(1, parseInt(page, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+    const offset   = (pageNum - 1) * pageSize;
 
-    res.json({ services: result.rows });
+    const [countRes, result] = await Promise.all([
+      db.query(
+        `SELECT COUNT(*) FROM service_orders so
+         LEFT JOIN employees e  ON e.id  = so.assigned_employee_id
+         JOIN      employees cb ON cb.id = so.created_by_id
+         JOIN      units u      ON u.id  = so.unit_id
+         ${where}`,
+        params
+      ),
+      db.query(
+        `SELECT
+           so.id, so.title, so.description, so.status,
+           to_char(so.scheduled_date, 'YYYY-MM-DD') AS scheduled_date, so.due_time, so.problem_description,
+           so.template_id,
+           so.started_at, so.finished_at,
+           so.unit_id,
+           so.created_at, so.updated_at,
+           e.full_name  AS employee_name,
+           cb.full_name AS created_by_name,
+           u.name       AS unit_name,
+           u.code       AS unit_code
+         FROM service_orders so
+         LEFT JOIN employees e  ON e.id  = so.assigned_employee_id
+         JOIN      employees cb ON cb.id = so.created_by_id
+         JOIN      units u      ON u.id  = so.unit_id
+         ${where}
+         ORDER BY so.scheduled_date DESC, so.created_at DESC
+         LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, pageSize, offset]
+      ),
+    ]);
+
+    const total      = parseInt(countRes.rows[0].count, 10);
+    const totalPages = Math.ceil(total / pageSize);
+
+    res.json({
+      services:   result.rows,
+      pagination: { page: pageNum, limit: pageSize, total, totalPages },
+    });
   } catch (err) {
     next(err);
   }

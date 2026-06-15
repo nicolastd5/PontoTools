@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatInTimeZone } from 'date-fns-tz';
 
@@ -80,11 +80,22 @@ export default function AdminPhotosPage() {
   const [svcPhaseFilter, setSvcPhaseFilter]   = useState('');
   const [svcEmployee, setSvcEmployee]         = useState('');
   const [showSvcFilters, setShowSvcFilters]   = useState(false);
+  const [svcPage, setSvcPage]                 = useState(1);
+  const SVC_LIMIT = 20;
+
+  const svcQueryParams = {
+    page:   svcPage,
+    limit:  SVC_LIMIT,
+    ...(svcSearch       ? { search:     svcSearch }       : {}),
+    ...(svcStatusFilter ? { status:     svcStatusFilter }  : {}),
+    ...(svcEmployee     ? { employeeName: svcEmployee }    : {}),
+  };
 
   const { data: svcData, isLoading: svcLoading } = useQuery({
-    queryKey: ['admin-services-gallery'],
-    queryFn:  () => api.get('/services').then((r) => r.data.services),
+    queryKey: ['admin-services-gallery', svcQueryParams],
+    queryFn:  () => api.get('/services', { params: svcQueryParams }).then((r) => r.data),
     enabled:  tab === 'services',
+    keepPreviousData: true,
   });
 
   async function loadSvcDetail(id) {
@@ -248,28 +259,23 @@ export default function AdminPhotosPage() {
   const total = lb ? lb.photoList.length : 0;
   const allSelected = records.length > 0 && selected.size === records.length;
 
-  const svcAll = svcData || [];
+  const svcAll        = svcData?.services || [];
+  const svcPagination = svcData?.pagination || null;
 
-  const svcEmployeeOptions = useMemo(() => {
-    const names = [...new Set(svcAll.map((s) => s.employee_name).filter(Boolean))].sort();
-    return names;
-  }, [svcAll]);
-
-  const svcFiltered = useMemo(() => {
-    return svcAll.filter((sv) => {
-      if (svcSearch && !sv.title.toLowerCase().includes(svcSearch.toLowerCase())) return false;
-      if (svcStatusFilter && sv.status !== svcStatusFilter) return false;
-      if (svcEmployee && sv.employee_name !== svcEmployee) return false;
-      if (svcPhaseFilter) {
+  const svcFiltered = svcPhaseFilter
+    ? svcAll.filter((sv) => {
         const full   = svcDetails[sv.id];
         const photos = full?.photos || [];
-        if (!photos.some((p) => p.phase === svcPhaseFilter)) return false;
-      }
-      return true;
-    });
-  }, [svcAll, svcSearch, svcStatusFilter, svcEmployee, svcPhaseFilter, svcDetails]);
+        return photos.some((p) => p.phase === svcPhaseFilter);
+      })
+    : svcAll;
 
   const activeSvcFilterCount = [svcSearch, svcStatusFilter, svcEmployee, svcPhaseFilter].filter(Boolean).length;
+
+  function resetSvcFilters() {
+    setSvcSearch(''); setSvcStatusFilter(''); setSvcPhaseFilter(''); setSvcEmployee(''); setSvcPage(1);
+  }
+  function updateSvcFilter(setter) { return (val) => { setter(val); setSvcPage(1); }; }
 
   return (
     <div>
@@ -317,9 +323,9 @@ export default function AdminPhotosPage() {
                     </span>
                     <input
                       type="text"
-                      placeholder="Buscar serviço..."
+                      placeholder="Buscar serviço ou funcionário..."
                       value={svcSearch}
-                      onChange={(e) => setSvcSearch(e.target.value)}
+                      onChange={(e) => updateSvcFilter(setSvcSearch)(e.target.value)}
                       style={{ ...selectStyle, width: '100%', boxSizing: 'border-box', paddingLeft: 30 }}
                     />
                   </div>
@@ -347,31 +353,32 @@ export default function AdminPhotosPage() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '12px 14px', background: 'var(--bg-card)', borderRadius: 10, border: '1px solid var(--color-line)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</label>
-                      <select value={svcStatusFilter} onChange={(e) => setSvcStatusFilter(e.target.value)} style={selectStyle}>
+                      <select value={svcStatusFilter} onChange={(e) => updateSvcFilter(setSvcStatusFilter)(e.target.value)} style={selectStyle}>
                         <option value="">Todos</option>
                         {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fase da foto</label>
-                      <select value={svcPhaseFilter} onChange={(e) => setSvcPhaseFilter(e.target.value)} style={selectStyle}>
+                      <select value={svcPhaseFilter} onChange={(e) => updateSvcFilter(setSvcPhaseFilter)(e.target.value)} style={selectStyle}>
                         <option value="">Todas</option>
                         <option value="before">Antes</option>
                         <option value="after">Depois</option>
                       </select>
                     </div>
-                    {svcEmployeeOptions.length > 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 160 }}>
-                        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Funcionário</label>
-                        <select value={svcEmployee} onChange={(e) => setSvcEmployee(e.target.value)} style={selectStyle}>
-                          <option value="">Todos</option>
-                          {svcEmployeeOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-                        </select>
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 160 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Funcionário (nome)</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: João Silva"
+                        value={svcEmployee}
+                        onChange={(e) => updateSvcFilter(setSvcEmployee)(e.target.value)}
+                        style={selectStyle}
+                      />
+                    </div>
                     {(svcStatusFilter || svcPhaseFilter || svcEmployee) && (
                       <button
-                        onClick={() => { setSvcStatusFilter(''); setSvcPhaseFilter(''); setSvcEmployee(''); }}
+                        onClick={() => { setSvcStatusFilter(''); setSvcPhaseFilter(''); setSvcEmployee(''); setSvcPage(1); }}
                         style={{ ...ghostBtn, alignSelf: 'flex-end' }}
                       >
                         Limpar
@@ -380,28 +387,28 @@ export default function AdminPhotosPage() {
                   </div>
                 )}
 
-                {svcAll.length > 0 && (
+                {svcPagination && (
                   <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 8 }}>
-                    {svcFiltered.length === svcAll.length
-                      ? `${svcAll.length} serviço${svcAll.length !== 1 ? 's' : ''}`
-                      : `${svcFiltered.length} de ${svcAll.length} serviço${svcAll.length !== 1 ? 's' : ''}`}
+                    {svcPagination.total} serviço{svcPagination.total !== 1 ? 's' : ''}
+                    {svcPagination.totalPages > 1 && ` · página ${svcPagination.page} de ${svcPagination.totalPages}`}
                   </div>
                 )}
               </div>
 
               {svcAll.length === 0 ? (
-                <p style={{ color: 'var(--color-muted)', padding: 24 }}>Nenhum serviço encontrado.</p>
-              ) : svcFiltered.length === 0 ? (
-                <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--color-muted)', marginBottom: 10 }}>Nenhum serviço corresponde aos filtros.</p>
-                  <button
-                    onClick={() => { setSvcSearch(''); setSvcStatusFilter(''); setSvcPhaseFilter(''); setSvcEmployee(''); }}
-                    style={{ fontSize: 13, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    Limpar filtros
-                  </button>
-                </div>
+                activeSvcFilterCount > 0
+                  ? (
+                    <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+                      <p style={{ color: 'var(--color-muted)', marginBottom: 10 }}>Nenhum serviço corresponde aos filtros.</p>
+                      <button onClick={resetSvcFilters} style={{ fontSize: 13, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                        Limpar filtros
+                      </button>
+                    </div>
+                  ) : (
+                    <p style={{ color: 'var(--color-muted)', padding: 24 }}>Nenhum serviço encontrado.</p>
+                  )
               ) : (
+                <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {svcFiltered.map((sv) => {
                     loadSvcDetail(sv.id);
@@ -462,6 +469,20 @@ export default function AdminPhotosPage() {
                     );
                   })}
                 </div>
+                {svcPagination && svcPagination.totalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, padding: '20px 0 4px' }}>
+                    <button onClick={() => setSvcPage((p) => Math.max(1, p - 1))} disabled={svcPage === 1} style={pageBtn}>
+                      <Icon d={ICON_CHEVRON_LEFT} size={16} color="var(--color-muted)" />
+                    </button>
+                    <span style={{ fontSize: 13, color: 'var(--color-muted)', fontFamily: 'var(--font-mono)' }}>
+                      {svcPage} / {svcPagination.totalPages}
+                    </span>
+                    <button onClick={() => setSvcPage((p) => Math.min(svcPagination.totalPages, p + 1))} disabled={svcPage === svcPagination.totalPages} style={pageBtn}>
+                      <Icon d={ICON_CHEVRON_RIGHT} size={16} color="var(--color-muted)" />
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </>
           )}
